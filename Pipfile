@@ -9,9 +9,11 @@ openpyxl = "*"
 pyyaml = "*"
 anthropic = "*"
 python-dotenv = "*"
+ipywidgets = "*"
 
 [dev-packages]
 ipykernel = "*"
+nbconvert = "*"
 
 [requires]
 python_version = "3.14"
