@@ -1,0 +1,149 @@
+[
+  {
+    "order_id": "A1001",
+    "date": "2026-08-01",
+    "type": "label_created",
+    "carrier": "UPS",
+    "tracking": "1Z-A1001",
+    "location": "Warehouse 3"
+  },
+  {
+    "order_id": "A1001",
+    "date": "2026-08-02",
+    "type": "in_transit",
+    "carrier": "UPS",
+    "tracking": "1Z-A1001",
+    "location": "Regional hub"
+  },
+  {
+    "order_id": "A1001",
+    "date": "2026-08-04",
+    "type": "delivered",
+    "carrier": "UPS",
+    "tracking": "1Z-A1001",
+    "location": "Front door"
+  },
+  {
+    "order_id": "A1002",
+    "date": "2026-07-18",
+    "type": "label_created",
+    "carrier": "DHL",
+    "tracking": "DH-A1002",
+    "location": "Warehouse 1"
+  },
+  {
+    "order_id": "A1002",
+    "date": "2026-07-19",
+    "type": "in_transit",
+    "carrier": "DHL",
+    "tracking": "DH-A1002",
+    "location": "Regional hub"
+  },
+  {
+    "order_id": "A1002",
+    "date": "2026-07-20",
+    "type": "in_transit",
+    "carrier": "DHL",
+    "tracking": "DH-A1002",
+    "location": "Sorting centre",
+    "note": "no carrier scan recorded after this point"
+  },
+  {
+    "order_id": "A1004",
+    "date": "2026-06-30",
+    "type": "label_created",
+    "carrier": "UPS",
+    "tracking": "1Z-A1004",
+    "location": "Warehouse 3"
+  },
+  {
+    "order_id": "A1004",
+    "date": "2026-07-02",
+    "type": "delivered",
+    "carrier": "UPS",
+    "tracking": "1Z-A1004",
+    "location": "Reception"
+  },
+  {
+    "order_id": "A1006",
+    "date": "2026-07-20",
+    "type": "label_created",
+    "carrier": "DHL",
+    "tracking": "DH-A1006",
+    "location": "Warehouse 1"
+  },
+  {
+    "order_id": "A1006",
+    "date": "2026-07-21",
+    "type": "in_transit",
+    "carrier": "DHL",
+    "tracking": "DH-A1006",
+    "location": "Regional hub"
+  },
+  {
+    "order_id": "A1006",
+    "date": "2026-07-23",
+    "type": "exception",
+    "carrier": "DHL",
+    "tracking": "DH-A1006",
+    "location": "Regional hub",
+    "note": "parcel damaged in handling"
+  },
+  {
+    "order_id": "A1006",
+    "date": "2026-07-25",
+    "type": "returned_to_sender",
+    "carrier": "DHL",
+    "tracking": "DH-A1006",
+    "location": "Warehouse 1",
+    "note": "never reached the customer"
+  },
+  {
+    "order_id": "A1007",
+    "date": "2026-06-15",
+    "type": "label_created",
+    "carrier": "UPS",
+    "tracking": "1Z-A1007",
+    "location": "Warehouse 2"
+  },
+  {
+    "order_id": "A1007",
+    "date": "2026-06-18",
+    "type": "delivered",
+    "carrier": "UPS",
+    "tracking": "1Z-A1007",
+    "location": "Neighbour"
+  },
+  {
+    "order_id": "A1009",
+    "date": "2026-07-28",
+    "type": "label_created",
+    "carrier": "UPS",
+    "tracking": "1Z-A1009",
+    "location": "Warehouse 2"
+  },
+  {
+    "order_id": "A1009",
+    "date": "2026-07-30",
+    "type": "delivered",
+    "carrier": "UPS",
+    "tracking": "1Z-A1009",
+    "location": "Front door"
+  },
+  {
+    "order_id": "A1010",
+    "date": "2026-07-22",
+    "type": "label_created",
+    "carrier": "DHL",
+    "tracking": "DH-A1010",
+    "location": "Warehouse 1"
+  },
+  {
+    "order_id": "A1010",
+    "date": "2026-07-25",
+    "type": "in_transit",
+    "carrier": "DHL",
+    "tracking": "DH-A1010",
+    "location": "Out for regional delivery"
+  }
+]

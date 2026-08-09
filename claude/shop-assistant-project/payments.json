@@ -1,0 +1,195 @@
+[
+  {
+    "order_id": "A1001",
+    "date": "2026-08-01",
+    "type": "authorized",
+    "amount": 24.99,
+    "method": "visa ****4242",
+    "reference": "PAY-A1001-01",
+    "card_number": "4242424242424242"
+  },
+  {
+    "order_id": "A1001",
+    "date": "2026-08-01",
+    "type": "captured",
+    "amount": 24.99,
+    "method": "visa ****4242",
+    "reference": "PAY-A1001-02",
+    "card_number": "4242424242424242"
+  },
+  {
+    "order_id": "A1002",
+    "date": "2026-07-18",
+    "type": "authorized",
+    "amount": 89.5,
+    "method": "visa ****1881",
+    "reference": "PAY-A1002-01",
+    "card_number": "4111111111111881"
+  },
+  {
+    "order_id": "A1002",
+    "date": "2026-07-18",
+    "type": "captured",
+    "amount": 89.5,
+    "method": "visa ****1881",
+    "reference": "PAY-A1002-02",
+    "card_number": "4111111111111881"
+  },
+  {
+    "order_id": "A1003",
+    "date": "2026-07-25",
+    "type": "authorized",
+    "amount": 34.0,
+    "method": "mastercard ****9002",
+    "reference": "PAY-A1003-01",
+    "card_number": "5555555555559002"
+  },
+  {
+    "order_id": "A1004",
+    "date": "2026-06-30",
+    "type": "authorized",
+    "amount": 219.99,
+    "method": "visa ****4242",
+    "reference": "PAY-A1004-01",
+    "card_number": "4242424242424242"
+  },
+  {
+    "order_id": "A1004",
+    "date": "2026-06-30",
+    "type": "captured",
+    "amount": 219.99,
+    "method": "visa ****4242",
+    "reference": "PAY-A1004-02",
+    "card_number": "4242424242424242"
+  },
+  {
+    "order_id": "A1004",
+    "date": "2026-07-04",
+    "type": "refunded",
+    "amount": 20.0,
+    "method": "visa ****4242",
+    "reference": "PAY-A1004-03",
+    "note": "goodwill credit for late delivery, partial",
+    "card_number": "4242424242424242"
+  },
+  {
+    "order_id": "A1005",
+    "date": "2026-07-01",
+    "type": "authorized",
+    "amount": 29.99,
+    "method": "visa ****7311",
+    "reference": "PAY-A1005-01",
+    "card_number": "4012888888887311"
+  },
+  {
+    "order_id": "A1005",
+    "date": "2026-07-01",
+    "type": "captured",
+    "amount": 29.99,
+    "method": "visa ****7311",
+    "reference": "PAY-A1005-02",
+    "note": "captured before the cancellation was processed",
+    "card_number": "4012888888887311"
+  },
+  {
+    "order_id": "A1006",
+    "date": "2026-07-20",
+    "type": "authorized",
+    "amount": 149.0,
+    "method": "amex ****0005",
+    "reference": "PAY-A1006-01",
+    "card_number": "378282246310005"
+  },
+  {
+    "order_id": "A1006",
+    "date": "2026-07-20",
+    "type": "captured",
+    "amount": 149.0,
+    "method": "amex ****0005",
+    "reference": "PAY-A1006-02",
+    "card_number": "378282246310005"
+  },
+  {
+    "order_id": "A1006",
+    "date": "2026-07-21",
+    "type": "captured",
+    "amount": 149.0,
+    "method": "amex ****0005",
+    "reference": "PAY-A1006-03",
+    "note": "retry of a capture that had already succeeded",
+    "card_number": "378282246310005"
+  },
+  {
+    "order_id": "A1007",
+    "date": "2026-06-15",
+    "type": "authorized",
+    "amount": 45.0,
+    "method": "visa ****4242",
+    "reference": "PAY-A1007-01",
+    "card_number": "4242424242424242"
+  },
+  {
+    "order_id": "A1007",
+    "date": "2026-06-15",
+    "type": "captured",
+    "amount": 45.0,
+    "method": "visa ****4242",
+    "reference": "PAY-A1007-02",
+    "card_number": "4242424242424242"
+  },
+  {
+    "order_id": "A1008",
+    "date": "2026-07-27",
+    "type": "authorized",
+    "amount": 19.99,
+    "method": "mastercard ****9002",
+    "reference": "PAY-A1008-01",
+    "card_number": "5555555555559002"
+  },
+  {
+    "order_id": "A1009",
+    "date": "2026-07-28",
+    "type": "authorized",
+    "amount": 99.99,
+    "method": "visa ****3310",
+    "reference": "PAY-A1009-01",
+    "card_number": "4000056655663310"
+  },
+  {
+    "order_id": "A1009",
+    "date": "2026-07-28",
+    "type": "captured",
+    "amount": 99.99,
+    "method": "visa ****3310",
+    "reference": "PAY-A1009-02",
+    "card_number": "4000056655663310"
+  },
+  {
+    "order_id": "A1009",
+    "date": "2026-08-05",
+    "type": "chargeback_opened",
+    "amount": 99.99,
+    "method": "visa ****3310",
+    "reference": "PAY-A1009-03",
+    "note": "customer's bank opened a dispute; funds held",
+    "card_number": "4000056655663310"
+  },
+  {
+    "order_id": "A1010",
+    "date": "2026-07-22",
+    "type": "authorized",
+    "amount": 259.0,
+    "method": "visa ****4242",
+    "reference": "PAY-A1010-01",
+    "card_number": "4242424242424242"
+  },
+  {
+    "order_id": "A1010",
+    "date": "2026-07-22",
+    "type": "captured",
+    "amount": 259.0,
+    "method": "visa ****4242",
+    "reference": "PAY-A1010-02",
+    "card_number": "4242424242424242"
+  }
+]

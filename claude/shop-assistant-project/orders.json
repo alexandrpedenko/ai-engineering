@@ -1,5 +1,5 @@
 [
-  {"order_id": "A1001", "item": "Wireless Mouse", "status": "delivered", "order_date": "2026-07-10", "total": 24.99},
+  {"order_id": "A1001", "item": "Wireless Mouse", "status": "delivered", "order_date": "2026-08-01", "total": 24.99},
   {"order_id": "A1002", "item": "Mechanical Keyboard", "status": "shipped", "order_date": "2026-07-18", "total": 89.50},
   {"order_id": "A1003", "item": "USB-C Hub", "status": "processing", "order_date": "2026-07-25", "total": 34.00},
   {"order_id": "A1004", "item": "27in Monitor", "status": "delivered", "order_date": "2026-06-30", "total": 219.99},
@@ -7,6 +7,6 @@
   {"order_id": "A1006", "item": "Noise Cancelling Headphones", "status": "shipped", "order_date": "2026-07-20", "total": 149.00},
   {"order_id": "A1007", "item": "Webcam 1080p", "status": "delivered", "order_date": "2026-06-15", "total": 45.00},
   {"order_id": "A1008", "item": "Desk Lamp", "status": "processing", "order_date": "2026-07-27", "total": 19.99},
-  {"order_id": "A1009", "item": "External SSD 1TB", "status": "delivered", "order_date": "2026-07-05", "total": 99.99},
+  {"order_id": "A1009", "item": "External SSD 1TB", "status": "delivered", "order_date": "2026-07-28", "total": 99.99},
   {"order_id": "A1010", "item": "Ergonomic Chair", "status": "shipped", "order_date": "2026-07-22", "total": 259.00}
 ]
