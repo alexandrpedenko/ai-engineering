@@ -21,8 +21,10 @@ ARXIV_CATEGORIES = ["cs.CL", "cs.LG", "cs.AI", "cs.IR"]
 ARXIV_SINCE = "2023-01-01"
 ARXIV_TARGET_COUNT = 2000
 
-# OpenAI, throughout. Confirm these ids are still current before notebook 3.
+# OpenAI, throughout. Confirm these ids (and the price below) are still current before notebook 3.
 EMBEDDING_MODEL = "text-embedding-3-small"
+EMBEDDING_ENCODING = "cl100k_base"
+EMBEDDING_PRICE_PER_1M_TOKENS = 0.02  # USD, as of this project's writing
 QUERY_UNDERSTANDING_MODEL = "gpt-5-mini"
 RERANK_MODEL = "gpt-5-mini"
 FEEDBACK_MODEL = "gpt-5-mini"

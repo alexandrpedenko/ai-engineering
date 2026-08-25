@@ -10,6 +10,7 @@ pyyaml = "*"
 anthropic = "*"
 python-dotenv = "*"
 ipywidgets = "*"
+tiktoken = "*"
 
 [dev-packages]
 ipykernel = "*"

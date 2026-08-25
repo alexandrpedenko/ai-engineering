@@ -7,14 +7,24 @@ through `load()` and assumes exactly these fields.
 from __future__ import annotations
 
 import json
+import re
 import time
 import xml.etree.ElementTree as ET
 from dataclasses import asdict, dataclass
 from pathlib import Path
+from typing import Literal
 
 import requests
+import tiktoken
 
-from .config import ARXIV_CATEGORIES, ARXIV_SINCE, ARXIV_TARGET_COUNT, PAPERS_FILE
+from .config import (
+    ARXIV_CATEGORIES,
+    ARXIV_SINCE,
+    ARXIV_TARGET_COUNT,
+    EMBEDDING_ENCODING,
+    EMBEDDING_PRICE_PER_1M_TOKENS,
+    PAPERS_FILE,
+)
 
 ARXIV_API_URL = "http://export.arxiv.org/api/query"
 NS = {
@@ -127,3 +137,61 @@ def save(papers: list[Paper], path: Path = PAPERS_FILE) -> None:
 def load(path: Path = PAPERS_FILE) -> list[Paper]:
     with path.open() as f:
         return [Paper(**json.loads(line)) for line in f]
+
+
+_ENCODING = tiktoken.get_encoding(EMBEDDING_ENCODING)
+
+
+def count_tokens(text: str) -> int:
+    return len(_ENCODING.encode(text))
+
+
+def estimate_embedding_cost(texts: list[str]) -> tuple[int, float]:
+    """Total tokens and USD for embedding these texts, at today's per-token price."""
+    total_tokens = sum(count_tokens(t) for t in texts)
+    return total_tokens, total_tokens / 1_000_000 * EMBEDDING_PRICE_PER_1M_TOKENS
+
+
+_SENTENCE_SPLIT_RE = re.compile(r"(?<=[.!?])\s+")
+
+
+def _split_sentences(text: str) -> list[str]:
+    return [s for s in _SENTENCE_SPLIT_RE.split(text.strip()) if s]
+
+
+@dataclass
+class Chunk:
+    chunk_id: str
+    paper_id: str
+    text: str       # the unit that gets embedded
+    context: str     # the unit that gets shown/returned — equal to `text` unless small-to-big
+
+
+ChunkStrategy = Literal["whole", "window", "small_to_big"]
+
+
+def chunk(papers: list[Paper], strategy: ChunkStrategy, window_size: int = 2, overlap: int = 1) -> list[Chunk]:
+    """Split each paper's abstract into embeddable units, per `strategy`.
+
+    - "whole": one chunk, the full abstract.
+    - "window": fixed sentence windows (`window_size` sentences, `overlap` shared
+      between consecutive windows) — narrower units, but nothing points back to
+      the abstract they came from.
+    - "small_to_big": the same windows as above, except each chunk's `context`
+      is the full abstract — embed narrow, return wide.
+    """
+    chunks: list[Chunk] = []
+    stride = window_size - overlap
+    for paper in papers:
+        if strategy == "whole":
+            chunks.append(Chunk(f"{paper.id}:0", paper.id, paper.abstract, paper.abstract))
+            continue
+
+        sentences = _split_sentences(paper.abstract)
+        starts = range(0, max(len(sentences) - window_size, 0) + 1, stride) if sentences else [0]
+        for i, start in enumerate(starts):
+            window_text = " ".join(sentences[start : start + window_size]) or paper.abstract
+            context = paper.abstract if strategy == "small_to_big" else window_text
+            chunks.append(Chunk(f"{paper.id}:{i}", paper.id, window_text, context))
+
+    return chunks
