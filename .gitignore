@@ -35,4 +35,8 @@ Thumbs.db
 # CSVs and datasets
 # *.csv
 
+# read-next: derived/rebuildable index and per-session state
+openai/read-next-project/data/index/
+openai/read-next-project/data/sessions/
+
 # Other
