@@ -11,6 +11,8 @@ anthropic = "*"
 python-dotenv = "*"
 ipywidgets = "*"
 tiktoken = "*"
+openai = "*"
+numpy = "*"
 
 [dev-packages]
 ipykernel = "*"

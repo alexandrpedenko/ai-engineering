@@ -25,6 +25,11 @@ ARXIV_TARGET_COUNT = 2000
 EMBEDDING_MODEL = "text-embedding-3-small"
 EMBEDDING_ENCODING = "cl100k_base"
 EMBEDDING_PRICE_PER_1M_TOKENS = 0.02  # USD, as of this project's writing
+EMBEDDING_BATCH_SIZE = 100
+
+# notebook 2: embeddings
+EMBEDDING_CACHE_DIR = INDEX_DIR / "embedding_cache"
+COST_LOG_FILE = INDEX_DIR / "cost_log.jsonl"
 QUERY_UNDERSTANDING_MODEL = "gpt-5-mini"
 RERANK_MODEL = "gpt-5-mini"
 FEEDBACK_MODEL = "gpt-5-mini"
