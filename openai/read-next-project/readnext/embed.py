@@ -38,19 +38,23 @@ def get_client() -> OpenAI:
     return _client
 
 
-def _cache_key(text: str, model: str) -> str:
-    return hashlib.sha256(f"{model}:{text}".encode()).hexdigest()
+def _cache_key(text: str, model: str, dimensions: int | None = None) -> str:
+    # Unchanged format when dimensions is unset, so the existing full-dimension
+    # cache stays valid — only a reduced-dimension call gets a distinct key.
+    suffix = f":{dimensions}" if dimensions is not None else ""
+    return hashlib.sha256(f"{model}{suffix}:{text}".encode()).hexdigest()
 
 
 def _cache_path(key: str, cache_dir: Path) -> Path:
     return cache_dir / f"{key}.npy"
 
 
-def _log_cost(model: str, num_texts: int, num_cached: int, tokens: int) -> None:
+def _log_cost(model: str, num_texts: int, num_cached: int, tokens: int, dimensions: int | None = None) -> None:
     COST_LOG_FILE.parent.mkdir(parents=True, exist_ok=True)
     record = {
         "timestamp": datetime.now(timezone.utc).isoformat(),
         "model": model,
+        "dimensions": dimensions,
         "texts_requested": num_texts,
         "texts_cached": num_cached,
         "texts_embedded": num_texts - num_cached,
@@ -66,14 +70,18 @@ def embed_texts(
     model: str = EMBEDDING_MODEL,
     cache_dir: Path = EMBEDDING_CACHE_DIR,
     batch_size: int = EMBEDDING_BATCH_SIZE,
+    dimensions: int | None = None,
 ) -> np.ndarray:
     """Embed each text, in order, using the on-disk cache where possible.
+
+    `dimensions` asks the endpoint for a shorter vector natively (an ablation
+    in notebook 3) instead of truncating a full-length one after the fact.
 
     Returns a `(len(texts), dim)` float32 matrix. Only texts missing from the
     cache trigger an API call; those calls are batched and logged.
     """
     cache_dir.mkdir(parents=True, exist_ok=True)
-    keys = [_cache_key(t, model) for t in texts]
+    keys = [_cache_key(t, model, dimensions) for t in texts]
     vectors: list[np.ndarray | None] = [None] * len(texts)
 
     to_fetch: list[int] = []
@@ -89,7 +97,10 @@ def embed_texts(
     for start in range(0, len(to_fetch), batch_size):
         batch_idx = to_fetch[start : start + batch_size]
         batch_texts = [texts[i] for i in batch_idx]
-        response = client.embeddings.create(input=batch_texts, model=model)
+        kwargs = {"input": batch_texts, "model": model}
+        if dimensions is not None:
+            kwargs["dimensions"] = dimensions
+        response = client.embeddings.create(**kwargs)
         tokens_billed += response.usage.total_tokens
         for idx, item in zip(batch_idx, response.data):
             vector = np.array(item.embedding, dtype=np.float32)
@@ -97,7 +108,7 @@ def embed_texts(
             np.save(_cache_path(keys[idx], cache_dir), vector)
 
     if to_fetch:
-        _log_cost(model, len(texts), len(texts) - len(to_fetch), tokens_billed)
+        _log_cost(model, len(texts), len(texts) - len(to_fetch), tokens_billed, dimensions)
 
     return np.stack(vectors)
 
