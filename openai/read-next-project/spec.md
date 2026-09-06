@@ -1,81 +1,177 @@
 # read-next — spec
 
-A paper recommender built on a full RAG stack. It asks what you want to learn
-today, returns a ranked list of arXiv papers with a grounded reason for each,
-and then **learns from what you click** — every 👍, 👎 or "reading it" moves the
+A paper recommender built on a full RAG stack. You ask what you want to learn
+today, it returns a ranked list of arXiv papers with a grounded reason for each,
+and it **learns from what you click** — every 👍, 👎 or "reading it" moves a
 taste vector and re-ranks the list in place.
 
-Two things make it not a chat bot. The LLM's job in the loop is *parsing
-preference*, not conversing; and the deliverable is one function and one number:
-
 ```python
-recommend(profile, query, k=10) -> list[Recommendation]
+session = Session(user="olek")
+session.ask("papers on fine-tuning")     # 5 cards, each with buttons
+session.feedback("2305.14314", "like")   # the list re-ranks, in place
 ```
 
+This file is the architecture: what is true across every book. The per-book
+plans live in `specs/`, and the decisions they rest on live in `adr/`. When a
+book spec and this file disagree, **this file is right and the book spec is
+stale**; anything a book discovers that changes a contract gets promoted up here
+in the same commit.
+
+## The books
+
+| | book | status | spec |
+| --- | --- | --- | --- |
+| 1 | the corpus — fetch, freeze a record shape, decide what a chunk is | built | [specs/1-corpus.md](specs/1-corpus.md) |
+| 2 | embeddings — batching, an on-disk cache, cosine by hand, negation | built | [specs/2-embeddings.md](specs/2-embeddings.md) |
+| 3 | the vector store — brute force behind a protocol, `search()` | built | [specs/3-vector-store.md](specs/3-vector-store.md) |
+| 4 | **the app** — cards, buttons, taste vector, seen-set, event log | next | [specs/4-the-app.md](specs/4-the-app.md) |
+| 5 | measuring the loop — click metrics, replay, interleaving, Rocchio | | [specs/5-measuring-the-loop.md](specs/5-measuring-the-loop.md) |
+| 6 | the LLM front door — structured query, scope guard, free-text refine | | [specs/6-llm-front-door.md](specs/6-llm-front-door.md) |
+| 7 | hybrid search — BM25, RRF, weighted fusion | | [specs/7-hybrid-search.md](specs/7-hybrid-search.md) |
+| 8 | rerank, diversify, explain — listwise, MMR, grounded `why` | | [specs/8-rerank-diversify-explain.md](specs/8-rerank-diversify-explain.md) |
+| 9 | evaluate everything — the whole table, simulated personas | | [specs/9-evaluate-everything.md](specs/9-evaluate-everything.md) |
+
+## The decisions
+
+Accepted, and binding until an ADR supersedes them.
+
+| | decision |
+| --- | --- |
+| [0001](adr/0001-openai-as-sole-provider.md) | OpenAI as the sole provider |
+| [0002](adr/0002-fixed-committed-arxiv-corpus.md) | A small, fixed, committed arXiv corpus |
+| [0003](adr/0003-small-to-big-chunking.md) | small-to-big chunking |
+| [0004](adr/0004-brute-force-store-behind-a-protocol.md) | Brute-force search behind a `VectorStore` protocol |
+| [0005](adr/0005-evaluation-from-the-interaction-log.md) | **Evaluation comes from the interaction log, never from hand labels** |
+| [0006](adr/0006-build-order-app-first.md) | **Build order: application, then measurement, then techniques** |
+| [0007](adr/0007-retrieval-and-personalisation-are-two-stages.md) | Retrieval and personalisation are two stages |
+| [0008](adr/0008-per-user-personalisation-only.md) | Per-user personalisation only, no cross-user logic |
+| [0009](adr/0009-llm-returns-typed-objects.md) | The LLM returns typed objects, never prose for its own sake |
+| [0010](adr/0010-llm-as-judge-limited-to-faithfulness.md) | LLM-as-judge is limited to faithfulness |
+| [0011](adr/0011-one-pipeline-config.md) | One `PipelineConfig`, one code path |
+| [0012](adr/0012-simulated-personas-optional-and-segregated.md) | Simulated personas are optional and never mix with real events |
+
+## The shape of the application
+
+Two stages, kept separate in the code and in the metrics (ADR-0007):
+
 ```
-$ pipenv run python -m readnext.eval --config all
-config                      recall@20   MRR@10   nDCG@10   $/query   ms/query
-dense-only                       0.61     0.42      0.38     0.0001         90
-+ bm25 (rrf)                     0.74     0.51      0.47     0.0001        110
-+ metadata filters               0.74     0.58      0.53     0.0009        400
-+ llm rerank                     0.74     0.71      0.68     0.0043       1900
-+ mmr diversity                  0.74     0.69      0.70     0.0043       1950
-+ feedback, turn 3               0.74     0.83      0.79     0.0043       1950
+query: "fine tuning"
+      │
+      ▼
+ 1. RETRIEVE — relevance        embeddings, BM25, filters
+    same for every user         → ~40 candidate papers
+      │
+      ▼
+ 2. RE-RANK — preference        blend with this user's taste vector
+    different per user          → 5 papers, this user's order
+      │
+      ▼
+ 5 cards, each with 👍 📖 👎
 ```
 
-Every notebook adds one row to that table, or explains why the row didn't move.
-That is the whole point of the project: **each RAG technique gets measured, not
-assumed.**
+Stage 1 is a correctness question — is this paper about fine-tuning at all —
+improved by books 6–8. Stage 2 is a preference question — did *you* want it —
+answered only by clicks. They join at one dial:
 
-## Why this shape
+```
+search_vector = α · query_vector  +  (1 − α) · taste_vector
+```
 
-Three things fall out of it that a chat interface hides:
+`α = 1` ignores the user; `α = 0` ignores what they typed. Book 5 sweeps it.
 
-- **Retrieval quality is separable from generation quality.** With a fixed
-  golden set you can see a change to chunking move recall@20 without ever
-  calling a generation model.
-- **The LLM appears in exactly three places** — query understanding, reranking,
-  explanation — so you learn what each one is *worth*, in points and in dollars.
-- **Failures are legible.** A bad recommendation is a specific paper that
-  should have been retrieved and wasn't, or was retrieved and ranked 40th.
-- **Interaction is a measurable feature.** Because there's a golden set, "did
-  clicking 👍 make the next turn better?" has a number attached, not a feeling.
+## Where the numbers come from
+
+**Your clicks. Nothing is hand-labelled, ever** (ADR-0005). There is no golden
+set, no judging pass, no file where a developer writes down which papers are
+relevant.
+
+Every search appends one event to `data/events.jsonl`:
+
+```json
+{"session": "s07", "turn": 1, "user": "olek",
+ "query": "efficient inference on device",
+ "resolved_query": {"semantic_text": "...", "published_after": "2024-01-01"},
+ "config": {"use_bm25": false, "...": "..."},
+ "candidates": ["…40 paper ids — the stage-1 pool…"],
+ "shown": ["2401.aaa", "2402.bbb", "2403.ccc", "2404.ddd", "2405.eee"],
+ "signals": {"2402.bbb": "like", "2404.ddd": "dislike"}}
+```
+
+That log is the test set, and it is produced by using the app. Three label-free
+uses:
+
+- **Live metrics** — was anything clicked, and how far down; abandonment.
+- **Replay** — re-rank a logged event's stored `candidates` with a different
+  `PipelineConfig`, and see where the clicked papers land. No human present,
+  repeatable forever.
+- **Interleaving** — two rankers alternate slots in one list; clicks go to
+  whichever ranker owned the slot. Immune to position bias.
+
+Every book from 5 onward adds one row to a table built this way, or explains why
+the row didn't move.
+
+```
+$ pipenv run python -m readnext.eval --replay --config all
+config                    hit@20   MRR@10   nDCG@10   $/query   ms/query
+dense-only                  0.61     0.42      0.38    0.0000         90
++ structured query          0.63     0.51      0.46    0.0006        480
++ bm25 (rrf)                0.74     0.58      0.53    0.0006        510
++ llm rerank                0.74     0.71      0.68    0.0043       1900
++ mmr diversity             0.74     0.69      0.70    0.0043       1950
+```
+
+Read as: *of the papers I clicked, what fraction does this config put in the top
+20, and how high.* The denominator is clicks, not somebody's opinion.
+
+**What the log cannot see:** a paper never shown can never be clicked, so it
+scores ordering honestly and cannot report "there was a better paper you never
+saw". This repairs itself — book 7's BM25 surfaces papers dense search never
+did, and using the app afterwards widens the log's coverage. Coverage grows with
+the system, unlike an answer key frozen on the day it was written.
+
+## Where the LLM appears
+
+Each job measured separately, so you learn what it is *worth* in points and in
+dollars (ADR-0009).
+
+| Job | Book | What it returns |
+| --- | --- | --- |
+| Query understanding | 6 | `StructuredQuery` — semantic text, filters, `in_scope` |
+| Clarifying question | 6 | one question that fills one schema field, or `None` |
+| Feedback parsing | 6 | `ParsedFeedback` — refinement, ids to boost/drop |
+| Listwise rerank | 8 | an ordering over ~40 candidates |
+| Grounded explanation | 8 | `why` + the chunk ids it used |
+| Faithfulness judge (eval only) | 8 | does `why` follow from the cited text? |
+| Simulated user (eval only, optional) | 9 | a persona's clicks, at volume |
+
+Nothing on that list decides whether a paper is relevant to you. That is only
+ever answered by a click.
 
 ## Provider
 
-OpenAI, throughout.
+| Job | Model |
+| --- | --- |
+| Embeddings | `text-embedding-3-small` (1536-dim; 512 ablated in book 3) |
+| Query understanding, feedback parsing, rerank, explanation | `gpt-5-mini` |
+| Faithfulness judge, simulated user (eval only) | `gpt-5` |
 
-| Job | Model | Why |
-| --- | --- | --- |
-| Embeddings | `text-embedding-3-small` | cheap, 1536-dim, good enough; dimension trade-off is an ablation in notebook 3 |
-| Query understanding | `gpt-5-mini` | structured output, called once per query |
-| Reranking | `gpt-5-mini` | listwise over ~40 candidates; the expensive step |
-| Feedback parsing | `gpt-5-mini` | free-text preference → typed `ParsedFeedback` |
-| Explanation | `gpt-5-mini` | structured output with citations |
-| LLM judge (eval only) | `gpt-5` | grading faithfulness needs the stronger model |
-| Simulated user (eval only) | `gpt-5` | plays a persona clicking 👍/👎, to test the loop |
+Ids are pinned in `readnext/config.py` (ADR-0001) — confirm them before book 6.
+Needs `OPENAI_API_KEY` in the repo-root `.env`; the older
+`openai/open-ai-requests.py` uses `OPEN_AI_API` and this project does not follow
+it.
 
-Confirm the exact model ids are still current before notebook 3 — pin them in
-`readnext/config.py` so a rename is a one-line change.
-
-Needs `OPENAI_API_KEY` in the repo-root `.env`. Note the existing
-`openai/open-ai-requests.py` uses `OPEN_AI_API`; this project standardises on
-`OPENAI_API_KEY` (the name the SDK reads by default).
-
-New dependencies: `openai`, `numpy`, `rank-bm25`, `pydantic`, `tiktoken`,
-`sqlite-vec` (from notebook 4). `ipywidgets` is already in the Pipfile — it's
-what makes the notebook 8 UI clickable.
+Dependencies: `openai`, `numpy`, `rank-bm25`, `pydantic`, `tiktoken`.
+`ipywidgets` is already in the Pipfile — it's what makes book 4's cards
+clickable.
 
 ## The corpus
 
-arXiv's public API — no key, no Kaggle download, one script.
+arXiv's public API — no key, one script (ADR-0002). 1,693 papers, `cs.CL` /
+`cs.LG` / `cs.AI` / `cs.IR`, 2023 onward, committed as `data/papers.jsonl`.
+Abstracts only; they are 150–300 words, which is what makes small-to-big
+concrete without a PDF pipeline.
 
-- Categories: `cs.CL`, `cs.LG`, `cs.AI`, `cs.IR`
-- ~2,000 papers, 2023 onward
-- Stored as `data/papers.jsonl`, committed, so the corpus is fixed and results
-  are comparable across runs
-
-Record contract — frozen in notebook 1, everything downstream depends on it:
+Record contract, frozen in book 1 — everything downstream depends on it:
 
 ```json
 {
@@ -91,324 +187,135 @@ Record contract — frozen in notebook 1, everything downstream depends on it:
 }
 ```
 
-Abstracts are short (150–300 words), which is a feature: it makes the
-**small-to-big** distinction concrete (retrieve on a sentence window, present
-the whole abstract) without needing a PDF pipeline.
-
 ## Layout
 
-Mirrors `claude/shop-assistant-project/`: a notebook contains only its own
-subject, and anything an earlier notebook already taught is promoted into the
-package and imported from there.
+A notebook contains only its own subject; anything an earlier book taught is
+promoted into the package and imported from there.
 
 ```
 openai/read-next-project/
-  spec.md                  this file
-  index.md                 written at the end — the per-notebook breakdown
-  1-corpus.ipynb  …  9-eval-and-ablation.ipynb
+  spec.md                  this file — architecture
+  specs/                   one plan per book
+  adr/                     decisions, numbered, superseding not deleting
+  index.md                 written at the end
+  1-corpus.ipynb  …  9-evaluate-everything.ipynb
   data/
     papers.jsonl           the corpus (committed)
-    golden.jsonl           eval set: query + relevant ids (committed)
-    profiles.json          3 seed profiles (committed)
-    personas.json          simulated users for evaluating the loop (committed)
-    sessions/              saved session state (gitignored)
-    index/                 embeddings + sqlite db (gitignored, rebuildable)
+    events.jsonl           every search and click (committed — it's the test set)
+    sim_events.jsonl       simulated personas, book 9 (committed, never merged)
+    personas.json          (committed)
+    profiles/              per-user taste state (gitignored, rebuildable)
+    index/                 embedding cache + cost log (gitignored, rebuildable)
   readnext/
-    __init__.py
-    config.py              model ids, paths, k values, weights
-    corpus.py             load/clean/chunk papers
-    embed.py              batched embeddings + on-disk cache + cost log
-    store.py              VectorStore protocol; NumpyStore, SqliteStore
-    lexical.py            BM25 index
-    search.py             dense / lexical / hybrid, RRF, filters, MMR
-    query.py              structured query understanding
-    rerank.py             LLM listwise reranker
-    explain.py            grounded explanation with citations
-    profile.py            taste vectors, negatives, cold start
-    feedback.py           Rocchio update, seen-set, free-text feedback parsing
-    session.py            Session: state across turns, the interaction loop
-    ui.py                 ipywidgets rendering — cards, buttons, re-render
-    recommend.py          the one public function; assembles a pipeline config
-    metrics.py            recall@k, MRR, nDCG
-    eval.py               harness + ablation table CLI
+    config.py       model ids, paths, PipelineConfig            built
+    corpus.py       load/clean/chunk papers                     built
+    embed.py        batched embeddings, cache, cost log         built
+    store.py        VectorStore protocol; NumpyStore            built
+    search.py       dense now; fusion and filters later         built (dense)
+    events.py       the interaction log                         book 4
+    profile.py      taste vectors, negatives, cold start        book 4
+    recommend.py    the pure ranking function                   book 4
+    session.py      state across turns, the interaction loop    book 4
+    ui.py           ipywidgets cards, buttons, re-render        book 4
+    metrics.py      click metrics, MRR, nDCG, diversity         book 5
+    eval.py         replay + interleaving, ablation CLI         book 5
+    feedback.py     Rocchio, sweeps, exploration slot           book 5
+    query.py        structured query, scope guard, refine       book 6
+    lexical.py      BM25 index                                  book 7
+    rerank.py       LLM listwise reranker                       book 8
+    explain.py      grounded explanation + faithfulness judge   book 8
+    personas.py     simulated users                             book 9
 ```
 
 ## Core contracts
 
-Pin these early; they are what let notebooks 5–9 swap components freely.
+Pinned in book 4, because that is where the product exists. Books 5–9 swap
+components behind them without changing these shapes.
 
 ```python
-class VectorStore(Protocol):
-    def add(self, ids: list[str], vectors: np.ndarray, meta: list[dict]) -> None: ...
-    def search(self, vector: np.ndarray, k: int,
-               where: Filter | None = None) -> list[Hit]: ...
-
-@dataclass
-class Hit:
-    chunk_id: str
-    paper_id: str
-    score: float
-    source: Literal["dense", "bm25", "hybrid"]
-
-@dataclass
-class PipelineConfig:          # one row of the ablation table
-    use_bm25: bool = False
-    use_filters: bool = False
-    use_rerank: bool = False
-    use_mmr: bool = False
-    fusion: Literal["rrf", "weighted"] = "rrf"
-    candidates_k: int = 40
-    final_k: int = 10
+Signal = Literal["like", "dislike", "reading"]
 
 @dataclass
 class Recommendation:
     paper: Paper
     score: float
-    why: str                   # 1–2 sentences, grounded
-    citations: list[str]       # chunk_ids actually used
-
-Signal = Literal["like", "dislike", "reading"]
+    why: str = ""                                        # book 8 fills these
+    citations: list[str] = field(default_factory=list)
 
 @dataclass
-class Session:
-    profile: Profile
+class Profile:
+    user: str
+    liked: list[str] = field(default_factory=list)
+    disliked: list[str] = field(default_factory=list)
+    reading: list[str] = field(default_factory=list)
+
+    def taste_vector(self, ...) -> np.ndarray | None     # None at cold start
+
+@dataclass
+class Event:                   # one row of data/events.jsonl
+    session: str; turn: int; user: str
     query: str
+    resolved_query: dict       # the StructuredQuery, book 6 on
+    config: dict               # which PipelineConfig produced it
+    candidates: list[str]      # the whole stage-1 pool — what replay re-ranks
+    shown: list[str]           # the 5 that reached the screen
+    signals: dict[str, Signal]
+    ts: str
+
+@dataclass
+class PipelineConfig:          # one row of the table (ADR-0011)
+    use_structured_query: bool = False
+    use_bm25: bool = False
+    use_rerank: bool = False
+    use_mmr: bool = False
+    fusion: Literal["rrf", "weighted"] = "rrf"
+    alpha: float = 0.7
+    candidate_chunks: int = 200
+    candidates_k: int = 40
+    final_k: int = 5
+
+@dataclass
+class Session:                 # the only stateful object
+    profile: Profile
     config: PipelineConfig
     turn: int = 0
-    seen: set[str] = field(default_factory=set)      # never show twice
+    seen: set[str] = field(default_factory=set)
     signals: dict[str, Signal] = field(default_factory=dict)
 
-    def next_turn(self) -> list[Recommendation]: ...
-    def feedback(self, paper_id: str, signal: Signal) -> None: ...
-    def refine(self, text: str) -> None:             # free-text → parsed → applied
-        ...
-
-class ParsedFeedback(BaseModel):                     # what gpt-5-mini returns
-    refine_query: str | None = None
-    boost_ids: list[str] = []
-    drop_ids: list[str] = []
-    exclude_terms: list[str] = []
+    def ask(self, text: str) -> list[Recommendation]
+    def feedback(self, paper_id: str, signal: Signal) -> None
+    def refine(self, text: str) -> None                  # book 6
 ```
 
-`Session` is the only stateful object in the project. `recommend()` stays pure —
-it takes a vector and a config and returns a list — so everything through
-notebook 7 remains testable without a session.
-
-`recommend()` takes a `PipelineConfig`. Every ablation is that dataclass with
-one field flipped — no branching code paths to keep in sync.
-
-## The notebooks
-
-Nine, each assuming the previous. Difficulty climbs; nothing after notebook 3
-requires a concept that hasn't been introduced.
-
-### 1-corpus.ipynb — get the data, decide what a chunk is
-
-Fetch from arXiv, normalise into the record contract above, write
-`papers.jsonl`. Then the first real decision: **what unit gets embedded?**
-
-Compare three, by eye first:
-- whole abstract as one chunk
-- fixed 2-sentence windows with 1-sentence overlap
-- **small-to-big** — embed the window, return the whole paper
-
-Also: `tiktoken` token counts, so "2,000 papers" becomes a number of tokens and
-a dollar figure before you spend it.
-
-**Done when:** `readnext.corpus.load()` and `chunk(strategy=...)` exist, and
-you can state in one sentence why you picked the strategy you picked.
-
-### 2-embeddings.ipynb — text becomes vectors
-
-Batched calls to `text-embedding-3-small` (100 texts/request), a **content-hashed
-on-disk cache** so re-running a notebook is free, and a cost log that
-accumulates tokens and dollars per run.
-
-Then the thing that makes vectors stop being magic: compute cosine similarity by
-hand with numpy, find the nearest neighbours of one paper, and read them. Also
-check the failure mode — embed "not about transformers" and see that negation
-does approximately nothing.
-
-**Done when:** the corpus is embedded, the cache turns a re-run into ~0 API
-calls, and you can print the 5 nearest papers to any paper.
-
-### 3-vector-store.ipynb — a searchable index
-
-Brute-force first: `NumpyStore`, one matrix, `argsort` over a dot product. It's
-~2,000 vectors — this is genuinely fast, and it makes the point that you don't
-need a vector database to start.
-
-Then the ablation: **dimension reduction** (`dimensions=512` on the embeddings
-endpoint) — how much recall do you lose, how much speed/space do you gain?
-
-**Done when:** `search("query text", k=10)` returns sensible papers, and
-`VectorStore` is a protocol with one implementation behind it.
-
-### 4-golden-set-and-metrics.ipynb — the number
-
-The pivot point of the project. Before adding any technique, build the thing
-that says whether a technique helped.
-
-- ~25 queries in `golden.jsonl`, written by hand, each with 3–10 relevant
-  paper ids. Bootstrap candidates with the dense index, then **judge them
-  yourself** — a golden set you didn't inspect measures nothing.
-- Implement `recall@k`, `MRR@10`, `nDCG@10` from scratch. They're ten lines each
-  and knowing exactly what they penalise matters more than the code.
-- Record the **dense-only baseline**. Every later notebook is measured against
-  this row.
-
-**Done when:** `python -m readnext.eval --config dense-only` prints a table row,
-and you can explain what a recall@20 of 0.61 means for a user.
-
-### 5-hybrid-search.ipynb — dense isn't enough
-
-Build a BM25 index and immediately find queries where it beats embeddings
-(exact model names, rare acronyms, author surnames) and queries where it loses
-badly (paraphrase, concept-level).
-
-Then fuse: **Reciprocal Rank Fusion** first (no score normalisation needed,
-which is the point), then weighted score fusion for contrast. Sweep the RRF `k`
-constant and the dense/lexical weight against the golden set.
-
-**Done when:** two new rows in the ablation table, and a short written note on
-which query types each retriever owns.
-
-### 6-query-understanding.ipynb — the LLM's first job
-
-"recent work on retrieval evaluation, nothing older than 2024, prefer cs.IR" is
-a filter and a semantic query wearing one coat. Use structured output to split
-them:
+The ranking itself stays pure —
 
 ```python
-class StructuredQuery(BaseModel):
-    semantic_text: str
-    categories: list[str] = []
-    published_after: date | None = None
-    exclude_terms: list[str] = []
+recommend(store, query_vector, profile, config, exclude=frozenset()) -> list[Recommendation]
 ```
 
-Then metadata filtering, and the trap that matters: **pre-filter vs post-filter.**
-Post-filtering silently returns fewer than `k` and biases results toward
-whatever survived; pre-filtering needs the store to support it. Implement
-pre-filter in both stores.
-
-Ablations, if you want them: multi-query expansion and HyDE. Measure both —
-one of them probably won't earn its latency on this corpus, and finding that
-out is the lesson.
-
-**Done when:** filters are applied *before* the search, and the table shows what
-query understanding bought.
-
-### 7-rerank-diversify-explain.ipynb — the top of the funnel
-
-Three things that only touch the final ~40 candidates.
-
-- **Listwise LLM rerank.** Send 40 candidates as a compact list, get back an
-  ordering with scores. This is where MRR and nDCG jump and where the cost
-  jumps too — log both. Compare against a pointwise reranker to see why
-  listwise is usually the better trade.
-- **MMR diversity.** The classic recommender failure is ten near-identical
-  papers. Tune λ and watch nDCG trade against a diversity metric you define.
-- **Grounded explanation.** Structured output producing `why` + `citations`,
-  where citations must be chunk ids that were actually in the prompt. Validate
-  that they are — a citation the model invented is a bug, not a style issue.
-
-**Done when:** `recommend()` returns full `Recommendation` objects and no
-explanation cites a chunk that wasn't retrieved.
-
-### 8-feedback-loop.ipynb — the app becomes interactive
-
-Where the hardcoded profile goes away.
-
-**The taste vector, first.** Mean of the embeddings of papers you've read, minus
-a weighted mean of ones you disliked. Blend with the query vector
-(`α * query + (1-α) * taste`) and sweep α. Check **cold start** too — no
-history, only free-text interests: does the profile help or hurt?
-
-**Then make it learn.** Feedback isn't "append to a list", it's a named IR
-algorithm — **Rocchio relevance feedback**:
-
-```
-q' = α·q  +  β·mean(liked)  −  γ·mean(disliked)
-```
-
-Sweep α/β/γ against the golden set, and watch for the failure that only a loop
-reveals: crank β and results **collapse into a bubble** by turn three — every
-paper is the same paper. Two fixes, both worth implementing:
-
-- a **seen-set**, so nothing is recommended twice in a session
-- an **exploration slot** — reserve 1 of 5 for a high-MMR outsider, so the loop
-  can still surprise you
-
-**Two feedback channels, one destination.**
-
-- **Buttons** (`ipywidgets`, already a dependency): each recommendation renders
-  as a card with `👍 more like this` / `📖 reading it` / `👎 not this`. A click
-  calls `session.feedback(paper_id, signal)`, which updates the vector and
-  re-renders the list **in place** — no re-running the cell.
-- **Free text**: "less benchmark papers, more about the judge models
-  themselves". `gpt-5-mini` parses it into `ParsedFeedback` — a query
-  refinement, ids to boost or drop, terms to exclude — which feeds the *same*
-  Rocchio update plus a filter change.
-
-The second channel is the only chat-shaped part of the app, and it's worth
-noticing why it's still not a chat bot: the model returns a **typed object that
-changes a vector**, never prose for a human to read.
-
-**The session shape**, top to bottom in the notebook:
-
-```
-"What do you want to learn about today?"   → seed query, turn 1
-  → 5 cards, each with buttons
-  → clicks update the taste vector, list re-renders
-  → "Anything to adjust?"                   → parsed → turn 2
-  → repeat
-session.save()  → data/sessions/, so a profile can carry across notebook runs
-```
-
-**Done when:** three turns of clicking visibly change what comes back, nothing
-repeats, and the bubble is something you've seen happen and then fixed.
-
-### 9-eval-and-ablation.ipynb — does any of it actually work
-
-Run the complete ablation over all configs × all profiles and print the table.
-Two columns that need their own machinery:
-
-- **Faithfulness (LLM judge, `gpt-5`)**: does `why` actually follow from the
-  cited text? A different question from whether the ranking was good.
-- **Does feedback help?** Evaluate the *loop*, not just the retriever. Give
-  `gpt-5` a persona from `personas.json` with a hidden target interest, let it
-  click 👍/👎 on three turns of recommendations, and measure **nDCG@10 at turn 1
-  vs. turn 3**. If relevance feedback works, the number climbs; if your β is too
-  high, it climbs then collapses as the bubble closes. Add a **diversity**
-  column beside it so you can see the trade happen.
-
-Simulated users are how recommender loops get evaluated for real, and it costs
-nothing but tokens.
-
-Close with a written read of the table: which techniques paid for themselves,
-which didn't, and what you'd cut under a latency budget.
-
-**Done when:** one command reproduces every number in this spec's example
-table, and `index.md` is written.
+— no session, no disk, no state, so book 5 can replay it thousands of times.
 
 ## Ground rules
 
-- **Committed data is the corpus, the golden set and the profiles.** The index
-  is derived and gitignored — `python -m readnext.index --rebuild` recreates it.
-- **Every API call goes through `embed.py` or a client wrapper that logs
-  tokens and cost.** You should be able to answer "what did this notebook cost"
-  at any point.
+- **Nothing is hand-labelled.** If a book ever asks you to mark which papers are
+  relevant, the design has gone wrong. The click is the label.
+- **Committed data is the corpus, the event log and the personas.** The index
+  and the profiles are derived and gitignored — the profiles rebuildable by
+  replaying events.
+- **Every API call goes through `embed.py` or a client wrapper that logs tokens
+  and cost.** You should be able to answer "what did this book cost" at any
+  point.
 - **No technique lands without a table row.** If a row doesn't move, keep the
-  notebook and write down why it didn't — that's the most useful cell in it.
+  notebook and write down why — that's the most useful cell in it.
+- **A decision that outlives its book goes in `adr/`,** superseding rather than
+  editing the one it replaces.
 - **Don't run the notebooks from an agent** (project rule) — edit cells, run
   them yourself.
 
 ## Out of scope, on purpose
 
-Agentic/self-correcting retrieval, query decomposition, a web serving API or
-front end (the notebook widgets are the UI), full-text PDF parsing, fine-tuned
-rerankers, a hosted vector DB, and cross-session collaborative filtering. The first
-one overlaps with what `shop-assistant-project` already covers; the rest are
-engineering, not new ideas. If the project earns a second phase, agentic
-retrieval is the natural notebook 9.
+Cross-user collaborative filtering (ADR-0008), agentic/self-correcting
+retrieval, query decomposition, a web serving API or front end (the notebook
+widgets are the UI), full-text PDF parsing, fine-tuned rerankers, and a hosted
+vector DB. Agentic retrieval overlaps what `claude/shop-assistant-project`
+already covers; the rest are engineering, not new ideas.
