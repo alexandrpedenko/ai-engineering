@@ -7,7 +7,8 @@ ADR-0011 (one config). **Produces the data** ADR-0005 depends on.
 ## What you can do after this that you couldn't before
 
 Use the thing. Type a query, get five papers as clickable cards, press 👍 / 📖 /
-👎, and watch the next five change because of it — without re-running a cell.
+👎, and see the *next* question ranked differently because of it — without
+re-running a cell (ADR-0013).
 And every one of those searches is on disk in a shape book 5 can score.
 
 Book 3 could rank papers. It could not be *used*, and it could not learn.
@@ -61,10 +62,12 @@ class Recommendation:
     why: str = ""                                        # book 8 fills this
     citations: list[str] = field(default_factory=list)   # book 8 fills this
 
-recommend(store, query_vector, profile, config, exclude=frozenset()) -> list[Recommendation]
+retrieve(index, query_vector, config, exclude=frozenset()) -> list[str]
+rerank(index, candidates, query_vector, profile, config) -> list[Recommendation]
+recommend(index, query_vector, profile, config, exclude=frozenset()) -> list[Recommendation]
 ```
 
-Pure: no disk, no session, no globals, so book 5 can call it thousands of times
+`index` is `search.Index`: the store plus per-paper records and vectors. Pure: no disk, no session, no globals, so book 5 can call it thousands of times
 in a replay loop. `exclude` is the seen-set, passed in rather than remembered.
 
 ### `readnext/events.py`
@@ -103,18 +106,22 @@ class Session:
     signals: dict[str, Signal] = field(default_factory=dict)
 
     def ask(self, text: str) -> list[Recommendation]   # search, log, render
-    def feedback(self, paper_id: str, signal: Signal) -> None  # update, log, re-render
+    def feedback(self, paper_id: str, signal: Signal) -> None  # update, log, mark the card
 ```
 
 ### `readnext/ui.py`
 
 ```python
-render(recs, on_feedback) -> widgets.VBox     # cards with three buttons each
+Deck(n, on_feedback)          # n card slots with three buttons each, built once
+Deck.show(recs, header)       # refill the slots for a new turn
+Deck.mark(i, signal)          # light the pressed button; the card stays put
 ```
 
-Re-render replaces children of a held `VBox` — the widget handle lives in the
-`Session`, so a click updates the same output area rather than printing a new
-one.
+The slots are created before anything is displayed and only refilled after —
+notebook front ends are unreliable at drawing widgets created later. The
+`Deck` lives in the `Session`, so a new turn updates the same output area
+rather than printing a new one. A click marks its card and nothing else moves
+(ADR-0013).
 
 ### `readnext/config.py` — additions
 
@@ -148,8 +155,8 @@ One idea per cell. `md` cells lead with a bold phrase, no subheadings.
 | 18 | code | second call with `exclude=` — the first five are gone |
 | 19 | md | **The session holds what the ranker won't.** Profile, seen-set, turn counter, and the widget handle |
 | 20 | code | `session = Session(profile=Profile(user="olek"))`; `session.ask("papers on fine-tuning")` |
-| 21 | md | **Now click.** The handler calls `session.feedback(...)`, which updates the vector and replaces the cards in place — no cell re-run |
-| 22 | code | the live widget — click a few, watch the list change |
+| 21 | md | **Now click.** The handler calls `session.feedback(...)`, which records the signal and marks the card; the list stays put, the next `ask()` is where it shows |
+| 22 | code | the live widget — rate a few, ask a paraphrase, compare |
 | 23 | md | **Everything you just did is on disk.** The `Event` shape, field by field |
 | 24 | code | `events.load()[-1]` — read back the row you just made |
 | 25 | md | **Why the whole candidate pool, not just the five.** Book 5 re-ranks this pool with tomorrow's code and asks where your clicks landed. A row without `candidates` is unreplayable forever |
@@ -166,7 +173,8 @@ One idea per cell. `md` cells lead with a bold phrase, no subheadings.
 
 - Five or six real sessions have been run and `data/events.jsonl` has rows with
   non-empty `candidates`, `shown` and `signals`.
-- Clicking visibly changes the next list, in place, with no cell re-run.
+- A click is acknowledged on its card; the *next* question is visibly ranked
+  differently because of it, with no cell re-run.
 - Nothing repeats within a session.
 - An empty profile behaves exactly like book 3's `search()`.
 - You can say in one sentence why the recommendations feel good or bad. That

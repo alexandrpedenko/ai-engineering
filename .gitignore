@@ -35,8 +35,9 @@ Thumbs.db
 # CSVs and datasets
 # *.csv
 
-# read-next: derived/rebuildable index and per-session state
+# read-next: derived and rebuildable — the index cache, and taste profiles
+# that can be rebuilt by replaying data/events.jsonl
 openai/read-next-project/data/index/
-openai/read-next-project/data/sessions/
+openai/read-next-project/data/profiles/
 
 # Other

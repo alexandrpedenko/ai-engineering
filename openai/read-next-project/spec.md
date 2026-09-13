@@ -3,12 +3,12 @@
 A paper recommender built on a full RAG stack. You ask what you want to learn
 today, it returns a ranked list of arXiv papers with a grounded reason for each,
 and it **learns from what you click** — every 👍, 👎 or "reading it" moves a
-taste vector and re-ranks the list in place.
+taste vector, and the next question you ask is ranked with it.
 
 ```python
 session = Session(user="olek")
 session.ask("papers on fine-tuning")     # 5 cards, each with buttons
-session.feedback("2305.14314", "like")   # the list re-ranks, in place
+session.feedback("2305.14314", "like")   # recorded; the next ask() is ranked with it
 ```
 
 This file is the architecture: what is true across every book. The per-book
@@ -49,6 +49,7 @@ Accepted, and binding until an ADR supersedes them.
 | [0010](adr/0010-llm-as-judge-limited-to-faithfulness.md) | LLM-as-judge is limited to faithfulness |
 | [0011](adr/0011-one-pipeline-config.md) | One `PipelineConfig`, one code path |
 | [0012](adr/0012-simulated-personas-optional-and-segregated.md) | Simulated personas are optional and never mix with real events |
+| [0013](adr/0013-feedback-applies-to-the-next-turn.md) | **Feedback applies to the next turn, never to the list on screen** |
 
 ## The shape of the application
 
@@ -216,7 +217,7 @@ openai/read-next-project/
     profile.py      taste vectors, negatives, cold start        book 4
     recommend.py    the pure ranking function                   book 4
     session.py      state across turns, the interaction loop    book 4
-    ui.py           ipywidgets cards, buttons, re-render        book 4
+    ui.py           ipywidgets cards, buttons, fixed slots      book 4
     metrics.py      click metrics, MRR, nDCG, diversity         book 5
     eval.py         replay + interleaving, ablation CLI         book 5
     feedback.py     Rocchio, sweeps, exploration slot           book 5
@@ -269,7 +270,8 @@ class PipelineConfig:          # one row of the table (ADR-0011)
     use_rerank: bool = False
     use_mmr: bool = False
     fusion: Literal["rrf", "weighted"] = "rrf"
-    alpha: float = 0.7
+    alpha: float = 0.7          # query vs taste blend
+    gamma: float = 0.5          # how hard a dislike pushes the taste vector
     candidate_chunks: int = 200
     candidates_k: int = 40
     final_k: int = 5
@@ -290,10 +292,14 @@ class Session:                 # the only stateful object
 The ranking itself stays pure —
 
 ```python
-recommend(store, query_vector, profile, config, exclude=frozenset()) -> list[Recommendation]
+retrieve(index, query_vector, config, exclude=frozenset()) -> list[str]           # stage 1: paper ids
+rerank(index, candidates, query_vector, profile, config) -> list[Recommendation]  # stage 2
+recommend(index, query_vector, profile, config, exclude=frozenset()) -> list[Recommendation]
 ```
 
 — no session, no disk, no state, so book 5 can replay it thousands of times.
+`Index` (`search.py`) bundles the `VectorStore` with the per-paper records and
+vectors the two stages need; the store alone only knows chunks.
 
 ## Ground rules
 

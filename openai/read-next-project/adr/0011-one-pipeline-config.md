@@ -23,6 +23,7 @@ class PipelineConfig:
     use_mmr: bool = False                # book 8
     fusion: Literal["rrf", "weighted"] = "rrf"
     alpha: float = 0.7                   # query vs taste blend
+    gamma: float = 0.5                   # how hard a dislike pushes the taste vector
     candidate_chunks: int = 200
     candidates_k: int = 40
     final_k: int = 5
@@ -31,7 +32,7 @@ class PipelineConfig:
 Every row of the ablation table is this dataclass with one field changed. The
 defaults are book 4's behaviour, so `PipelineConfig()` is the baseline.
 
-`recommend(store, query_vector, profile, config)` stays pure — no session, no
+`recommend(index, query_vector, profile, config)` stays pure — no session, no
 disk, no state — so it can be replayed thousands of times.
 
 ## Consequences
