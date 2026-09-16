@@ -23,13 +23,13 @@ here in the same commit.
 | | book | status | spec |
 | --- | --- | --- | --- |
 | 1 | models and messages — one model call, message types, streaming | done | [specs/1-models-and-messages.md](specs/1-models-and-messages.md) |
-| 2 | tools by hand — `@tool`, `bind_tools`, one tool loop written out | | specs/2-tools-by-hand.md |
-| 3 | `create_agent` — the loop as a library call, structured output | | specs/3-create-agent.md |
-| 4 | policy RAG — split, embed, retrieve, wrap as a tool | | specs/4-policy-rag.md |
-| 5 | middleware and booking — human-in-the-loop, summarization, custom hooks, thread memory | | specs/5-middleware-and-booking.md |
-| 6 | prompt iteration — three prompt versions, the prompt hub | | specs/6-prompt-iteration.md |
-| 7 | reliability and guardrails — retries, fallbacks, tool errors, a poisoned document | | specs/7-reliability-and-guardrails.md |
-| 8 | LangSmith — read a full booking trace: calls, tokens, latency, cost | | specs/8-langsmith.md |
+| 2 | tools by hand — `@tool`, `bind_tools`, one tool loop written out | spec drafted | [specs/2-tools-by-hand.md](specs/2-tools-by-hand.md) |
+| 3 | `create_agent` — the loop as a library call, structured output | spec drafted | [specs/3-create-agent.md](specs/3-create-agent.md) |
+| 4 | policy RAG — split, embed, retrieve, wrap as a tool | spec drafted | [specs/4-policy-rag.md](specs/4-policy-rag.md) |
+| 5 | middleware and booking — human-in-the-loop, summarization, custom hooks, thread memory | spec drafted | [specs/5-middleware-and-booking.md](specs/5-middleware-and-booking.md) |
+| 6 | prompt iteration — three prompt versions, the prompt hub | spec drafted | [specs/6-prompt-iteration.md](specs/6-prompt-iteration.md) |
+| 7 | reliability and guardrails — retries, fallbacks, tool errors, a poisoned document | spec drafted | [specs/7-reliability-and-guardrails.md](specs/7-reliability-and-guardrails.md) |
+| 8 | LangSmith — read a full booking trace: calls, tokens, latency, cost | spec drafted | [specs/8-langsmith.md](specs/8-langsmith.md) |
 
 ## The decisions
 
@@ -147,7 +147,16 @@ make_reservation(hotel_id, guest, check_in, check_out) -> Reservation   # book 5
 and by project 3's `policy_expert` sub-agent:
 
 ```python
-get_policy_index() -> Chroma       # opens data/chroma/, building it first if missing
+get_policy_index() -> Chroma       # opens data/chroma/, building it first if missing or stale
+rebuild_policy_index() -> Chroma   # drop and rebuild — book 7, after adding loyalty.md
+```
+
+`hotelbot/reservations.py` — the only code that writes `reservations.json`:
+
+```python
+load_reservations() -> list[Reservation]
+add_reservation(hotel_id, guest, check_in, check_out) -> Reservation
+reset_reservations() -> None
 ```
 
 `hotelbot/models.py`
@@ -157,14 +166,30 @@ class Hotel(BaseModel)
 class Availability(BaseModel)        # ok: bool, nights: int, total: float, reason: str | None
 class Reservation(BaseModel)
 class BookingProposal(BaseModel)     # hotel_id, check_in, check_out, nights, total, why
+class PlainAnswer(BaseModel)         # text — the structured shape for turns that aren't a proposal
 ```
 
 `hotelbot/agent.py`
 
 ```python
 build_agent(prompt_version="v1", middleware=(), checkpointer=None) -> agent
-run(agent, text, thread_id="default") -> AgentResult   # messages + structured_response
+run(agent, text, thread_id="default") -> AgentResult     # messages, structured_response, interrupt
+resume(agent, decision, thread_id="default") -> AgentResult   # approve / edit / reject a paused booking
 ```
+
+`build_agent` always puts `HumanInTheLoopMiddleware` on `make_reservation`
+ahead of anything in `middleware` (ADR-0004), and defaults the checkpointer
+to `InMemorySaver()` so the interrupt can resume.
+
+The rest of the package is this project's own (ADR-0006) and may change
+without an ADR:
+
+| module | holds | book |
+| --- | --- | --- |
+| `prompts.py` | `get_prompt(version)` — `"v1"`, `"v2"`, `"v3"`, or `"hub:<name>[:<commit>]"` | 3, 6 |
+| `middleware.py` | `LogToolCalls`, `ScreenRetrievedText` | 5, 7 |
+| `samples.py` | `REQUESTS` — five fixed requests reused by books 6–8 | 6 |
+| `faults.py` | `flaky(tool, every)` — a tool wrapper that fails on purpose | 7 |
 
 `hotelbot/config.py` — model ids, project name, paths. Pinned:
 
@@ -173,6 +198,9 @@ run(agent, text, thread_id="default") -> AgentResult   # messages + structured_r
 | Chat, agent | `claude-sonnet-5` |
 | Cheap fallback / classification (book 7) | `claude-haiku-4-5-20251001` |
 | Embeddings | `text-embedding-3-small` |
+
+`config.py` also carries the chunking constants and paths for the policy
+index (book 4) and a `PRICING` snapshot for the cost sum in book 8.
 
 Needs `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `LANGSMITH_API_KEY` in the
 repo-root `.env`; `LANGSMITH_TRACING=true` is set from `config.py`.
