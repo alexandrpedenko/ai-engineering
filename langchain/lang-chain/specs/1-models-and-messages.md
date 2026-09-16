@@ -1,6 +1,6 @@
 # Book 1 — models and messages
 
-**Status:** next
+**Status:** done
 **Decides:** ADR-0001 (providers), ADR-0007 (tracing from cell one)
 
 ## What you can do after this that you couldn't before

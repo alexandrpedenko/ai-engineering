@@ -37,10 +37,12 @@ Roughly in the order it gets introduced:
 4. **Structured output** — `response_format` with a Pydantic model for the final
    answer (a `BookingProposal`: hotel id, dates, total price, why it matched).
    Show why free-text output breaks downstream code first.
-5. **RAG as a tool** — split the policy docs, embed, put in an in-memory vector
-   store, wrap `retriever` in a `@tool` called `lookup_policy`. Compare answers
-   with and without the tool on a policy question the model would otherwise
-   guess.
+5. **RAG as a tool** — split the policy docs, embed, put in a `Chroma` vector
+   store persisted to `data/chroma/`, wrap `retriever` in a `@tool` called
+   `lookup_policy`. Compare answers with and without the tool on a policy
+   question the model would otherwise guess. Build the index once, then
+   import again and show the second run reusing it instead of re-embedding —
+   the reason to persist rather than rebuild in memory every time.
 6. **Middleware** — the `create_agent` middleware hooks:
    - `HumanInTheLoopMiddleware` on `make_reservation` — the booking pauses and
      needs an approve/edit/reject before it goes through.
@@ -90,6 +92,9 @@ the notebooks stay readable. Projects 2 and 3 import from it.
 
 - Anthropic for chat, OpenAI for embeddings — `init_chat_model` switches
   providers, and the read-next embeddings knowledge carries over.
+- Policy index is `Chroma`, persisted to `data/chroma/`, not rebuilt in
+  memory every import — project 3 reuses the same index from a sub-agent,
+  so it should exist on disk rather than be re-embedded per session.
 - The manual tool loop is shown once, briefly, to see what `create_agent`
   hides — not a re-run of the shop-assistant project.
 - Availability uses fixed date strings, no date parsing, to keep the focus on

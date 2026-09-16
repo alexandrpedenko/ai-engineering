@@ -47,6 +47,10 @@ research task shouldn't blow up the context or lose track of what it was doing.
    project 1 but through the deep-agent config.
 8. **RAG inside a sub-agent** — the policy retriever from project 1 lives only
    in a `policy_expert` sub-agent, so the main agent never sees raw chunks.
+   It opens project 1's persisted `Chroma` index at `data/chroma/` directly
+   (`hotelbot.index.get_policy_index`) rather than re-embedding the policy
+   docs for this project — the payoff of persisting the index in the first
+   place.
 9. **Custom middleware / skills** — one small addition, e.g. a middleware that
    stamps the current date, or a skill file (`SKILL.md`-style) the agent loads
    for "how to write a trip dossier".

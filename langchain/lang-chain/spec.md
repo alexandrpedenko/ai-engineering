@@ -22,7 +22,7 @@ here in the same commit.
 
 | | book | status | spec |
 | --- | --- | --- | --- |
-| 1 | models and messages — one model call, message types, streaming | next | [specs/1-models-and-messages.md](specs/1-models-and-messages.md) |
+| 1 | models and messages — one model call, message types, streaming | done | [specs/1-models-and-messages.md](specs/1-models-and-messages.md) |
 | 2 | tools by hand — `@tool`, `bind_tools`, one tool loop written out | | specs/2-tools-by-hand.md |
 | 3 | `create_agent` — the loop as a library call, structured output | | specs/3-create-agent.md |
 | 4 | policy RAG — split, embed, retrieve, wrap as a tool | | specs/4-policy-rag.md |
@@ -44,6 +44,7 @@ Accepted, and binding until an ADR supersedes them.
 | [0005](adr/0005-rag-is-a-tool.md) | Retrieval is a tool the agent decides to call, not a step that runs before every turn |
 | [0006](adr/0006-hotelbot-is-the-shared-package.md) | `hotelbot/` is the shared package for projects 2 and 3; its tool signatures are contracts |
 | [0007](adr/0007-tracing-on-from-book-one.md) | LangSmith tracing is on from the first cell of book 1, one project per book |
+| [0008](adr/0008-chroma-persisted-policy-index.md) | The policy index is `Chroma`, persisted to `data/chroma/`, built once and reused — not `InMemoryVectorStore` rebuilt per import |
 
 ## The shape of the application
 
@@ -97,6 +98,11 @@ beyond counting nights is done anywhere.
 `pets.md`, `payment.md`, `accessibility.md`, `check-in.md`. Book 7 adds a
 sixth, `loyalty.md`, that contains a prompt injection on purpose.
 
+`chroma/` — the persisted policy index (ADR-0008): a `Chroma` collection
+built once from `policies/*.md` and reused across notebook runs and
+projects, not hand-edited. Rebuilt when a policy file changes or a new one
+(book 7's `loyalty.md`) is added.
+
 `reservations.json` — a list, empty at the start, appended by
 `make_reservation`:
 
@@ -137,6 +143,13 @@ lookup_policy(question) -> str                        # book 4, top-3 chunks joi
 make_reservation(hotel_id, guest, check_in, check_out) -> Reservation   # book 5
 ```
 
+`hotelbot/index.py` — the policy index (ADR-0008), used by `lookup_policy`
+and by project 3's `policy_expert` sub-agent:
+
+```python
+get_policy_index() -> Chroma       # opens data/chroma/, building it first if missing
+```
+
 `hotelbot/models.py`
 
 ```python
@@ -165,8 +178,9 @@ Needs `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `LANGSMITH_API_KEY` in the
 repo-root `.env`; `LANGSMITH_TRACING=true` is set from `config.py`.
 
 Dependencies to add to the Pipfile: `langchain`, `langchain-anthropic`,
-`langchain-openai`, `langchain-text-splitters`, `langgraph` (checkpointers),
-`langsmith`. `pydantic` and `python-dotenv` are already there.
+`langchain-openai`, `langchain-text-splitters`, `langchain-chroma`,
+`chromadb`, `langgraph` (checkpointers), `langsmith`. `pydantic` and
+`python-dotenv` are already there.
 
 ## Where the model appears
 
@@ -194,7 +208,7 @@ langchain/lang-chain/
   spec.md                  this file — architecture
   specs/                   one plan per book
   adr/                     decisions, numbered, superseding not deleting
-  data/                    hotels.json, policies/, reservations.json
+  data/                    hotels.json, policies/, chroma/, reservations.json
   hotelbot/                the package
   1-models-and-messages.ipynb … 8-langsmith.ipynb
 ```

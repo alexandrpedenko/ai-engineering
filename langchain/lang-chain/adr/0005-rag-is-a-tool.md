@@ -1,6 +1,8 @@
 # ADR-0005 — Retrieval is a tool, not a pre-step
 
-**Status:** Accepted (2026-09-13)
+**Status:** Accepted (2026-09-13). Its storage choice (`InMemoryVectorStore`)
+is superseded by [ADR-0008](0008-chroma-persisted-policy-index.md); the
+tool-not-pre-step decision below still stands.
 
 ## Context
 
