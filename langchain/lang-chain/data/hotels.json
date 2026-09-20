@@ -1,0 +1,921 @@
+[
+  {
+    "id": "lis-001",
+    "name": "Alfama House",
+    "city": "Lisbon",
+    "district": "Alfama",
+    "price_per_night": 90.0,
+    "rating": 4.5,
+    "amenities": [
+      "wifi",
+      "gym",
+      "pool"
+    ],
+    "available": [
+      [
+        "2026-10-01",
+        "2026-10-31"
+      ],
+      [
+        "2026-12-01",
+        "2026-12-20"
+      ]
+    ]
+  },
+  {
+    "id": "lis-002",
+    "name": "Alfama Loft",
+    "city": "Lisbon",
+    "district": "Alfama",
+    "price_per_night": 125.0,
+    "rating": 4.1,
+    "amenities": [
+      "wifi",
+      "breakfast"
+    ],
+    "available": [
+      [
+        "2026-10-01",
+        "2026-10-31"
+      ],
+      [
+        "2026-12-01",
+        "2026-12-20"
+      ]
+    ]
+  },
+  {
+    "id": "lis-003",
+    "name": "Belem Suites",
+    "city": "Lisbon",
+    "district": "Belem",
+    "price_per_night": 134.0,
+    "rating": 4.8,
+    "amenities": [
+      "pool",
+      "parking",
+      "spa"
+    ],
+    "available": [
+      [
+        "2026-10-01",
+        "2026-10-31"
+      ],
+      [
+        "2026-12-01",
+        "2026-12-20"
+      ]
+    ]
+  },
+  {
+    "id": "lis-004",
+    "name": "Casa do Castelo",
+    "city": "Lisbon",
+    "district": "Alfama",
+    "price_per_night": 140.0,
+    "rating": 4.6,
+    "amenities": [
+      "breakfast",
+      "wifi",
+      "gym"
+    ],
+    "available": [
+      [
+        "2026-10-01",
+        "2026-10-31"
+      ],
+      [
+        "2026-12-01",
+        "2026-12-20"
+      ]
+    ]
+  },
+  {
+    "id": "lis-005",
+    "name": "Principe Real Boutique",
+    "city": "Lisbon",
+    "district": "Principe Real",
+    "price_per_night": 178.0,
+    "rating": 4.0,
+    "amenities": [
+      "spa",
+      "pets",
+      "ac"
+    ],
+    "available": [
+      [
+        "2026-10-01",
+        "2026-10-31"
+      ],
+      [
+        "2026-12-01",
+        "2026-12-20"
+      ]
+    ]
+  },
+  {
+    "id": "lis-006",
+    "name": "Graca Residence",
+    "city": "Lisbon",
+    "district": "Graca",
+    "price_per_night": 200.0,
+    "rating": 4.7,
+    "amenities": [
+      "pets",
+      "ac",
+      "elevator"
+    ],
+    "available": [
+      [
+        "2026-10-01",
+        "2026-10-31"
+      ],
+      [
+        "2026-12-01",
+        "2026-12-20"
+      ]
+    ]
+  },
+  {
+    "id": "lis-007",
+    "name": "Alcantara Lodge",
+    "city": "Lisbon",
+    "district": "Alcantara",
+    "price_per_night": 222.0,
+    "rating": 4.3,
+    "amenities": [
+      "ac",
+      "elevator",
+      "breakfast"
+    ],
+    "available": [
+      [
+        "2026-10-01",
+        "2026-10-15"
+      ],
+      [
+        "2026-10-20",
+        "2026-10-31"
+      ]
+    ]
+  },
+  {
+    "id": "lis-008",
+    "name": "Parque das Nacoes Manor",
+    "city": "Lisbon",
+    "district": "Parque das Nacoes",
+    "price_per_night": 244.0,
+    "rating": 3.9,
+    "amenities": [
+      "elevator",
+      "breakfast",
+      "wifi"
+    ],
+    "available": [
+      [
+        "2026-10-01",
+        "2026-10-31"
+      ],
+      [
+        "2026-12-01",
+        "2026-12-20"
+      ]
+    ]
+  },
+  {
+    "id": "lis-009",
+    "name": "Mouraria Loft",
+    "city": "Lisbon",
+    "district": "Mouraria",
+    "price_per_night": 266.0,
+    "rating": 4.6,
+    "amenities": [
+      "breakfast",
+      "wifi",
+      "gym"
+    ],
+    "available": [
+      [
+        "2026-10-01",
+        "2026-10-31"
+      ],
+      [
+        "2026-12-01",
+        "2026-12-20"
+      ]
+    ]
+  },
+  {
+    "id": "lis-010",
+    "name": "Estrela Retreat",
+    "city": "Lisbon",
+    "district": "Estrela",
+    "price_per_night": 288.0,
+    "rating": 4.2,
+    "amenities": [
+      "wifi",
+      "gym",
+      "pool"
+    ],
+    "available": [
+      [
+        "2026-10-01",
+        "2026-10-31"
+      ],
+      [
+        "2026-12-01",
+        "2026-12-20"
+      ]
+    ]
+  },
+  {
+    "id": "por-001",
+    "name": "Ribeira House",
+    "city": "Porto",
+    "district": "Ribeira",
+    "price_per_night": 70.0,
+    "rating": 4.5,
+    "amenities": [
+      "wifi",
+      "gym",
+      "pool"
+    ],
+    "available": [
+      [
+        "2026-10-01",
+        "2026-10-31"
+      ],
+      [
+        "2026-12-01",
+        "2026-12-20"
+      ]
+    ]
+  },
+  {
+    "id": "por-002",
+    "name": "Cedofeita Inn",
+    "city": "Porto",
+    "district": "Cedofeita",
+    "price_per_night": 92.0,
+    "rating": 4.1,
+    "amenities": [
+      "gym",
+      "pool",
+      "parking"
+    ],
+    "available": [
+      [
+        "2026-10-01",
+        "2026-10-31"
+      ],
+      [
+        "2026-12-01",
+        "2026-12-20"
+      ]
+    ]
+  },
+  {
+    "id": "por-003",
+    "name": "Boavista Suites",
+    "city": "Porto",
+    "district": "Boavista",
+    "price_per_night": 114.0,
+    "rating": 4.8,
+    "amenities": [
+      "pool",
+      "parking",
+      "spa"
+    ],
+    "available": [
+      [
+        "2026-10-01",
+        "2026-10-31"
+      ],
+      [
+        "2026-12-01",
+        "2026-12-20"
+      ]
+    ]
+  },
+  {
+    "id": "por-004",
+    "name": "Foz do Douro Palace",
+    "city": "Porto",
+    "district": "Foz do Douro",
+    "price_per_night": 136.0,
+    "rating": 4.4,
+    "amenities": [
+      "parking",
+      "spa",
+      "pets"
+    ],
+    "available": [
+      [
+        "2026-10-01",
+        "2026-10-31"
+      ],
+      [
+        "2026-12-01",
+        "2026-12-20"
+      ]
+    ]
+  },
+  {
+    "id": "por-005",
+    "name": "Bonfim Boutique",
+    "city": "Porto",
+    "district": "Bonfim",
+    "price_per_night": 158.0,
+    "rating": 4.0,
+    "amenities": [
+      "spa",
+      "pets",
+      "ac"
+    ],
+    "available": [
+      [
+        "2026-10-01",
+        "2026-10-31"
+      ],
+      [
+        "2026-12-01",
+        "2026-12-20"
+      ]
+    ]
+  },
+  {
+    "id": "por-006",
+    "name": "Aliados Residence",
+    "city": "Porto",
+    "district": "Aliados",
+    "price_per_night": 180.0,
+    "rating": 4.7,
+    "amenities": [
+      "pets",
+      "ac",
+      "elevator"
+    ],
+    "available": [
+      [
+        "2026-10-01",
+        "2026-10-31"
+      ],
+      [
+        "2026-12-01",
+        "2026-12-20"
+      ]
+    ]
+  },
+  {
+    "id": "por-007",
+    "name": "Miragaia Lodge",
+    "city": "Porto",
+    "district": "Miragaia",
+    "price_per_night": 202.0,
+    "rating": 4.3,
+    "amenities": [
+      "ac",
+      "elevator",
+      "breakfast"
+    ],
+    "available": [
+      [
+        "2026-10-01",
+        "2026-10-31"
+      ],
+      [
+        "2026-12-01",
+        "2026-12-20"
+      ]
+    ]
+  },
+  {
+    "id": "por-008",
+    "name": "Massarelos Manor",
+    "city": "Porto",
+    "district": "Massarelos",
+    "price_per_night": 224.0,
+    "rating": 3.9,
+    "amenities": [
+      "elevator",
+      "breakfast",
+      "wifi"
+    ],
+    "available": [
+      [
+        "2026-10-01",
+        "2026-10-31"
+      ],
+      [
+        "2026-12-01",
+        "2026-12-20"
+      ]
+    ]
+  },
+  {
+    "id": "por-009",
+    "name": "Campanha Loft",
+    "city": "Porto",
+    "district": "Campanha",
+    "price_per_night": 246.0,
+    "rating": 4.6,
+    "amenities": [
+      "breakfast",
+      "wifi",
+      "gym"
+    ],
+    "available": [
+      [
+        "2026-10-01",
+        "2026-10-31"
+      ],
+      [
+        "2026-12-01",
+        "2026-12-20"
+      ]
+    ]
+  },
+  {
+    "id": "por-010",
+    "name": "Lordelo Retreat",
+    "city": "Porto",
+    "district": "Lordelo",
+    "price_per_night": 268.0,
+    "rating": 4.2,
+    "amenities": [
+      "wifi",
+      "gym",
+      "pool"
+    ],
+    "available": [
+      [
+        "2026-10-01",
+        "2026-10-31"
+      ],
+      [
+        "2026-12-01",
+        "2026-12-20"
+      ]
+    ]
+  },
+  {
+    "id": "mad-001",
+    "name": "Malasana House",
+    "city": "Madrid",
+    "district": "Malasana",
+    "price_per_night": 100.0,
+    "rating": 4.5,
+    "amenities": [
+      "wifi",
+      "gym",
+      "pool"
+    ],
+    "available": [
+      [
+        "2026-10-01",
+        "2026-10-31"
+      ],
+      [
+        "2026-12-01",
+        "2026-12-20"
+      ]
+    ]
+  },
+  {
+    "id": "mad-002",
+    "name": "Salamanca Inn",
+    "city": "Madrid",
+    "district": "Salamanca",
+    "price_per_night": 122.0,
+    "rating": 4.1,
+    "amenities": [
+      "gym",
+      "pool",
+      "parking"
+    ],
+    "available": [
+      [
+        "2026-10-01",
+        "2026-10-31"
+      ],
+      [
+        "2026-12-01",
+        "2026-12-20"
+      ]
+    ]
+  },
+  {
+    "id": "mad-003",
+    "name": "La Latina Suites",
+    "city": "Madrid",
+    "district": "La Latina",
+    "price_per_night": 144.0,
+    "rating": 4.8,
+    "amenities": [
+      "pool",
+      "parking",
+      "spa"
+    ],
+    "available": [
+      [
+        "2026-10-01",
+        "2026-10-31"
+      ],
+      [
+        "2026-12-01",
+        "2026-12-20"
+      ]
+    ]
+  },
+  {
+    "id": "mad-004",
+    "name": "Chueca Palace",
+    "city": "Madrid",
+    "district": "Chueca",
+    "price_per_night": 166.0,
+    "rating": 4.4,
+    "amenities": [
+      "parking",
+      "spa",
+      "pets"
+    ],
+    "available": [
+      [
+        "2026-10-01",
+        "2026-10-31"
+      ],
+      [
+        "2026-12-01",
+        "2026-12-20"
+      ]
+    ]
+  },
+  {
+    "id": "mad-005",
+    "name": "Retiro Boutique",
+    "city": "Madrid",
+    "district": "Retiro",
+    "price_per_night": 188.0,
+    "rating": 4.0,
+    "amenities": [
+      "spa",
+      "pets",
+      "ac"
+    ],
+    "available": [
+      [
+        "2026-10-01",
+        "2026-10-31"
+      ],
+      [
+        "2026-12-01",
+        "2026-12-20"
+      ]
+    ]
+  },
+  {
+    "id": "mad-006",
+    "name": "Lavapies Residence",
+    "city": "Madrid",
+    "district": "Lavapies",
+    "price_per_night": 210.0,
+    "rating": 4.7,
+    "amenities": [
+      "pets",
+      "ac",
+      "elevator"
+    ],
+    "available": [
+      [
+        "2026-10-01",
+        "2026-10-31"
+      ],
+      [
+        "2026-12-01",
+        "2026-12-20"
+      ]
+    ]
+  },
+  {
+    "id": "mad-007",
+    "name": "Chamberi Lodge",
+    "city": "Madrid",
+    "district": "Chamberi",
+    "price_per_night": 232.0,
+    "rating": 4.3,
+    "amenities": [
+      "ac",
+      "elevator",
+      "breakfast"
+    ],
+    "available": [
+      [
+        "2026-10-01",
+        "2026-10-31"
+      ],
+      [
+        "2026-12-01",
+        "2026-12-20"
+      ]
+    ]
+  },
+  {
+    "id": "mad-008",
+    "name": "Sol Manor",
+    "city": "Madrid",
+    "district": "Sol",
+    "price_per_night": 254.0,
+    "rating": 3.9,
+    "amenities": [
+      "elevator",
+      "breakfast",
+      "wifi"
+    ],
+    "available": [
+      [
+        "2026-10-01",
+        "2026-10-31"
+      ],
+      [
+        "2026-12-01",
+        "2026-12-20"
+      ]
+    ]
+  },
+  {
+    "id": "mad-009",
+    "name": "Arguelles Loft",
+    "city": "Madrid",
+    "district": "Arguelles",
+    "price_per_night": 276.0,
+    "rating": 4.6,
+    "amenities": [
+      "breakfast",
+      "wifi",
+      "gym"
+    ],
+    "available": [
+      [
+        "2026-10-01",
+        "2026-10-31"
+      ],
+      [
+        "2026-12-01",
+        "2026-12-20"
+      ]
+    ]
+  },
+  {
+    "id": "mad-010",
+    "name": "Moncloa Retreat",
+    "city": "Madrid",
+    "district": "Moncloa",
+    "price_per_night": 298.0,
+    "rating": 4.2,
+    "amenities": [
+      "wifi",
+      "gym",
+      "pool"
+    ],
+    "available": [
+      [
+        "2026-10-01",
+        "2026-10-31"
+      ],
+      [
+        "2026-12-01",
+        "2026-12-20"
+      ]
+    ]
+  },
+  {
+    "id": "sev-001",
+    "name": "Santa Cruz House",
+    "city": "Seville",
+    "district": "Santa Cruz",
+    "price_per_night": 80.0,
+    "rating": 4.5,
+    "amenities": [
+      "wifi",
+      "gym",
+      "pool"
+    ],
+    "available": [
+      [
+        "2026-10-01",
+        "2026-10-31"
+      ],
+      [
+        "2026-12-01",
+        "2026-12-20"
+      ]
+    ]
+  },
+  {
+    "id": "sev-002",
+    "name": "Triana Inn",
+    "city": "Seville",
+    "district": "Triana",
+    "price_per_night": 102.0,
+    "rating": 4.1,
+    "amenities": [
+      "gym",
+      "pool",
+      "parking"
+    ],
+    "available": [
+      [
+        "2026-10-01",
+        "2026-10-31"
+      ],
+      [
+        "2026-12-01",
+        "2026-12-20"
+      ]
+    ]
+  },
+  {
+    "id": "sev-003",
+    "name": "Nervion Suites",
+    "city": "Seville",
+    "district": "Nervion",
+    "price_per_night": 124.0,
+    "rating": 4.8,
+    "amenities": [
+      "pool",
+      "parking",
+      "spa"
+    ],
+    "available": [
+      [
+        "2026-10-01",
+        "2026-10-31"
+      ],
+      [
+        "2026-12-01",
+        "2026-12-20"
+      ]
+    ]
+  },
+  {
+    "id": "sev-004",
+    "name": "Macarena Palace",
+    "city": "Seville",
+    "district": "Macarena",
+    "price_per_night": 146.0,
+    "rating": 4.4,
+    "amenities": [
+      "parking",
+      "spa",
+      "pets"
+    ],
+    "available": [
+      [
+        "2026-10-01",
+        "2026-10-31"
+      ],
+      [
+        "2026-12-01",
+        "2026-12-20"
+      ]
+    ]
+  },
+  {
+    "id": "sev-005",
+    "name": "El Arenal Boutique",
+    "city": "Seville",
+    "district": "El Arenal",
+    "price_per_night": 168.0,
+    "rating": 4.0,
+    "amenities": [
+      "spa",
+      "pets",
+      "ac"
+    ],
+    "available": [
+      [
+        "2026-10-01",
+        "2026-10-31"
+      ],
+      [
+        "2026-12-01",
+        "2026-12-20"
+      ]
+    ]
+  },
+  {
+    "id": "sev-006",
+    "name": "Los Remedios Residence",
+    "city": "Seville",
+    "district": "Los Remedios",
+    "price_per_night": 190.0,
+    "rating": 4.7,
+    "amenities": [
+      "pets",
+      "ac",
+      "elevator"
+    ],
+    "available": [
+      [
+        "2026-10-01",
+        "2026-10-31"
+      ],
+      [
+        "2026-12-01",
+        "2026-12-20"
+      ]
+    ]
+  },
+  {
+    "id": "sev-007",
+    "name": "La Alameda Lodge",
+    "city": "Seville",
+    "district": "La Alameda",
+    "price_per_night": 212.0,
+    "rating": 4.3,
+    "amenities": [
+      "ac",
+      "elevator",
+      "breakfast"
+    ],
+    "available": [
+      [
+        "2026-10-01",
+        "2026-10-31"
+      ],
+      [
+        "2026-12-01",
+        "2026-12-20"
+      ]
+    ]
+  },
+  {
+    "id": "sev-008",
+    "name": "San Bernardo Manor",
+    "city": "Seville",
+    "district": "San Bernardo",
+    "price_per_night": 234.0,
+    "rating": 3.9,
+    "amenities": [
+      "elevator",
+      "breakfast",
+      "wifi"
+    ],
+    "available": [
+      [
+        "2026-10-01",
+        "2026-10-31"
+      ],
+      [
+        "2026-12-01",
+        "2026-12-20"
+      ]
+    ]
+  },
+  {
+    "id": "sev-009",
+    "name": "Bermejales Loft",
+    "city": "Seville",
+    "district": "Bermejales",
+    "price_per_night": 256.0,
+    "rating": 4.6,
+    "amenities": [
+      "breakfast",
+      "wifi",
+      "gym"
+    ],
+    "available": [
+      [
+        "2026-10-01",
+        "2026-10-31"
+      ],
+      [
+        "2026-12-01",
+        "2026-12-20"
+      ]
+    ]
+  },
+  {
+    "id": "sev-010",
+    "name": "Este Retreat",
+    "city": "Seville",
+    "district": "Este",
+    "price_per_night": 278.0,
+    "rating": 4.2,
+    "amenities": [
+      "wifi",
+      "gym",
+      "pool"
+    ],
+    "available": [
+      [
+        "2026-10-01",
+        "2026-10-31"
+      ],
+      [
+        "2026-12-01",
+        "2026-12-20"
+      ]
+    ]
+  }
+]

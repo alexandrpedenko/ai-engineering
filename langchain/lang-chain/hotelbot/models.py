@@ -12,3 +12,10 @@ class Hotel(BaseModel):
     rating: float
     amenities: list[str]
     available: list[list[str]]  # inclusive [check_in, check_out) ranges, ISO dates
+
+
+class Availability(BaseModel):
+    ok: bool
+    nights: int
+    total: float
+    reason: str | None = None
