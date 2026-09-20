@@ -19,3 +19,16 @@ class Availability(BaseModel):
     nights: int
     total: float
     reason: str | None = None
+
+
+class BookingProposal(BaseModel):
+    hotel_id: str
+    check_in: str
+    check_out: str
+    nights: int
+    total: float
+    why: str
+
+
+class PlainAnswer(BaseModel):
+    text: str
