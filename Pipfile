@@ -19,6 +19,8 @@ langchain-openai = "*"
 langchain-text-splitters = "*"
 langgraph = "*"
 langsmith = "*"
+langchain-chroma = "*"
+chromadb = "*"
 
 [dev-packages]
 ipykernel = "*"

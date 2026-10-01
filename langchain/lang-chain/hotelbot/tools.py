@@ -1,4 +1,4 @@
-"""Tool wrappers around hotelbot/catalogue.py.
+"""Tool wrappers around hotelbot/catalogue.py and the policy index.
 
 Each docstring here is written for the model, not for a human reader of this
 file: it is the only description of the function the model ever sees, so it
@@ -9,6 +9,7 @@ and what the function does not do.
 from langchain_core.tools import tool
 
 from hotelbot import catalogue
+from hotelbot.index import get_policy_index
 
 
 @tool
@@ -72,3 +73,26 @@ def check_availability(hotel_id: str, check_in: str, check_out: str) -> dict:
         range. This never raises — always read ok and reason instead.
     """
     return catalogue.check_availability(hotel_id, check_in, check_out).model_dump()
+
+
+@tool
+def lookup_policy(question: str) -> str:
+    """Look up the hotel group's written policies on cancellation, pets,
+    payment, accessibility, and check-in.
+
+    Use this for questions about rules, fees, limits, or hours that apply to
+    a stay — not for which hotels exist, their amenities, or their prices,
+    which search_hotels and get_hotel answer.
+
+    Args:
+        question: The policy question in plain words, e.g. "pet fee and
+            weight limit" or "when is the balance paid".
+
+    Returns:
+        The three passages from the policy documents closest in meaning to
+        the question, each starting with "[source: <file name>]" and
+        separated by a blank line. The passages may not all be relevant, and
+        none may answer the question — say so rather than filling the gap.
+    """
+    docs = get_policy_index().similarity_search(question, k=3)
+    return "\n\n".join(f"[source: {doc.metadata['source']}]\n{doc.page_content}" for doc in docs)

@@ -33,12 +33,16 @@ answer is distinguishable from a plausible one.
 
 ```python
 def get_policy_index() -> Chroma        # opens CHROMA_DIR; builds if missing or stale
-def rebuild_policy_index() -> Chroma    # drops and rebuilds — book 7 needs it
+def rebuild_policy_index() -> Chroma    # deletes all chunks and re-embeds — book 7 needs it
+def policy_fingerprints() -> dict[str, str]  # file name -> sha256 of its contents
 ```
 
-"Stale" is decided by comparing the set of policy file names stored in the
-collection's metadata with the files on disk; a new or removed file triggers
-a rebuild, an edited one does not (call `rebuild_policy_index()` for that).
+"Stale" is decided by content: every chunk stores its source file name and
+a sha256 hash of that file's contents, and `get_policy_index()` compares
+those with `policy_fingerprints()` for the files on disk. A new, removed, or
+edited file triggers a rebuild. A rebuild deletes the old chunks inside the
+same collection rather than dropping it, so no stale vector folders pile up
+in `CHROMA_DIR`. `data/chroma/` is gitignored — it is derived data.
 
 `hotelbot/tools.py` — adds:
 
@@ -57,8 +61,8 @@ lookup_policy(question) -> str   # top-3 chunks, each prefixed "[source: pets.md
 | 2 | md/code | **The model guesses policy.** "Can I bring my dog to Casa do Castelo?" Predict: refuse, hedge, or invent? Compare its answer to `data/policies/pets.md` by eye — the specific fee or weight limit is wrong or missing. |
 | 3 | md/code | **Documents become chunks.** Load the five files; `RecursiveCharacterTextSplitter(chunk_size=500, chunk_overlap=50)`; print the count and two adjacent chunks so the overlap is visible. Why not one chunk per file: a 6-paragraph file returned whole for a one-line question is mostly noise. |
 | 4 | md/code | **An embedding is a list of numbers.** `OpenAIEmbeddings().embed_query("dog")` — 1536 floats; the first five. Embed "pet", "cancellation"; compute the dot product of each pair by hand with a `for` loop, then normalise — "dog·pet" is close to 1, "dog·cancellation" much lower. That's the whole trick: near in meaning, near in numbers. |
-| 5 | md/code | **The index.** `Chroma(collection_name, embedding_function, persist_directory=CHROMA_DIR)`, `add_documents(chunks)`; `similarity_search("bringing a dog", k=3)` — print the three sources and the first line of each. Predict which file wins before running. |
-| 6 | md/code | **Persistence.** Time the build in cell 5; now `get_policy_index()` again and time it — milliseconds, no embedding calls in the trace. `ls data/chroma/`. The cost is paid once and the result is a file like the rest of `data/`. |
+| 5 | md/code | **The index.** An in-memory `Chroma(collection_name, embedding_function)`, `add_documents(chunks)` — never touches `data/chroma/`; `similarity_search("bringing a dog", k=3)` — print the three sources and the first line of each. Predict which file wins before running. |
+| 6 | md/code | **Persistence.** Fingerprints: a sha256 per policy file, shown as numbers. `get_policy_index()` twice, timed — on a fresh clone the first call builds into `data/chroma/`, the second reopens in milliseconds with no embedding calls; on a rerun both reopen. `ls data/chroma/`. |
 | 7 | md/code | **The tool.** `lookup_policy.invoke({"question": "can I bring a dog"})` — a string with three `[source: …]` blocks. That string is what the model will read; nothing else about the index reaches it. |
 | 8 | md/code | **The agent decides.** `build_agent()` now carries `lookup_policy`. The dog question: the trace shows the tool call and the answer now quotes the real fee. "Is there a gym at Casa do Castelo?": no `lookup_policy` call — predict first. Then a question on the boundary ("do I pay now or at the hotel?") — watch whether it looks it up or guesses; either outcome is the lesson. |
 | 9 | md | closing — the agent can consult documents and chooses when to. What it reads comes back as a `ToolMessage` like any other tool result — book 7 shows why that channel needs watching. Book 5 gives it memory and lets it book. |
@@ -67,7 +71,7 @@ lookup_policy(question) -> str   # top-3 chunks, each prefixed "[source: pets.md
 
 - Cell 2's answer contradicts or omits a fact in `pets.md`; cell 8's matches it.
 - Cell 4's normalised dot products order as "dog·pet" > "dog·cancellation".
-- Cell 6's second open makes no embedding calls (check the trace) and
+- Cell 6's second `get_policy_index()` call makes no embedding calls (check the trace) and
   `data/chroma/` exists on disk afterwards.
 - Cell 8's gym question makes no `lookup_policy` call.
 - `get_policy_index()` on a fresh clone builds the index without any manual step.

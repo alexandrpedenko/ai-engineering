@@ -41,3 +41,5 @@ openai/read-next-project/data/index/
 openai/read-next-project/data/profiles/
 
 # Other
+# Chroma vector store, rebuilt from data/policies/ by hotelbot.index
+langchain/lang-chain/data/chroma/

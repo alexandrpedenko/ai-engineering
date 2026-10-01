@@ -9,12 +9,18 @@ load_dotenv()
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 DATA_DIR = PROJECT_ROOT / "data"
+POLICIES_DIR = DATA_DIR / "policies"
+CHROMA_DIR = DATA_DIR / "chroma"
 
 CHAT_MODEL = "anthropic:claude-sonnet-5"
 CHEAP_MODEL = "anthropic:claude-haiku-4-5-20251001"
 EMBEDDING_MODEL = "text-embedding-3-small"
 
 TODAY = "2026-09-13"  # fixed, ADR-0002 — never parsed from user text
+
+CHUNK_SIZE = 500
+CHUNK_OVERLAP = 50
+POLICY_COLLECTION = "policies"
 
 
 def configure_tracing(book: int) -> None:

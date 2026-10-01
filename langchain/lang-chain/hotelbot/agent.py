@@ -10,7 +10,7 @@ from langchain_core.messages import BaseMessage, HumanMessage
 from hotelbot.config import CHAT_MODEL
 from hotelbot.models import BookingProposal, PlainAnswer
 from hotelbot.prompts import get_prompt
-from hotelbot.tools import check_availability, get_hotel, search_hotels
+from hotelbot.tools import check_availability, get_hotel, lookup_policy, search_hotels
 
 
 @dataclass
@@ -20,8 +20,8 @@ class AgentResult:
 
 
 def build_agent(prompt_version="v1", middleware=(), checkpointer=None):
-    """Build the hotelbot agent: the catalogue tools, a versioned system
-    prompt, and a typed final answer.
+    """Build the hotelbot agent: the catalogue tools, the policy lookup, a
+    versioned system prompt, and a typed final answer.
 
     `middleware` and `checkpointer` are accepted so later books can pass
     them without changing this signature; neither is used yet.
@@ -29,7 +29,7 @@ def build_agent(prompt_version="v1", middleware=(), checkpointer=None):
     model = init_chat_model(CHAT_MODEL, reasoning_effort="low")
     return create_agent(
         model,
-        tools=[search_hotels, get_hotel, check_availability],
+        tools=[search_hotels, get_hotel, check_availability, lookup_policy],
         system_prompt=get_prompt(prompt_version),
         response_format=ToolStrategy(BookingProposal | PlainAnswer),
     )
