@@ -32,3 +32,14 @@ class BookingProposal(BaseModel):
 
 class PlainAnswer(BaseModel):
     text: str
+
+
+class Reservation(BaseModel):
+    id: str  # "res-0001", "res-0002", ...
+    hotel_id: str
+    guest: str
+    check_in: str
+    check_out: str
+    nights: int
+    total: float
+    created_at: str  # ISO timestamp of when it was written

@@ -43,3 +43,6 @@ openai/read-next-project/data/profiles/
 # Other
 # Chroma vector store, rebuilt from data/policies/ by hotelbot.index
 langchain/lang-chain/data/chroma/
+
+# Written by hotelbot.reservations; a missing file means no reservations
+langchain/lang-chain/data/reservations.json

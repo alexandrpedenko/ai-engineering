@@ -1,4 +1,5 @@
-"""Tool wrappers around hotelbot/catalogue.py and the policy index.
+"""Tool wrappers around hotelbot/catalogue.py, the policy index, and
+hotelbot/reservations.py.
 
 Each docstring here is written for the model, not for a human reader of this
 file: it is the only description of the function the model ever sees, so it
@@ -8,7 +9,7 @@ and what the function does not do.
 
 from langchain_core.tools import tool
 
-from hotelbot import catalogue
+from hotelbot import catalogue, reservations
 from hotelbot.index import get_policy_index
 
 
@@ -96,3 +97,25 @@ def lookup_policy(question: str) -> str:
     """
     docs = get_policy_index().similarity_search(question, k=3)
     return "\n\n".join(f"[source: {doc.metadata['source']}]\n{doc.page_content}" for doc in docs)
+
+
+@tool
+def make_reservation(hotel_id: str, guest: str, check_in: str, check_out: str) -> dict:
+    """Book a stay. Calling this writes a reservation immediately.
+
+    Args:
+        hotel_id: The hotel's id, e.g. "lis-004".
+        guest: The name the reservation is under.
+        check_in: Check-in date, ISO format "YYYY-MM-DD".
+        check_out: Check-out date, ISO format "YYYY-MM-DD", after check_in.
+
+    Returns:
+        The written reservation as a dict with id, hotel_id, guest, check_in,
+        check_out, nights, total, and created_at. If the stay isn't available,
+        nothing is written and the dict is {"error": <reason>} instead. This
+        never raises.
+    """
+    try:
+        return reservations.add_reservation(hotel_id, guest, check_in, check_out).model_dump()
+    except ValueError as error:
+        return {"error": str(error)}
