@@ -23,13 +23,14 @@ here in the same commit.
 | | book | status | spec |
 | --- | --- | --- | --- |
 | 1 | models and messages — one model call, message types, streaming | done | [specs/1-models-and-messages.md](specs/1-models-and-messages.md) |
-| 2 | tools by hand — `@tool`, `bind_tools`, one tool loop written out | spec drafted | [specs/2-tools-by-hand.md](specs/2-tools-by-hand.md) |
-| 3 | `create_agent` — the loop as a library call, structured output | spec drafted | [specs/3-create-agent.md](specs/3-create-agent.md) |
-| 4 | policy RAG — split, embed, retrieve, wrap as a tool | spec drafted | [specs/4-policy-rag.md](specs/4-policy-rag.md) |
-| 5 | middleware and booking — human-in-the-loop, summarization, custom hooks, thread memory | spec drafted | [specs/5-middleware-and-booking.md](specs/5-middleware-and-booking.md) |
-| 6 | prompt iteration — three prompt versions, the prompt hub | spec drafted | [specs/6-prompt-iteration.md](specs/6-prompt-iteration.md) |
+| 2 | tools by hand — `@tool`, `bind_tools`, one tool loop written out | done | [specs/2-tools-by-hand.md](specs/2-tools-by-hand.md) |
+| 3 | `create_agent` — the loop as a library call, structured output | done | [specs/3-create-agent.md](specs/3-create-agent.md) |
+| 4 | policy RAG — split, embed, retrieve, wrap as a tool | done | [specs/4-policy-rag.md](specs/4-policy-rag.md) |
+| 5 | middleware and booking — human-in-the-loop, summarization, custom hooks, thread memory | done | [specs/5-middleware-and-booking.md](specs/5-middleware-and-booking.md) |
+| 6 | prompt iteration — three prompt versions, the prompt hub | in progress | [specs/6-prompt-iteration.md](specs/6-prompt-iteration.md) |
 | 7 | reliability and guardrails — retries, fallbacks, tool errors, a poisoned document | spec drafted | [specs/7-reliability-and-guardrails.md](specs/7-reliability-and-guardrails.md) |
 | 8 | LangSmith — read a full booking trace: calls, tokens, latency, cost | spec drafted | [specs/8-langsmith.md](specs/8-langsmith.md) |
+| 9 | talk to it — an `input()` chat loop over the finished agent; you search and book yourself, approving at the pause | planned — spec after book 8 | — |
 
 ## The decisions
 
@@ -186,10 +187,11 @@ without an ADR:
 
 | module | holds | book |
 | --- | --- | --- |
-| `prompts.py` | `get_prompt(version)` — `"v1"`, `"v2"`, `"v3"`, or `"hub:<name>[:<commit>]"` | 3, 6 |
+| `prompts.py` | `get_prompt(version)` — `"v1"`, `"v2"`, `"v3"`, or `"hub:<name>[:<commit>]"`; always returns the system prompt as `str` | 3, 6 |
 | `middleware.py` | `LogToolCalls`, `ScreenRetrievedText` | 5, 7 |
 | `samples.py` | `REQUESTS` — five fixed requests reused by books 6–8 | 6 |
 | `faults.py` | `flaky(tool, every)` — a tool wrapper that fails on purpose | 7 |
+| `chat.py` | `chat(agent)` — an `input()` loop on one thread; asks approve / reject when a booking pauses | 9 |
 
 `hotelbot/config.py` — model ids, project name, paths. Pinned:
 
@@ -238,5 +240,5 @@ langchain/lang-chain/
   adr/                     decisions, numbered, superseding not deleting
   data/                    hotels.json, policies/, chroma/, reservations.json
   hotelbot/                the package
-  1-models-and-messages.ipynb … 8-langsmith.ipynb
+  1-models-and-messages.ipynb … 9-talk-to-it.ipynb
 ```

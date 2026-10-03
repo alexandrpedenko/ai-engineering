@@ -1,6 +1,6 @@
 # Book 2 — tools by hand
 
-**Status:** draft
+**Status:** done
 **Decides:** ADR-0002 (local JSON, fixed dates), ADR-0003 (the loop is written out once), ADR-0006 (tool signatures are contracts)
 
 ## What you can do after this that you couldn't before

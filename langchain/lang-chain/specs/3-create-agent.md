@@ -1,6 +1,6 @@
 # Book 3 — `create_agent`
 
-**Status:** draft
+**Status:** done
 **Decides:** ADR-0003 (`create_agent` is the only agent API from here on)
 
 ## What you can do after this that you couldn't before

@@ -1,6 +1,6 @@
 # Book 5 — middleware and booking
 
-**Status:** draft
+**Status:** done
 **Decides:** ADR-0004 (no reservation without approval)
 
 ## What you can do after this that you couldn't before

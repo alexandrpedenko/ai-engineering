@@ -1,6 +1,6 @@
 # Book 4 — policy RAG
 
-**Status:** draft
+**Status:** done
 **Decides:** ADR-0005 (retrieval is a tool), ADR-0008 (Chroma, persisted), ADR-0001 (OpenAI embeddings)
 
 ## What you can do after this that you couldn't before
