@@ -1,6 +1,6 @@
 # ADR-0003 — Dependencies reach nodes through `TripContext`
 
-**Status:** Proposed (2026-10-04)
+**Status:** Accepted (2026-10-04)
 
 ## Context
 

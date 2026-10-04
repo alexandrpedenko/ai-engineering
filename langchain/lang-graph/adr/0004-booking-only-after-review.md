@@ -1,6 +1,6 @@
 # ADR-0004 — Booking runs only after an approved review, and is idempotent
 
-**Status:** Proposed (2026-10-04)
+**Status:** Accepted (2026-10-04)
 
 ## Context
 

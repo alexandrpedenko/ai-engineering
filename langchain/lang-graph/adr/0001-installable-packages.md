@@ -1,6 +1,6 @@
 # ADR-0001 — `hotelbot` and `tripgraph` are installable packages
 
-**Status:** Proposed (2026-10-04)
+**Status:** Accepted (2026-10-04)
 
 ## Context
 

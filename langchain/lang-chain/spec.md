@@ -242,3 +242,19 @@ langchain/lang-chain/
   hotelbot/                the package
   1-models-and-messages.ipynb … 9-talk-to-it.ipynb
 ```
+
+## Amendments
+
+Added after the build, per the repo CLAUDE.md rule; earlier text above is
+left as it was.
+
+- **2026-10-04 — how other projects import `hotelbot`.** ADR-0006 says
+  projects 2 and 3 import `hotelbot` with "the path added in their
+  notebooks". Project 2's ADR-0001 replaces that: `lang-chain/pyproject.toml`
+  makes `hotelbot` a package, installed into the Pipfile environment as an
+  editable path install. Packaging only — no signature in this file changes.
+- **2026-10-04 — book 9 and `chat.py` were not built.** The `input()` chat
+  loop moved to project 2, where it is built across books as `tripgraph.app`.
+  The `chat.py` row in the module table above describes a module that does
+  not exist.
+

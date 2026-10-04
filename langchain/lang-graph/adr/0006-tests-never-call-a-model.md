@@ -1,6 +1,6 @@
 # ADR-0006 — `tests/` never call a real model
 
-**Status:** Proposed (2026-10-04)
+**Status:** Accepted (2026-10-04)
 
 ## Context
 

@@ -1,6 +1,6 @@
 # ADR-0002 — The trip's rules are plain code
 
-**Status:** Proposed (2026-10-04)
+**Status:** Accepted (2026-10-04)
 
 ## Context
 

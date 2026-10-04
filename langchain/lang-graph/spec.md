@@ -34,7 +34,7 @@ what later books need from it; they don't fix cells.
 
 | | book | status | spec |
 | --- | --- | --- | --- |
-| 1 | state, nodes, edges — a brief validated by a graph; reducers; the clarification edge | roadmap | — |
+| 1 | state, nodes, edges — a brief validated by a graph; reducers; the clarification edge | spec drafted | [specs/1-state-nodes-edges.md](specs/1-state-nodes-edges.md) |
 | 2 | model nodes — parse the brief with a model; dependencies through the graph's context; fake-model tests | roadmap | — |
 | 3 | the hotel agent by hand — a tool loop built from nodes, then used as a subgraph | roadmap | — |
 | 4 | fan-out and loops — one research branch per city in parallel; the budget-trim loop; `Command` | roadmap | — |
