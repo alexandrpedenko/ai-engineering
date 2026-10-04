@@ -75,23 +75,26 @@ def build_agent(prompt_version="v1", middleware=(), checkpointer=None, tools=Non
     )
 
 
-def run(agent, text: str, thread_id: str | None = None) -> AgentResult:
+def run(agent, text: str, thread_id: str | None = None, config: dict | None = None) -> AgentResult:
     """Run one turn and unpack the resulting state.
 
     With no `thread_id`, the turn gets a new thread and sees no earlier
     messages. Pass the same `thread_id` to several calls to continue one
     conversation.
+
+    `config` is passed on to the run alongside the thread id: `tags`,
+    `metadata` and `run_id` there end up on the run's trace in LangSmith.
     """
     if thread_id is None:
         thread_id = str(uuid.uuid4())
     result = agent.invoke(
         {"messages": [HumanMessage(text)]},
-        config={"configurable": {"thread_id": thread_id}},
+        config=_with_thread(config, thread_id),
     )
     return _unpack(result, thread_id)
 
 
-def resume(agent, decision: dict, thread_id: str) -> AgentResult:
+def resume(agent, decision: dict, thread_id: str, config: dict | None = None) -> AgentResult:
     """Continue a run that paused for approval, with your decision on it.
 
     `decision` is one of:
@@ -99,13 +102,17 @@ def resume(agent, decision: dict, thread_id: str) -> AgentResult:
         {"type": "edit", "edited_action": {"name": "make_reservation", "args": {...}}}
         {"type": "reject", "message": "why, in words the model will read"}
     It applies to the one paused booking; a run that paused on several
-    bookings at once is not handled here.
+    bookings at once is not handled here. `config` works as in run().
     """
     result = agent.invoke(
         Command(resume={"decisions": [decision]}),
-        config={"configurable": {"thread_id": thread_id}},
+        config=_with_thread(config, thread_id),
     )
     return _unpack(result, thread_id)
+
+
+def _with_thread(config: dict | None, thread_id: str) -> dict:
+    return {**(config or {}), "configurable": {"thread_id": thread_id}}
 
 
 def _unpack(result: dict, thread_id: str) -> AgentResult:

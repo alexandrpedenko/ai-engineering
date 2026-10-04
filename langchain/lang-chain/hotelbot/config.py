@@ -16,6 +16,14 @@ CHAT_MODEL = "anthropic:claude-sonnet-5"
 CHEAP_MODEL = "anthropic:claude-haiku-4-5-20251001"
 EMBEDDING_MODEL = "text-embedding-3-small"
 
+# US dollars per million tokens, (input, output), keyed by the model name
+# LangSmith records on each model run. Copied from Anthropic's price list on
+# 2026-10-04 — a snapshot, not looked up live; prices change.
+PRICING: dict[str, tuple[float, float]] = {
+    "claude-sonnet-5": (2.00, 10.00),
+    "claude-haiku-4-5-20251001": (1.00, 5.00),
+}
+
 TODAY = "2026-09-13"  # fixed, ADR-0002 — never parsed from user text
 
 CHUNK_SIZE = 500

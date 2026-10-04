@@ -3,6 +3,8 @@
 import json
 from datetime import date
 
+from langsmith import traceable
+
 from hotelbot.config import DATA_DIR
 from hotelbot.models import Availability, Hotel
 
@@ -37,6 +39,7 @@ def get_hotel(hotel_id: str) -> Hotel | None:
     return None
 
 
+@traceable(name="check_availability.python")
 def check_availability(hotel_id: str, check_in: str, check_out: str) -> Availability:
     hotel = get_hotel(hotel_id)
     if hotel is None:
