@@ -1,6 +1,6 @@
 # Book 6 — prompt iteration
 
-**Status:** in progress
+**Status:** done
 **Decides:** nothing new; uses ADR-0007 (LangSmith) for the prompt hub
 
 ## What you can do after this that you couldn't before

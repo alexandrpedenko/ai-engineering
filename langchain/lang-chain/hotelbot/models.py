@@ -1,6 +1,8 @@
 """Pydantic models shared across the project."""
 
-from pydantic import BaseModel
+from typing import Literal
+
+from pydantic import BaseModel, Field
 
 
 class Hotel(BaseModel):
@@ -43,3 +45,8 @@ class Reservation(BaseModel):
     nights: int
     total: float
     created_at: str  # ISO timestamp of when it was written
+
+
+class ScreenVerdict(BaseModel):
+    verdict: Literal["allow", "block"]
+    reason: str = Field(description="One short sentence saying why.")

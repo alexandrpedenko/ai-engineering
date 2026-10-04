@@ -32,7 +32,10 @@ class AgentResult:
     interrupt: dict | None = None  # set when the run paused for approval
 
 
-def build_agent(prompt_version="v1", middleware=(), checkpointer=None):
+TOOLS = [search_hotels, get_hotel, check_availability, lookup_policy, make_reservation]
+
+
+def build_agent(prompt_version="v1", middleware=(), checkpointer=None, tools=None, model=None):
     """Build the hotelbot agent: the catalogue tools, the policy lookup,
     make_reservation, a versioned system prompt, and a typed final answer.
 
@@ -44,6 +47,10 @@ def build_agent(prompt_version="v1", middleware=(), checkpointer=None):
     so a later call on the same thread sees the earlier turns. It defaults to
     an in-memory one, which forgets everything when the process stops.
     `middleware` is a list of extra middleware, added after the gate.
+    `tools` replaces the tool list; it defaults to TOOLS. The gate applies
+    to whichever tool in it is named make_reservation.
+    `model` is a model id string or a chat model; it defaults to CHAT_MODEL
+    with low reasoning effort.
     """
     if checkpointer is None:
         # The saved state includes the typed answer, so the serializer has to
@@ -56,10 +63,11 @@ def build_agent(prompt_version="v1", middleware=(), checkpointer=None):
                 ]
             )
         )
-    model = init_chat_model(CHAT_MODEL, reasoning_effort="low")
+    if model is None:
+        model = init_chat_model(CHAT_MODEL, reasoning_effort="low")
     return create_agent(
         model,
-        tools=[search_hotels, get_hotel, check_availability, lookup_policy, make_reservation],
+        tools=TOOLS if tools is None else tools,
         system_prompt=get_prompt(prompt_version),
         response_format=ToolStrategy(BookingProposal | PlainAnswer),
         middleware=[HumanInTheLoopMiddleware(interrupt_on={"make_reservation": True}), *middleware],
