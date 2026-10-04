@@ -28,6 +28,27 @@ fine.
 If a slice turns out bigger than it looked, split it and tell me — that is
 always better than delivering something I have to review in one gulp.
 
+## Specs are append-only once a build starts
+
+A spec is the plan I approved. While it is still being drafted and reviewed,
+edit it freely. Once its first slice is built, its body is frozen; what the
+build discovers is added to it, never written over it.
+
+- **Discoveries go in an `## Amendments` section** at the bottom of that book's
+  spec — a wrong assumption, a signature that had to change, an API that
+  behaves differently than the spec said. One entry per change: date, slice,
+  what the spec said, what is true now, and why. Add new entries below
+  earlier ones; never edit or delete an earlier entry.
+- **A change to a cross-book contract** (anything in a project's `spec.md`)
+  goes in `spec.md`'s own `## Amendments` section, or in a new ADR that
+  supersedes the old one when it's a decision rather than a detail. Never
+  silently rewrite a contract other books depend on.
+- **Only status fields are edited in place** — a book's `**Status:**` line and
+  the status column of the books table.
+- **Every amendment is named in the slice handover**, so I see it before I
+  approve the next slice. If an amendment changes what a later book or slice
+  will do, stop and ask instead of amending.
+
 ## Notebook markdown style
 
 - One `#` (h1) per notebook, on the first cell only, as the title.

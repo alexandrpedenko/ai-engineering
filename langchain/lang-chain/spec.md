@@ -27,10 +27,10 @@ here in the same commit.
 | 3 | `create_agent` — the loop as a library call, structured output | done | [specs/3-create-agent.md](specs/3-create-agent.md) |
 | 4 | policy RAG — split, embed, retrieve, wrap as a tool | done | [specs/4-policy-rag.md](specs/4-policy-rag.md) |
 | 5 | middleware and booking — human-in-the-loop, summarization, custom hooks, thread memory | done | [specs/5-middleware-and-booking.md](specs/5-middleware-and-booking.md) |
-| 6 | prompt iteration — three prompt versions, the prompt hub | in progress | [specs/6-prompt-iteration.md](specs/6-prompt-iteration.md) |
-| 7 | reliability and guardrails — retries, fallbacks, tool errors, a poisoned document | spec drafted | [specs/7-reliability-and-guardrails.md](specs/7-reliability-and-guardrails.md) |
-| 8 | LangSmith — read a full booking trace: calls, tokens, latency, cost | spec drafted | [specs/8-langsmith.md](specs/8-langsmith.md) |
-| 9 | talk to it — an `input()` chat loop over the finished agent; you search and book yourself, approving at the pause | planned — spec after book 8 | — |
+| 6 | prompt iteration — three prompt versions, the prompt hub | done | [specs/6-prompt-iteration.md](specs/6-prompt-iteration.md) |
+| 7 | reliability and guardrails — retries, fallbacks, tool errors, a poisoned document | done | [specs/7-reliability-and-guardrails.md](specs/7-reliability-and-guardrails.md) |
+| 8 | LangSmith — read a full booking trace: calls, tokens, latency, cost | done | [specs/8-langsmith.md](specs/8-langsmith.md) |
+| 9 | talk to it — an `input()` chat loop over the finished agent; you search and book yourself, approving at the pause | moved — the chat app is built across project 2's books (`tripgraph.app`) | — |
 
 ## The decisions
 
