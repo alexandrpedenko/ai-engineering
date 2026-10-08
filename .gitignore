@@ -46,3 +46,6 @@ langchain/lang-chain/data/chroma/
 
 # Written by hotelbot.reservations; a missing file means no reservations
 langchain/lang-chain/data/reservations.json
+
+# Build metadata from the editable installs of hotelbot and tripgraph
+*.egg-info/

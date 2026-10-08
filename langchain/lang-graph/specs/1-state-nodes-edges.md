@@ -1,6 +1,6 @@
 # Book 1 — state, nodes, edges
 
-**Status:** spec drafted
+**Status:** in progress — slice 1 of 5 built
 **Decides:** ADR-0001 (installable packages), ADR-0002 (rules are plain code),
 ADR-0005 (ISO dates only), ADR-0006 (tests never call a model)
 **Written against:** `langgraph` 1.2.11, `langchain-core` 1.6.4, `rich` 15.0.0,

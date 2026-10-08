@@ -1,0 +1,16 @@
+# Makes tripgraph an installable package (ADR-0001).
+# Dependencies are managed by the repo-root Pipfile, not listed here.
+[build-system]
+requires = ["setuptools>=69"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "tripgraph"
+version = "0.1.0"
+requires-python = ">=3.14"
+
+[tool.setuptools.packages.find]
+include = ["tripgraph*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

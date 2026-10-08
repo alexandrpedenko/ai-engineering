@@ -21,10 +21,15 @@ langgraph = "*"
 langsmith = "*"
 langchain-chroma = "*"
 chromadb = "*"
+rich = "*"
+prompt-toolkit = "*"
+hotelbot = {path = "./langchain/lang-chain", editable = true}
+tripgraph = {path = "./langchain/lang-graph", editable = true}
 
 [dev-packages]
 ipykernel = "*"
 nbconvert = "*"
+pytest = "*"
 
 [requires]
 python_version = "3.14"
