@@ -1,6 +1,6 @@
 # ADR-0006 — Resuming a run never starts a second Cursor run for the same attempt
 
-**Status:** Proposed (2026-10-11)
+**Status:** Accepted (2026-10-11)
 
 ## Context
 

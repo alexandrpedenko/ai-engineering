@@ -1,6 +1,6 @@
 # ADR-0003 — LangGraph.js is the engine, compiled from the workflow at run time
 
-**Status:** Proposed (2026-10-11)
+**Status:** Accepted (2026-10-11)
 
 ## Context
 

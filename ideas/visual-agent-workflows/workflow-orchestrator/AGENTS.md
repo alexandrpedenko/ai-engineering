@@ -28,7 +28,8 @@ packages/web/src/
   api/              implements OrchestratorApi with fetch / EventSource. The only place that talks HTTP.
   components/       presentational: props in, callbacks out. No application hooks, no api.
   pages/            one per screen: connects application hooks to components.
-  app/              theme, providers (QueryClient, OrchestratorApi context), routing, shell.
+  bootstrap/        start-up and wiring: mounts React, creates HttpOrchestratorApi + QueryClient and
+                    provides them, theme, routing, shell layout. Imports anything; nothing imports it.
 ```
 
 What goes where, by question:
@@ -48,7 +49,7 @@ What goes where, by question:
   (`vite.config.ts`).
 - `import type` for anything used only as a type. `web` imports from
   `@orch/core` with `import type` only.
-- No non-null assertions (`!`) except on the DOM root in `app/`.
+- No non-null assertions (`!`) except on the DOM root in `bootstrap/`.
 - Imports without file extensions (`moduleResolution: "bundler"`).
 
 ## Async code
@@ -138,7 +139,7 @@ it failing.
 - Libraries are imported only in the layer that's allowed to use them:
   `@cursor/sdk`, `@langchain/*`, `yaml`, `better-sqlite3` in
   `core/src/infrastructure`; `hono` in `server`; `@tanstack/react-query` and
-  `zustand` in `web/src/application` (set up in `app/`); MUI, React Flow and
+  `zustand` in `web/src/application` (set up in `bootstrap/`); MUI, React Flow and
   Monaco in `web` components, pages and app.
 
 ## Working in slices

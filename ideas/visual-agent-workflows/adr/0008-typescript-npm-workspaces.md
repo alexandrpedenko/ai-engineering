@@ -1,6 +1,6 @@
 # ADR-0008 — TypeScript in three npm workspaces, run from source
 
-**Status:** Proposed (2026-10-11)
+**Status:** Accepted (2026-10-11)
 
 ## Context
 

@@ -1,6 +1,6 @@
 # ADR-0005 — A step names the skills it requires; it cannot hide the others
 
-**Status:** Proposed (2026-10-11)
+**Status:** Accepted (2026-10-11)
 
 ## Context
 

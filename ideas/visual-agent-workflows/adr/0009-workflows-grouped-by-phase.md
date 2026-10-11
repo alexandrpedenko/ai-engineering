@@ -1,6 +1,6 @@
 # ADR-0009 — Workflows are grouped into phases the host project defines
 
-**Status:** Proposed (2026-10-11)
+**Status:** Accepted (2026-10-11)
 
 ## Context
 

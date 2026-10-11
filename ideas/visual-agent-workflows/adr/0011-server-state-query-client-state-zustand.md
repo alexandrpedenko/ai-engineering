@@ -1,6 +1,6 @@
 # ADR-0011 — TanStack Query for server data, Zustand for client state, async/await only
 
-**Status:** Proposed (2026-10-11)
+**Status:** Accepted (2026-10-11)
 
 ## Context
 
@@ -44,12 +44,12 @@ Flow's own docs suggest an external store for that.
 ## Consequences
 
 - Loading, error and refetch behaviour is the same in every screen, set once
-  in `app/queryClient.ts` (no refetch on window focus; 30 s stale time).
+  in `bootstrap/queryClient.ts` (no refetch on window focus; 30 s stale time).
 - Hook tests render with a fresh `QueryClient` and a `FakeOrchestratorApi`
   (`tests/support/renderWithProviders.tsx`); no network, no mocking of
   `fetch` outside the `api/` tests.
 - Two small libraries (TanStack Query about 13 kB gzipped, Zustand about
-  1 kB). Both are allowed only in `web/src/application` (and set up in `app/`);
+  1 kB). Both are allowed only in `web/src/application` (and set up in `bootstrap/`);
   the architecture test enforces it.
 
 ## Alternatives considered

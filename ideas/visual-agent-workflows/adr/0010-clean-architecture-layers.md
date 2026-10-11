@@ -1,6 +1,6 @@
 # ADR-0010 — Clean Architecture layers, with dependencies pointing inward
 
-**Status:** Proposed (2026-10-11)
+**Status:** Accepted (2026-10-11)
 
 ## Context
 
@@ -23,13 +23,13 @@ cases, hooks) → adapters (API methods, infrastructure, views)**.
 | domain | `core/src/domain` | `web/src/domain` | nothing outside its layer; `zod` only |
 | application | `core/src/application` (use cases + ports) | `web/src/application` (hooks, stores + ports) | domain; `react`, `@tanstack/react-query`, `zustand` in `web` (ADR-0011) |
 | adapters | `core/src/infrastructure`, `server/src/routes` | `web/src/api`, `web/src/components`, `web/src/pages` | application, domain, libraries |
-| composition | `server/src/composition.ts`, `server/src/main.ts` | `web/src/app` | everything |
+| composition | `server/src/composition.ts`, `server/src/main.ts` | `web/src/bootstrap` | everything |
 
 - **Ports** are interfaces in the application layer (`AgentRuntime`,
   `WorkflowStore`, `ProjectFiles`, `OrchestratorApi`). Adapters implement
   them. Only the composition layer creates adapters and passes them in.
 - **`web` follows the same rule:** hooks call the `OrchestratorApi` port, not
-  `fetch`; `web/src/api` implements it; `app/` provides it through React
+  `fetch`; `web/src/api` implements it; `bootstrap/` provides it through React
   context. Components get data through props and report actions through
   callbacks; they don't call hooks from `application`. Pages connect hooks to
   components.

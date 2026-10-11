@@ -1,6 +1,6 @@
 # ADR-0012 — Every feature ships server and web tests; `npm run check` is the gate
 
-**Status:** Proposed (2026-10-11)
+**Status:** Accepted (2026-10-11)
 
 ## Context
 

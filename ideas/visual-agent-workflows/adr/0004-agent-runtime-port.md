@@ -1,6 +1,6 @@
 # ADR-0004 — Agent steps go through an `AgentRuntime` port; Cursor local first
 
-**Status:** Proposed (2026-10-11)
+**Status:** Accepted (2026-10-11)
 
 ## Context
 

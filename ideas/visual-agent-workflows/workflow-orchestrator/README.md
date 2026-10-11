@@ -25,6 +25,7 @@ project's `.cursor/workflows/` folder.
 | | |
 | --- | --- |
 | `npm run dev` | API server (port 4317) and web UI (port 5173) |
+| `npm run scan -- --project <path>` | list a host project's skills, agents, artefacts and warnings (`--json` for JSON) |
 | `npm run smoke` | checks the Cursor SDK and LangGraph load; no API key needed |
 | `npm run check` | the gate: typecheck, then all tests |
 | `npm run typecheck` | `tsc` over all three packages |

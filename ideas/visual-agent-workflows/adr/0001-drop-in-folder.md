@@ -1,6 +1,6 @@
 # ADR-0001 — The orchestrator is a folder dropped into the host project
 
-**Status:** Proposed (2026-10-11)
+**Status:** Accepted (2026-10-11)
 
 ## Context
 

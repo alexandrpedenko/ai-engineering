@@ -3,7 +3,8 @@
   "private": true,
   "type": "module",
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./infrastructure": "./src/infrastructure/index.ts"
   },
   "scripts": {
     "smoke": "tsx scripts/smoke.ts",
@@ -13,6 +14,7 @@
     "@cursor/sdk": "1.0.37",
     "@langchain/core": "1.2.17",
     "@langchain/langgraph": "1.4.21",
+    "tinyglobby": "0.2.17",
     "yaml": "2.9.1",
     "zod": "4.6.5"
   }

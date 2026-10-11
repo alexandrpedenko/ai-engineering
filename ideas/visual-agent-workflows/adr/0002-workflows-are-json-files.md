@@ -1,6 +1,6 @@
 # ADR-0002 — Workflows are JSON files in our own schema
 
-**Status:** Proposed (2026-10-11)
+**Status:** Accepted (2026-10-11)
 
 ## Context
 

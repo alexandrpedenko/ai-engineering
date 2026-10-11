@@ -10,8 +10,8 @@ const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 
 type Layer =
   | "core/domain" | "core/application" | "core/infrastructure" | "core/index"
-  | "server/routes" | "server/composition"
-  | "web/domain" | "web/application" | "web/api" | "web/components" | "web/pages" | "web/app";
+  | "server/routes" | "server/cli" | "server/composition" | "server/bin"
+  | "web/domain" | "web/application" | "web/api" | "web/components" | "web/pages" | "web/bootstrap";
 
 const coreTypes = "@orch/core";
 const uiLibs = ["react", "react/*", "@mui/*", "@emotion/*", "@xyflow/react", "@xyflow/react/*", "@monaco-editor/react"];
@@ -24,8 +24,13 @@ const rules: Record<Layer, { layers: Layer[]; packages: string[] }> = {
   "core/infrastructure": { layers: ["core/domain", "core/application", "core/infrastructure"], packages: ["*"] },
   "core/index": { layers: ["core/domain", "core/application"], packages: [] },
   "server/routes": { layers: ["server/routes", "core/index"], packages: ["hono", "hono/*", "zod"] },
+  "server/cli": { layers: ["server/cli", "core/index"], packages: [] },
   "server/composition": {
     layers: ["server/routes", "server/composition", "core/index", "core/infrastructure"],
+    packages: ["*"],
+  },
+  "server/bin": {
+    layers: ["server/routes", "server/cli", "server/composition", "server/bin", "core/index", "core/infrastructure"],
     packages: ["*"],
   },
   "web/domain": { layers: ["web/domain"], packages: ["zod", coreTypes] },
@@ -39,8 +44,8 @@ const rules: Record<Layer, { layers: Layer[]; packages: string[] }> = {
     layers: ["web/domain", "web/application", "web/components", "web/pages"],
     packages: [...uiLibs, coreTypes],
   },
-  "web/app": {
-    layers: ["web/domain", "web/application", "web/api", "web/components", "web/pages", "web/app"],
+  "web/bootstrap": {
+    layers: ["web/domain", "web/application", "web/api", "web/components", "web/pages", "web/bootstrap"],
     packages: ["*"],
   },
 };
@@ -60,10 +65,12 @@ export function layerOf(path: string): Layer | null {
   if (pkg === "server") {
     if (rest === "main.ts" || rest === "composition.ts") return "server/composition";
     if (rest.startsWith("routes/")) return "server/routes";
+    if (rest.startsWith("cli/")) return "server/cli";
+    if (rest.startsWith("bin/")) return "server/bin";
     return null;
   }
   const dir = rest.split("/")[0];
-  const webLayers = ["domain", "application", "api", "components", "pages", "app"];
+  const webLayers = ["domain", "application", "api", "components", "pages", "bootstrap"];
   return dir && webLayers.includes(dir) ? (`web/${dir}` as Layer) : null;
 }
 

@@ -30,13 +30,14 @@ export function promiseChainsIn(source: string): string[] {
 }
 
 // Folders whose files must each have a test file at the mirrored path under
-// tests/. Components are covered through the pages that use them; app/ and
+// tests/. Components are covered through the pages that use them; bootstrap/ and
 // composition are covered by page and route tests.
 const mustBeTested = [
   "packages/core/src/domain",
   "packages/core/src/application",
   "packages/core/src/infrastructure",
   "packages/server/src/routes",
+  "packages/server/src/cli",
   "packages/web/src/domain",
   "packages/web/src/application",
   "packages/web/src/api",

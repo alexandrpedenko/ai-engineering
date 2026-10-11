@@ -1,6 +1,6 @@
 # workflow-orchestrator — MVP spec
 
-**Status:** draft, in review (2026-10-11). Slice 0 (workspace + coding rules) built; slice 1 not started.
+**Status:** draft, in review (2026-10-11). Slices 0 and 1 built; slice 1 in review. Body frozen: changes go in Amendments.
 
 A folder you drop into a project that already has Cursor skills, agents and
 artefacts. It reads them, lets you draw a workflow from them on a canvas
@@ -83,7 +83,7 @@ packages/web        React 19 + MUI 9 + React Flow 12 + Monaco
   domain/           pure UI logic: group workflows by phase, workflow ↔ canvas nodes
   application/      hooks + the OrchestratorApi port
   api/              OrchestratorApi over HTTP + SSE
-  components/ pages/ app/
+  components/ pages/ bootstrap/
      │  HTTP JSON + Server-Sent Events (via Vite proxy in dev)
 packages/server     Hono on Node
   routes/           parse request → call a use case → map result
@@ -115,7 +115,7 @@ workflow-orchestrator/
 ├─ packages/
 │  ├─ core/    src/{domain,application,infrastructure}  tests/
 │  ├─ server/  src/{routes,composition.ts,main.ts}       tests/
-│  └─ web/     src/{domain,application,api,components,pages,app}  index.html  vite.config.ts
+│  └─ web/     src/{domain,application,api,components,pages,bootstrap}  index.html  vite.config.ts
 ├─ tests/architecture.test.ts   the layer rules
 ├─ fixtures/sample-project/     a small configured host for tests and dev (slice 1)
 └─ .data/                       gitignored: checkpoints, event logs, run refs
@@ -153,7 +153,8 @@ These are what later slices build on. Changing one after slice 1 is an amendment
 type Skill    = { name: string; path: string; description: string; body: string };
 type AgentDef = { name: string; path: string; description: string; model?: string; body: string };
 type Artefact = { path: string; size: number; mtimeMs: number };
-type Registry = { root: string; skills: Skill[]; agents: AgentDef[]; artefacts: Artefact[]; warnings: string[] };
+type RegistryWarning = { path: string; message: string };
+type Registry = { root: string; skills: Skill[]; agents: AgentDef[]; artefacts: Artefact[]; warnings: RegistryWarning[] };
 
 scanProject(config: ResolvedConfig): Promise<Registry>
 ```
@@ -283,7 +284,7 @@ adds. Every slice ships server and web tests for what it touches and ends with
 | | slice | adds | done when | status |
 | --- | --- | --- | --- | --- |
 | 0 | workspace | npm workspaces, deps, tsconfig, smoke script, `/api/health`, empty canvas page; coding rules (`AGENTS.md`), layered folders, architecture + guard tests, TanStack Query, vitest node + jsdom projects with first route/hook/page tests | `npm run smoke`, `npm run check`, `npm run dev` work | done |
-| 1 | registry | config loading, `ProjectFiles` port + `FsProjectFiles`, `scanProject` use case, `fixtures/sample-project`, `npm run scan` CLI | scan of the fixture lists 2 skills, 2 agents, its artefacts; a broken frontmatter is a warning; tests pass | — |
+| 1 | registry | config loading, `ProjectFiles` port + `FsProjectFiles`, `scanProject` use case, `fixtures/sample-project`, `npm run scan` CLI (in `server`) | scan of the fixture lists 2 skills, 2 agents, its artefacts; a broken frontmatter is a warning; tests pass | built, in review: [specs/1-registry.md](specs/1-registry.md) |
 | 2 | schema + compile on a fake | domain `Workflow`/`Phase` schemas, `validate`, `buildPrompt`; `RunEngine` port + `LangGraphRunEngine`; `FakeAgentRuntime`; `MemorySaver` | a test runs agent → gate → agent: approve goes on; reject re-runs with feedback; `maxRevisions` stops the loop; no API key | — |
 | 3 | Cursor runtime | `CursorRuntime`, `outputs` (ADR-0007), run refs (ADR-0006), `npm run wf -- run <id>` CLI with a terminal gate prompt | the BA workflow runs on the fixture for real and writes `discovery/requirements.md`; killing the CLI mid-step and re-running reattaches instead of starting a second Cursor run | — |
 | 4 | server | Hono routes above, SQLite checkpointer, JSONL event log per run, SSE | a run started over HTTP survives a server restart and resumes at its gate; the event log replays | — |
