@@ -395,3 +395,11 @@ Now: `react-router` 8.4.0 (declarative mode), allowed in `web/src/pages` and
 `web/src/bootstrap` only.
 Why: the run view needs real addresses (reload, back button, links to a run).
 
+**2026-10-11, slice 5.5 — a retry slice between 5 and 6.**
+Spec said: slices 0–8; retrying a failed step wasn't planned.
+Now: slice 5.5, [specs/5.5-retry.md](specs/5.5-retry.md): re-run a failed
+agent step as a new attempt and carry on (engine, supervisor, route, CLI,
+Retry button). Status: spec drafted.
+Why: without it a failed step (rate limit, cancel, a stopped process) means
+starting the whole run again. Agreed in the slice 5 review.
+

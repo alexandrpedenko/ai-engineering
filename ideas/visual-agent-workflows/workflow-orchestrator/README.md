@@ -33,7 +33,7 @@ project's `.cursor/workflows/` folder.
 
 ## Layout
 
-Coding rules (Clean Architecture layers, checked by `npm test`): [AGENTS.md](AGENTS.md).
+How it works: [docs/architecture/](docs/architecture/README.md). Coding rules (Clean Architecture layers, checked by `npm test`): [AGENTS.md](AGENTS.md).
 
 - `packages/core`: domain, use cases and ports, infrastructure adapters (fs, Cursor, LangGraph)
 - `packages/server`: Hono API, runs and checkpoints

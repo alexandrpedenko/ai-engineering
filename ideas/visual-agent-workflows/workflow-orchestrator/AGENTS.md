@@ -3,6 +3,19 @@
 Rules for anyone (person or agent) changing the code in this folder. The
 design is in `../spec.md` and `../adr/`; these rules say how code is written.
 
+## Architecture docs
+
+`docs/architecture/` describes the system **as built**, one doc per area,
+starting at [docs/architecture/README.md](docs/architecture/README.md) (map,
+layers, "follow a run"). Each doc's frontmatter lists the `code` it covers.
+
+- **Before changing a file**, read the doc whose `code` lists it.
+- **In the same change**, update that doc if what it says is no longer true,
+  and bump its `updated` date. New source files must be added to some doc's
+  `code` (`tests/docs.test.ts` fails otherwise).
+- Docs say how things work now. Why a decision was made is an ADR; what a
+  slice planned is its spec. Don't copy either into the docs; link them.
+
 ## Layers (ADR-0010)
 
 Dependencies point inward: **domain → application → adapters**. A file may
