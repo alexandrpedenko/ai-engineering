@@ -1,6 +1,6 @@
 # workflow-orchestrator — MVP spec
 
-**Status:** draft, in review (2026-10-11). Slices 0 and 1 built; slice 1 in review. Body frozen: changes go in Amendments.
+**Status:** draft, in review (2026-10-11). Slices 0–2 built; slice 2 in review. Body frozen: changes go in Amendments.
 
 A folder you drop into a project that already has Cursor skills, agents and
 artefacts. It reads them, lets you draw a workflow from them on a canvas
@@ -284,8 +284,8 @@ adds. Every slice ships server and web tests for what it touches and ends with
 | | slice | adds | done when | status |
 | --- | --- | --- | --- | --- |
 | 0 | workspace | npm workspaces, deps, tsconfig, smoke script, `/api/health`, empty canvas page; coding rules (`AGENTS.md`), layered folders, architecture + guard tests, TanStack Query, vitest node + jsdom projects with first route/hook/page tests | `npm run smoke`, `npm run check`, `npm run dev` work | done |
-| 1 | registry | config loading, `ProjectFiles` port + `FsProjectFiles`, `scanProject` use case, `fixtures/sample-project`, `npm run scan` CLI (in `server`) | scan of the fixture lists 2 skills, 2 agents, its artefacts; a broken frontmatter is a warning; tests pass | built, in review: [specs/1-registry.md](specs/1-registry.md) |
-| 2 | schema + compile on a fake | domain `Workflow`/`Phase` schemas, `validate`, `buildPrompt`; `RunEngine` port + `LangGraphRunEngine`; `FakeAgentRuntime`; `MemorySaver` | a test runs agent → gate → agent: approve goes on; reject re-runs with feedback; `maxRevisions` stops the loop; no API key | — |
+| 1 | registry | config loading, `ProjectFiles` port + `FsProjectFiles`, `scanProject` use case, `fixtures/sample-project`, `npm run scan` CLI (in `server`) | scan of the fixture lists 2 skills, 2 agents, its artefacts; a broken frontmatter is a warning; tests pass | done: [specs/1-registry.md](specs/1-registry.md) |
+| 2 | schema + compile on a fake | domain `Workflow`/`Phase` schemas, `validate`, `buildPrompt`; `RunEngine` port + `LangGraphRunEngine`; `FakeAgentRuntime`; `MemorySaver` | a test runs agent → gate → agent: approve goes on; reject re-runs with feedback; `maxRevisions` stops the loop; no API key | built, in review: [specs/2-schema-compile.md](specs/2-schema-compile.md) |
 | 3 | Cursor runtime | `CursorRuntime`, `outputs` (ADR-0007), run refs (ADR-0006), `npm run wf -- run <id>` CLI with a terminal gate prompt | the BA workflow runs on the fixture for real and writes `discovery/requirements.md`; killing the CLI mid-step and re-running reattaches instead of starting a second Cursor run | — |
 | 4 | server | Hono routes above, SQLite checkpointer, JSONL event log per run, SSE | a run started over HTTP survives a server restart and resumes at its gate; the event log replays | — |
 | 5 | app shell + run views | the shell: sidebar of phases (ADR-0009) → workflows, project view (skills, agents, artefacts), runs list, run view with live events, gate panel showing the files with approve / reject. The canvas is no longer the whole page. | a full BA run done from the browser only; two phases with their workflows listed in order | — |
@@ -320,4 +320,20 @@ templates shared across projects.
 
 ## Amendments
 
-_None yet._
+**2026-10-11, slice 2 — `validate` returns problems with a severity.**
+Spec said: "`validate(workflow, registry)` returns a list of problems, each
+with a step id."
+Now: `validate(workflow, { registry, phases })` returns
+`Problem = { severity: "error" | "warning"; stepId?: string; message: string }[]`.
+A workflow runs when it has no errors.
+Why: the same section says an unknown phase is "a warning only", and that
+problem belongs to the workflow, not to a step.
+
+**2026-10-11, slice 2 — `RunState` gains `decisions` and `stoppedAt`.**
+Spec said: `RunState = { workflowId, inputs, steps, feedback, revisions }`.
+Now: also `decisions: Record<gateId, GateDecision[]>` (appended, oldest
+first) and `stoppedAt: string | null` (the gate that ended the run at
+`maxRevisions`).
+Why: the edge after a gate routes on the gate's answer, so the answer has to
+be in state; and a run ended by `maxRevisions` must be told apart from a
+finished one after the fact.

@@ -1,6 +1,6 @@
 # Slice 1 — registry
 
-**Status:** built (2026-10-11), in review.
+**Status:** done (2026-10-11).
 
 **Capability.** Point the orchestrator at a host project and get back what's
 in it: its skills, its agents, its artefacts, and a warning for every file it
