@@ -9,7 +9,7 @@ import { baWorkflow, registry } from "../support/workflows";
 function setup() {
   const engine = new FakeRunEngine();
   const runFiles = new MemoryRunFiles();
-  return { engine, runFiles, deps: { engine, runFiles, registry, phases: DEFAULT_PHASES, newId: () => "run-42" } };
+  return { engine, runFiles, deps: { engine, runFiles, registry, phases: DEFAULT_PHASES, newId: () => "run-42", now: () => new Date("2026-10-11T12:00:00Z") } };
 }
 
 async function problemsOf(promise: Promise<unknown>) {
@@ -29,7 +29,7 @@ describe("startRun", () => {
     const result = await startRun(deps, baWorkflow(), { focus: "pricing" });
 
     expect(result.runId).toBe("run-42");
-    expect(runFiles.runs.get("run-42")).toEqual({ workflow: baWorkflow(), inputs: { focus: "pricing" } });
+    expect(runFiles.runs.get("run-42")).toEqual({ workflow: baWorkflow(), inputs: { focus: "pricing" }, startedAt: "2026-10-11T12:00:00.000Z" });
     expect(engine.calls).toEqual([{ method: "start", runId: "run-42", workflowId: "ba-discovery", arg: { focus: "pricing" } }]);
   });
 

@@ -146,6 +146,21 @@ any saved workflow.
 - Is a workflow per company, per project, or both (templates + overrides)?
 - Desktop app (Electron, direct disk access) vs web app + local agent?
 
+## Parked: placing the orchestrator in a project (2026-10-11)
+
+Today it's a folder copied into the project (ADR-0001), or pointed at a
+project with `--project`. The host project needs no npm files; only
+`.cursor/workflows/` appears in it. Two ways to make placing it easy, both
+parked until after the UI exists:
+
+- **`npm run install-into -- <path>`**: copies only what's needed, adds the
+  `.gitignore` line, runs `npm install`, creates `phases.json`, runs `scan`.
+  Small; keeps ADR-0001. Doesn't stop a JS/TS host's own tooling (tsconfig,
+  ESLint, tests, workspaces) from picking up the copied folder.
+- **An npm package run with `npx`**: nothing copied into the project. Needs
+  a build (bundle core + server, web built to static files served by the
+  server) and a place to publish. Would supersede ADR-0001 with a new ADR.
+
 ## Sources
 
 - Cursor SDK overview: https://www.datacamp.com/tutorial/cursor-sdk

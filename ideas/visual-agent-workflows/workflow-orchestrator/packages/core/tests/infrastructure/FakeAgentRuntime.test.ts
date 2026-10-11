@@ -73,6 +73,16 @@ describe("FakeAgentRuntime", () => {
     expect((await handle.wait()).status).toBe("finished");
   });
 
+  it("holds wait() until cancelled, then answers cancelled", async () => {
+    const runtime = new FakeAgentRuntime([{ holds: true }]);
+    const handle = await runtime.start(request("a"));
+
+    const waiting = handle.wait();
+    await handle.cancel();
+
+    expect(await waiting).toEqual({ status: "cancelled", summary: "", durationMs: 0 });
+  });
+
   it("writes the reply's files under cwd", async () => {
     const dir = await mkdtemp(join(tmpdir(), "orch-fake-"));
     const runtime = new FakeAgentRuntime([{ writes: { "discovery/out.md": "hello" } }]);

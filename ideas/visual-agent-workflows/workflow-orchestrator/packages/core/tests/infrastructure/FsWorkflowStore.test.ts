@@ -1,7 +1,7 @@
-import { rm, unlink, writeFile } from "node:fs/promises";
+import { readFile, rm, unlink, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
-import { InvalidInputError } from "../../src/application/errors";
+import { InvalidInputError, NotFoundError } from "../../src/application/errors";
 import { OrchestratorConfig, type ResolvedConfig } from "../../src/domain/config";
 import { FsWorkflowStore } from "../../src/infrastructure/FsWorkflowStore";
 import { copyOfSampleProject, orchestratorDir, sampleProject } from "../support/paths";
@@ -52,5 +52,46 @@ describe("FsWorkflowStore", () => {
     temps.push(root);
     await unlink(join(root, ".cursor/workflows/phases.json"));
     expect((await new FsWorkflowStore(configFor(root)).phases()).map((p) => p.id)).toEqual(["discovery", "delivery"]);
+  });
+
+  it("lists every workflow file, a broken one with its error", async () => {
+    const root = await copyOfSampleProject();
+    temps.push(root);
+    await writeFile(join(root, ".cursor/workflows/broken.json"), "{ nope");
+
+    const entries = await new FsWorkflowStore(configFor(root)).list();
+
+    expect(entries.map((e) => e.id)).toEqual(["ba-discovery", "broken"]);
+    expect(entries[0]?.workflow?.name).toBe("BA discovery");
+    expect(entries[1]).toMatchObject({ workflow: null, error: expect.stringMatching(/not valid JSON/) });
+  });
+
+  it("saves a workflow as readable JSON, gets it back, and removes it", async () => {
+    const root = await copyOfSampleProject();
+    temps.push(root);
+    const store = new FsWorkflowStore(configFor(root));
+    const workflow = await store.get("ba-discovery");
+    if (!workflow) throw new Error("fixture workflow missing");
+
+    await store.save({ ...workflow, id: "copy", name: "Copy" });
+    const text = await readFile(join(root, ".cursor/workflows/copy.json"), "utf8");
+    expect(text.startsWith('{\n  "schema": 1,')).toBe(true);
+    expect(text.endsWith("}\n")).toBe(true);
+    expect((await store.get("copy"))?.name).toBe("Copy");
+
+    await store.remove("copy");
+    expect(await store.get("copy")).toBeNull();
+    await expect(store.remove("copy")).rejects.toBeInstanceOf(NotFoundError);
+    await expect(store.remove("../x")).rejects.toBeInstanceOf(NotFoundError);
+  });
+
+  it("saves phases", async () => {
+    const root = await copyOfSampleProject();
+    temps.push(root);
+    const store = new FsWorkflowStore(configFor(root));
+
+    await store.savePhases([{ id: "build", name: "Build", order: 1 }]);
+
+    expect(await store.phases()).toEqual([{ id: "build", name: "Build", order: 1 }]);
   });
 });

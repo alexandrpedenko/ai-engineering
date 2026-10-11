@@ -8,3 +8,4 @@ export { FsRunFiles } from "./FsRunFiles";
 export { FsWorkflowStore } from "./FsWorkflowStore";
 export { LangGraphRunEngine, type AgentStepRunner, type LangGraphRunEngineOptions } from "./LangGraphRunEngine";
 export { loadConfig } from "./loadConfig";
+export { FsEventLog } from "./FsEventLog";

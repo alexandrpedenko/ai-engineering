@@ -1,14 +1,14 @@
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { mkdir, readdir, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { z } from "zod";
-import type { RunFiles, RunRef } from "../application/RunFiles";
+import type { RunFiles, RunRef, SavedRun } from "../application/RunFiles";
 import { Workflow } from "../domain/workflow";
 
 const SnapshotFile = z.object({
   hashes: z.record(z.string(), z.string()),
   matches: z.record(z.string(), z.array(z.string())),
 });
-const RunFile = z.object({ workflow: Workflow, inputs: z.record(z.string(), z.string()) });
+const RunFile = z.object({ workflow: Workflow, inputs: z.record(z.string(), z.string()), startedAt: z.string().default("") });
 const RefFile = z.object({
   runId: z.string(),
   stepId: z.string(),
@@ -32,14 +32,30 @@ async function readJson(path: string): Promise<unknown | null> {
 export class FsRunFiles implements RunFiles {
   constructor(private readonly dataDir: string) {}
 
-  async saveRun(runId: string, workflow: Workflow, inputs: Record<string, string>): Promise<void> {
+  async saveRun(runId: string, run: SavedRun): Promise<void> {
     await mkdir(this.runDir(runId), { recursive: true });
-    await writeFile(join(this.runDir(runId), "run.json"), JSON.stringify({ workflow, inputs }, null, 2));
+    await writeFile(join(this.runDir(runId), "run.json"), JSON.stringify(run, null, 2));
   }
 
-  async loadRun(runId: string): Promise<{ workflow: Workflow; inputs: Record<string, string> } | null> {
+  async loadRun(runId: string): Promise<SavedRun | null> {
     const raw = await readJson(join(this.runDir(runId), "run.json"));
     return raw === null ? null : RunFile.parse(raw);
+  }
+
+  async listRuns(): Promise<{ runId: string; workflowId: string; startedAt: string }[]> {
+    let ids: string[];
+    try {
+      ids = (await readdir(join(this.dataDir, "runs"), { withFileTypes: true })).filter((e) => e.isDirectory()).map((e) => e.name);
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === "ENOENT") return [];
+      throw error;
+    }
+    const runs: { runId: string; workflowId: string; startedAt: string }[] = [];
+    for (const runId of ids) {
+      const run = await this.loadRun(runId);
+      if (run) runs.push({ runId, workflowId: run.workflow.id, startedAt: run.startedAt });
+    }
+    return runs.sort((a, b) => b.startedAt.localeCompare(a.startedAt) || b.runId.localeCompare(a.runId));
   }
 
   async getRef(runId: string, stepId: string, attempt: number): Promise<RunRef | null> {

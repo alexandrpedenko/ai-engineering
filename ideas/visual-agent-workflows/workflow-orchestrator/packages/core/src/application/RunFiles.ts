@@ -12,11 +12,15 @@ export type RunRef = {
   startedAt: string; // ISO time
 };
 
+export type SavedRun = { workflow: Workflow; inputs: Record<string, string>; startedAt: string };
+
 // What the orchestrator keeps about each run besides the engine's state.
 export interface RunFiles {
   // The workflow and inputs a run started with; the run always continues against these.
-  saveRun(runId: string, workflow: Workflow, inputs: Record<string, string>): Promise<void>;
-  loadRun(runId: string): Promise<{ workflow: Workflow; inputs: Record<string, string> } | null>;
+  saveRun(runId: string, run: SavedRun): Promise<void>;
+  loadRun(runId: string): Promise<SavedRun | null>;
+  // Every saved run, newest first.
+  listRuns(): Promise<{ runId: string; workflowId: string; startedAt: string }[]>;
   getRef(runId: string, stepId: string, attempt: number): Promise<RunRef | null>;
   putRef(ref: RunRef): Promise<void>;
 }

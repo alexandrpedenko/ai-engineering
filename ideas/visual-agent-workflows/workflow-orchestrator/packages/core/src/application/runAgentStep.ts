@@ -17,6 +17,9 @@ export type AgentStepDeps = {
   defaultModel: { id: string };
   doNotTouch: string[];
   onEvent: (runId: string, event: RunEvent) => void;
+  // Told about the agent run while the step waits on it (null once it's done),
+  // so it can be cancelled from outside.
+  onHandle?: (runId: string, handle: RunHandle | null) => void;
   now?: () => Date;
 };
 
@@ -66,7 +69,13 @@ export async function runAgentStep(deps: AgentStepDeps, runId: string, step: Age
     for await (const event of handle.events()) deps.onEvent(runId, { type: "agent-event", stepId: step.id, event });
   }
 
-  const result = await handle.wait();
+  deps.onHandle?.(runId, handle);
+  let result: Awaited<ReturnType<RunHandle["wait"]>>;
+  try {
+    result = await handle.wait();
+  } finally {
+    deps.onHandle?.(runId, null);
+  }
   const after = await deps.projectFiles.snapshot(patterns);
   const { writes, missing } = diffSnapshots(before, after, step.writes);
 
@@ -75,7 +84,7 @@ export async function runAgentStep(deps: AgentStepDeps, runId: string, step: Age
     cursorRunIds: [...previous, handle.id],
     writes,
     missing,
-    summary: result.summary,
+    summary: result.status === "cancelled" ? result.summary || "cancelled" : result.summary,
     durationMs: result.durationMs,
   };
   if (result.usage) record.usage = result.usage;

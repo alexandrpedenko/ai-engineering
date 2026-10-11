@@ -1,17 +1,21 @@
-import { describe, expect, it } from "vitest";
-import { createApp } from "../../src/composition";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { testServer } from "../support/testServer";
+
+let server: Awaited<ReturnType<typeof testServer>>;
+beforeAll(async () => {
+  server = await testServer();
+});
+afterAll(async () => await server.cleanup());
 
 describe("GET /api/health", () => {
   it("answers ok with the node version", async () => {
-    const response = await createApp().request("/api/health");
+    const response = await server.app.request("/api/health");
 
     expect(response.status).toBe(200);
     expect(await response.json()).toEqual({ ok: true, node: process.version });
   });
 
   it("is not served outside /api", async () => {
-    const response = await createApp().request("/health");
-
-    expect(response.status).toBe(404);
+    expect((await server.app.request("/health")).status).toBe(404);
   });
 });

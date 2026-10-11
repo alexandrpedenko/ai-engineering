@@ -1,4 +1,4 @@
-import { mkdir, rm, writeFile } from "node:fs/promises";
+import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { OrchestratorConfig, type ResolvedConfig } from "../../src/domain/config";
@@ -65,6 +65,44 @@ describe("FsProjectFiles.snapshot", () => {
 
     expect(Object.keys((await files.snapshot(["**/*.md"])).hashes)).not.toContain("workflow-orchestrator/notes.md");
     expect(Object.keys((await files.snapshot(["**/*.md"])).hashes)).not.toContain("docs/node_modules/x.md");
+  });
+});
+
+describe("FsProjectFiles editing", () => {
+  const files = new FsProjectFiles(configFor(sampleProject, { orchestratorDir: join(sampleProject, "workflow-orchestrator") }));
+
+  it.each([
+    [".cursor/skills/requirements-elicitation/SKILL.md", true],
+    [".agents/skills/discovery/architecture-review/SKILL.md", true],
+    [".cursor/agents/architect.md", true],
+    ["discovery/brief.md", true],
+    ["wiki/new/page.md", true],
+    ["src/index.ts", false],
+    [".cursor/agents/nested/x.md", false],
+    [".cursor/workflows/ba-discovery.json", false],
+    ["../outside.md", false],
+    ["discovery/../src/index.ts", false],
+    ["/etc/passwd", false],
+    ["docs/node_modules/x.md", false],
+    ["discovery/.git/config", false],
+    ["workflow-orchestrator/discovery/x.md", false],
+    ["", false],
+  ])("isEditable(%j) is %s", (path, expected) => {
+    expect(files.isEditable(path)).toBe(expected);
+  });
+
+  it("reads text with its size, and null for a missing file", async () => {
+    const file = await files.readText("discovery/brief.md");
+    expect(file?.content.startsWith("# Brief")).toBe(true);
+    expect(file?.size).toBeGreaterThan(0);
+    expect(await files.readText("discovery/none.md")).toBeNull();
+  });
+
+  it("writes text, creating folders", async () => {
+    const root = await copyOfSampleProject();
+    temps.push(root);
+    await new FsProjectFiles(configFor(root)).writeText("wiki/decisions/0001.md", "# Decision");
+    expect(await readFile(join(root, "wiki/decisions/0001.md"), "utf8")).toBe("# Decision");
   });
 });
 

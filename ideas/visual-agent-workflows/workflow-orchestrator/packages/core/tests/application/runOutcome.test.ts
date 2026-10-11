@@ -3,13 +3,13 @@ import { NotFoundError } from "../../src/application/errors";
 import type { RunOutcome } from "../../src/application/RunEngine";
 import { runOutcome } from "../../src/application/runOutcome";
 import { FakeRunEngine } from "../support/FakeRunEngine";
-import { MemoryRunFiles } from "../support/MemoryRunFiles";
+import { MemoryRunFiles, savedRun } from "../support/MemoryRunFiles";
 import { baWorkflow } from "../support/workflows";
 
 async function setup() {
   const engine = new FakeRunEngine();
   const runFiles = new MemoryRunFiles();
-  await runFiles.saveRun("run-1", baWorkflow(), {});
+  await runFiles.saveRun("run-1", savedRun(baWorkflow()));
   return { engine, runFiles };
 }
 

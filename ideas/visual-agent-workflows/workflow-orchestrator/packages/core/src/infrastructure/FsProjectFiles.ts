@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
-import { readdir, readFile, stat } from "node:fs/promises";
-import { isAbsolute, join, relative } from "node:path";
+import { mkdir, readdir, readFile, stat, writeFile } from "node:fs/promises";
+import { dirname, isAbsolute, join, posix, relative } from "node:path";
+import picomatch from "picomatch";
 import { glob } from "tinyglobby";
 import type { ProjectFiles } from "../application/ProjectFiles";
 import type { ResolvedConfig } from "../domain/config";
@@ -59,14 +60,51 @@ export class FsProjectFiles implements ProjectFiles {
     return { hashes, matches };
   }
 
+  isEditable(path: string): boolean {
+    if (!path || isAbsolute(path) || path.includes("\\")) return false;
+    const normal = posix.normalize(path);
+    if (normal !== path || normal.startsWith("../") || normal === "..") return false;
+    const segments = normal.split("/");
+    if (segments.includes(".git") || segments.includes("node_modules")) return false;
+    const orchestrator = this.orchestratorPath();
+    if (orchestrator && (normal === orchestrator || normal.startsWith(`${orchestrator}/`))) return false;
+    const patterns = [
+      ...this.config.skillDirs.map((dir) => `${trimSlashes(dir)}/**/*.md`),
+      ...this.config.agentDirs.map((dir) => `${trimSlashes(dir)}/*.md`),
+      ...this.config.artefactGlobs,
+    ];
+    return picomatch(patterns, { dot: true })(normal);
+  }
+
+  async readText(path: string): Promise<{ content: string; size: number } | null> {
+    try {
+      const info = await stat(join(this.root, path));
+      if (!info.isFile()) return null;
+      if (info.size > 1024 * 1024) return { content: "", size: info.size };
+      return { content: await readFile(join(this.root, path), "utf8"), size: info.size };
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === "ENOENT") return null;
+      throw error;
+    }
+  }
+
+  async writeText(path: string, content: string): Promise<void> {
+    await mkdir(dirname(join(this.root, path)), { recursive: true });
+    await writeFile(join(this.root, path), content);
+  }
+
+  // The orchestrator folder relative to the root, when it is inside it.
+  private orchestratorPath(): string | null {
+    const inside = relative(this.root, this.config.orchestratorDir).split("\\").join("/");
+    return inside && !inside.startsWith("..") && !isAbsolute(inside) ? inside : null;
+  }
+
   // Files under the root matching the patterns, never node_modules, .git or
   // the orchestrator folder.
   private async match(patterns: string[]): Promise<string[]> {
     const ignore = ["**/node_modules/**", "**/.git/**"];
-    const orchestrator = relative(this.root, this.config.orchestratorDir);
-    if (orchestrator && !orchestrator.startsWith("..") && !isAbsolute(orchestrator)) {
-      ignore.push(`${orchestrator.split("\\").join("/")}/**`);
-    }
+    const orchestrator = this.orchestratorPath();
+    if (orchestrator) ignore.push(`${orchestrator}/**`);
     return await glob(patterns, { cwd: this.root, onlyFiles: true, dot: false, ignore });
   }
 

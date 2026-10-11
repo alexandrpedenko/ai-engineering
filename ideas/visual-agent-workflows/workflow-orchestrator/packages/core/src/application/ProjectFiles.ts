@@ -13,4 +13,10 @@ export interface ProjectFiles {
   // Content hashes of every file matching any of the patterns, and which
   // paths each pattern matched.
   snapshot(patterns: string[]): Promise<Snapshot>;
+  // Whether a person may read and edit this file through the orchestrator:
+  // a skill, agent or artefact file inside the project.
+  isEditable(path: string): boolean;
+  // null when the file doesn't exist.
+  readText(path: string): Promise<{ content: string; size: number } | null>;
+  writeText(path: string, content: string): Promise<void>;
 }

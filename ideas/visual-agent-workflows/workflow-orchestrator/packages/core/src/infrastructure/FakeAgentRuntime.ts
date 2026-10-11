@@ -10,6 +10,7 @@ export type FakeReply = {
   usage?: Usage;
   writes?: Record<string, string>; // files written under cwd when the run starts
   dies?: boolean; // wait() throws the first time, like a process that stopped mid-run
+  holds?: boolean; // wait() doesn't answer until the run is cancelled
 };
 
 // An AgentRuntime that runs nothing: each start replays the next scripted
@@ -43,6 +44,10 @@ export class FakeAgentRuntime implements AgentRuntime {
     };
     this.started.set(id, { result, cutOff: false });
     let dies = reply.dies ?? false;
+    let release: () => void = () => {};
+    let cancelled = false;
+    const held = reply.holds ? new Promise<void>((resolve) => (release = resolve)) : null;
+    const cancelledResult: AgentRunResult = { status: "cancelled", summary: "", durationMs: 0 };
 
     return {
       id,
@@ -54,9 +59,13 @@ export class FakeAgentRuntime implements AgentRuntime {
           dies = false;
           throw new Error(`fake process stopped during ${id}`);
         }
-        return result;
+        if (held) await held;
+        return cancelled ? cancelledResult : result;
       },
-      cancel: async () => {},
+      cancel: async () => {
+        cancelled = true;
+        release();
+      },
     };
   }
 

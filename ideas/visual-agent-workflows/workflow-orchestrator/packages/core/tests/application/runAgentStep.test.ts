@@ -98,6 +98,25 @@ describe("runAgentStep", () => {
     await expect(runAgentStep(deps, "run-1", { ...elicit, skills: ["nope"] }, emptyState)).rejects.toThrow('skill "nope"');
   });
 
+  it("reports its agent run while waiting, and clears it after", async () => {
+    const runtime = new FakeAgentRuntime([{}]);
+    const seen: (string | null)[] = [];
+    const { deps } = agentDeps(runtime, { onHandle: (_, handle) => seen.push(handle?.id ?? null) });
+
+    await runAgentStep(deps, "run-1", elicit, emptyState);
+
+    expect(seen).toEqual(["fake-run-1", null]);
+  });
+
+  it("marks a cancelled agent run as a failed step with summary 'cancelled'", async () => {
+    const runtime = new FakeAgentRuntime([{ holds: true }]);
+    const { deps } = agentDeps(runtime, { onHandle: (_, handle) => void handle?.cancel() });
+
+    const record = await runAgentStep(deps, "run-1", elicit, emptyState);
+
+    expect(record).toMatchObject({ status: "failed", summary: "cancelled" });
+  });
+
   it("snapshots the step's writes plus the artefact globs", async () => {
     const { deps, projectFiles } = setup();
 

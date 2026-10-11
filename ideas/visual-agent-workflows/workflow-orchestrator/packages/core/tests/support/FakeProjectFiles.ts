@@ -24,6 +24,22 @@ export class FakeProjectFiles implements ProjectFiles {
     return this.files;
   }
 
+  editable = new Set<string>();
+  texts = new Map<string, string>();
+
+  isEditable(path: string) {
+    return this.editable.has(path);
+  }
+
+  async readText(path: string) {
+    const content = this.texts.get(path);
+    return content === undefined ? null : { content, size: new TextEncoder().encode(content).length };
+  }
+
+  async writeText(path: string, content: string) {
+    this.texts.set(path, content);
+  }
+
   async snapshot(patterns: string[]): Promise<Snapshot> {
     const index = Math.min(this.snapshotCalls.length, this.snapshots.length - 1);
     this.snapshotCalls.push(patterns);

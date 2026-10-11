@@ -1,7 +1,7 @@
 import { cp, mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { createProjectServices, createRunServices, orchestratorDir } from "../src/composition";
 
 const temps: string[] = [];
@@ -45,6 +45,16 @@ describe("createRunServices", () => {
 
     expect(done.status).toBe("finished");
     expect(Object.keys(done.state.steps)).toEqual(["elicit", "design"]);
+  });
+
+  it("refuses to start without an API key when not fake", async () => {
+    const paths = await tempCopyOfSample();
+    vi.stubEnv("CURSOR_API_KEY", "");
+    try {
+      await expect(createRunServices({ ...paths, fake: false })).rejects.toThrow("CURSOR_API_KEY is not set");
+    } finally {
+      vi.unstubAllEnvs();
+    }
   });
 
   it("refuses an unknown workflow", async () => {
