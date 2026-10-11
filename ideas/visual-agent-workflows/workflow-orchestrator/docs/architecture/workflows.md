@@ -56,8 +56,9 @@ Errors: duplicate step ids; unknown agent or skill; `{{inputs.x}}` with no
 input `x`; an edge to a missing step; not exactly one start step; a step with
 two next steps; a loop of edges (loops only go through a gate's `onReject`);
 a step not reachable from the start; a gate whose `onReject` isn't an agent
-step before it. Warnings: an agent step that writes nothing; no phase or an
-unknown phase (shown under Unsorted).
+step before it. Warnings: no phase or an unknown phase (shown under
+Unsorted). An agent step with no `writes` is fine: it writes where its skills
+say, and the gate after it shows what changed (ADR-0014).
 
 A workflow with errors **can be saved** but not run (ADR-0002).
 

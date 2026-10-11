@@ -9,7 +9,7 @@ code:
 depends_on: [http-api]
 used_by: []
 adrs: [9, 10, 11]
-specs: [5-shell-and-runs, 5.5-retry]
+specs: [5-shell-and-runs, 5.5-retry, 5.8-artefacts-anywhere]
 updated: 2026-10-11
 ---
 
@@ -70,8 +70,9 @@ Unsorted only when needed, runs waiting at a gate).
 decision). Newer `step-finished` / `run-settled` events win over the cached
 details. `runHeadline` says whether the run is moving, waiting, finished,
 failed, rejected, interrupted or crashed. `RunPage` adds the live feed under
-the running step, the gate panel (files via `/api/files`, Approve, Reject
-with feedback), Continue for interrupted runs, Retry on the failure banner, and
+the running step, the gate panel (the files in the run outcome's `shows`,
+read via `/api/files`, or "No files were changed before this gate."; Approve,
+Reject with feedback), Continue for interrupted runs, Retry on the failure banner, and
 **Cancel this step** under the running step.
 
 ## Tests

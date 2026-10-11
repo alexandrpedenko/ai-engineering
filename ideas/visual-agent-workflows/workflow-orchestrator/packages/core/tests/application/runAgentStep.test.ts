@@ -131,21 +131,34 @@ describe("runAgentStep", () => {
     expect(record).toMatchObject({ status: "failed", summary: "cancelled" });
   });
 
-  it("snapshots the step's writes plus the artefact globs", async () => {
+  it("snapshots the project before and after, declaring the step's writes", async () => {
     const { deps, projectFiles } = setup();
 
     await runAgentStep(deps, "run-1", elicit, emptyState);
 
-    expect(projectFiles.snapshotCalls).toEqual([
-      ["discovery/requirements.md", "discovery/**"],
-      ["discovery/requirements.md", "discovery/**"],
+    expect(projectFiles.snapshotCalls).toEqual([["discovery/requirements.md"], ["discovery/requirements.md"]]);
+  });
+
+  it("records files a step with no declared writes put anywhere in the project", async () => {
+    const root = await copyOfSampleProject();
+    temps.push(root);
+    const runtime = new FakeAgentRuntime([{ writes: { "ux-space/flows.md": "# Flows\n", "src/booking.ts": "export {};\n" } }]);
+    const config = { ...OrchestratorConfig.parse({}), orchestratorDir, projectRoot: root, dataDir: join(root, ".data") };
+    const { deps } = agentDeps(runtime, { cwd: root, projectFiles: new FsProjectFiles(config) });
+
+    const record = await runAgentStep(deps, "run-1", { ...elicit, writes: [] }, emptyState);
+
+    expect(record.writes).toEqual([
+      { path: "src/booking.ts", change: "created" },
+      { path: "ux-space/flows.md", change: "created" },
     ]);
+    expect(record.missing).toEqual([]);
   });
 
   it("reads what changed from disk, not from the agent", async () => {
     const root = await copyOfSampleProject();
     temps.push(root);
-    const runtime = new FakeAgentRuntime([{ writes: { "discovery/requirements.md": "# R1\n" }, summary: "I wrote everything" }]);
+    const runtime = new FakeAgentRuntime([{ writes: { "discovery/requirements.md": "# R1\n", "kb/glossary.md": "# G\n" }, summary: "I wrote everything" }]);
     const config = { ...OrchestratorConfig.parse({}), orchestratorDir, projectRoot: root, dataDir: join(root, ".data") };
     const { deps } = agentDeps(runtime, { cwd: root, projectFiles: new FsProjectFiles(config) });
     const step: AgentStep = { ...elicit, writes: ["discovery/requirements.md", "discovery/glossary.md"] };
@@ -153,7 +166,10 @@ describe("runAgentStep", () => {
     const record = await runAgentStep(deps, "run-1", step, emptyState);
 
     expect(await readFile(join(root, "discovery/requirements.md"), "utf8")).toBe("# R1\n");
-    expect(record.writes).toEqual([{ path: "discovery/requirements.md", change: "created" }]);
+    expect(record.writes).toEqual([
+      { path: "discovery/requirements.md", change: "created" },
+      { path: "kb/glossary.md", change: "created" },
+    ]);
     expect(record.missing).toEqual(["discovery/glossary.md"]);
   });
 

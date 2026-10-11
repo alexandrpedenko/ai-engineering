@@ -160,7 +160,6 @@ async function wire(options: WiringOptions, callbacks: Callbacks) {
           projectFiles,
           runFiles,
           cwd: config.projectRoot,
-          artefactGlobs: config.artefactGlobs,
           defaultModel: { id: config.models[config.runtime] },
           doNotTouch,
           onEvent: callbacks.onEvent,

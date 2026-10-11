@@ -49,7 +49,10 @@ export function buildPrompt(input: PromptInput): string {
     const numbered = input.feedback.map((text, i) => `${i + 1}. ${text}`).join("\n");
     sections.push(`${PROMPT_SECTIONS.feedback}\n${numbered}`);
   }
-  if (input.doNotTouch.length > 0) sections.push(`${PROMPT_SECTIONS.rules}\n- Do not change anything in: ${input.doNotTouch.join(", ")}`);
+  const rules: string[] = [];
+  if (input.step.writes.length === 0) rules.push("Write your results where the skills above and the project's rules say.");
+  if (input.doNotTouch.length > 0) rules.push(`Do not change anything in: ${input.doNotTouch.join(", ")}`);
+  if (rules.length > 0) sections.push(`${PROMPT_SECTIONS.rules}\n${list(rules)}`);
   return `${sections.join("\n\n")}\n`;
 }
 

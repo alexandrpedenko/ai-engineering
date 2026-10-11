@@ -8,7 +8,6 @@ describe("OrchestratorConfig", () => {
       workflowsDir: ".cursor/workflows",
       skillDirs: [".cursor/skills", ".agents/skills"],
       agentDirs: [".cursor/agents"],
-      artefactGlobs: ["discovery/**", "wiki/**", "delivery/**", "docs/**"],
       runtime: "cursor",
       models: { cursor: "composer-2.5", claude: "claude-opus-5-5" },
       dataDir: ".data",

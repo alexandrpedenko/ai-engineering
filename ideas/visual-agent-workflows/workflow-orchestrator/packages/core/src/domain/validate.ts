@@ -122,12 +122,6 @@ export function validate(workflow: Workflow, context: ValidationContext): Proble
     }
   }
 
-  for (const step of steps.values()) {
-    if (step.type === "agent" && step.writes.length === 0) {
-      warning(`"${step.id}" writes no files, so its result can't be checked`, step.id);
-    }
-  }
-
   if (!workflow.phase) warning("no phase; the workflow is shown under Unsorted");
   else if (!context.phases.some((p) => p.id === workflow.phase)) {
     warning(`phase "${workflow.phase}" is not in phases.json; the workflow is shown under Unsorted`);

@@ -1,4 +1,4 @@
-import { Button, Stack, TextField } from "@mui/material";
+import { Button, Stack, TextField, Typography } from "@mui/material";
 import { FileView } from "./FileView";
 
 export type GateFile = { path: string; content?: string; error?: string; loading?: boolean };
@@ -16,6 +16,7 @@ type Props = {
 export function GatePanel({ files, feedback, sending, onFeedbackChange, onApprove, onReject }: Props) {
   return (
     <Stack spacing={2} aria-label="gate">
+      {files.length === 0 && <Typography color="text.secondary">No files were changed before this gate.</Typography>}
       {files.map((file) => (
         <FileView key={file.path} {...file} />
       ))}

@@ -13,7 +13,7 @@ code:
 depends_on: [project-registry, workflows, engine, agent-steps, runs-and-events]
 used_by: [http-api, cli]
 adrs: [1, 4, 8, 10, 13]
-specs: [3-cursor-runtime, 4-server, 5.6-claude-runtime, 5.7-local-settings]
+specs: [3-cursor-runtime, 4-server, 5.6-claude-runtime, 5.7-local-settings, 5.8-artefacts-anywhere]
 updated: 2026-10-11
 ---
 
@@ -53,7 +53,8 @@ On top of it:
   answer 503 until one is set.
 - `createApp(services)` mounts the routes and the error handler.
 
-`main.ts` reads the environment and serves on `ORCH_PORT`, then prints
+`main.ts` reads the environment and serves on `127.0.0.1:ORCH_PORT` (this
+machine only; the web dev server proxies `/api` there), then prints
 `describeSetup(config)`: the project and runtime in use and where each came
 from.
 
@@ -79,7 +80,7 @@ routes and the web's types may use); `core/src/infrastructure/index.ts` is
 | where | owner | what |
 | --- | --- | --- |
 | `<project>/.cursor/skills`, `.agents/skills`, `.cursor/agents` | project | read; edited only through `/api/files` |
-| `<project>/discovery`, `wiki`, … (artefact globs) | project | read; written by agents and `/api/files` |
+| `<project>/**` (any non-ignored file) | project | read; written by agents and `/api/files` |
 | `<project>/.cursor/workflows/*.json`, `phases.json` | project | read and written by the orchestrator |
 | `workflow-orchestrator/orchestrator.config.json` | orchestrator (committed) | read: how projects are laid out |
 | `workflow-orchestrator/settings.json` | this machine (gitignored) | read: project path, runtime, models |

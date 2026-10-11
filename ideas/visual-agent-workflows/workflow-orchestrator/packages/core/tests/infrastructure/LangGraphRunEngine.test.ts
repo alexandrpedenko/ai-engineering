@@ -37,6 +37,31 @@ describe("LangGraphRunEngine", () => {
     expect(events.map((e) => e.type)).toEqual(["step-started", "step-finished", "gate-waiting"]);
   });
 
+  it("waits at a gate with no shows on the files the step before it changed, per attempt", async () => {
+    const runtime = new FakeAgentRuntime([{}]);
+    const { deps, projectFiles } = agentDeps(runtime);
+    projectFiles.snapshots = [
+      { hashes: {}, matches: {} },
+      { hashes: { "ux-space/flows.md": "1" }, matches: {} },
+      { hashes: { "ux-space/flows.md": "1" }, matches: {} },
+      { hashes: { "ux-space/flows.md": "2", "kb/terms.md": "1" }, matches: {} },
+    ];
+    const engine = new LangGraphRunEngine({
+      checkpointer: new MemorySaver(),
+      agentStep: async (runId, step, state) => await runAgentStep(deps, runId, step, state),
+    });
+    const workflow = baWorkflow((w) => {
+      Object.assign(w.steps[0]!, { writes: [] });
+      Object.assign(w.steps[1]!, { shows: [] });
+    });
+
+    const first = await engine.start("run-1", workflow, inputs);
+    const second = await engine.resume("run-1", workflow, { decision: "reject", feedback: "more flows" });
+
+    expect(first).toMatchObject({ status: "waiting", gateId: "review", shows: ["ux-space/flows.md"] });
+    expect(second).toMatchObject({ status: "waiting", gateId: "review", shows: ["kb/terms.md", "ux-space/flows.md"] });
+  });
+
   it("goes on to the next step on approve and finishes", async () => {
     const { engine, stepsRun } = setup();
     await engine.start("run-1", baWorkflow(), inputs);

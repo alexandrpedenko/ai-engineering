@@ -48,10 +48,28 @@ describe("buildPrompt", () => {
   });
 
   it("leaves out empty sections", () => {
-    const step: AgentStep = { ...elicit, reads: [], writes: [], instructions: "Do it." };
+    const step: AgentStep = { ...elicit, reads: [], instructions: "Do it." };
     const message = buildPrompt({ step, agent: { ...ba, body: "" }, skills: [], inputs: {}, feedback: [], doNotTouch: [] });
 
-    expect(message).toBe("# Task\nDo it.\n");
+    expect(message).toBe("# Task\nDo it.\n\n# You must write\n- discovery/requirements.md\n");
+  });
+
+  it("tells a step with no files to write to follow its skills", () => {
+    const step: AgentStep = { ...elicit, reads: [], writes: [], instructions: "Do it." };
+    const message = buildPrompt({ step, agent: { ...ba, body: "" }, skills: [], inputs: {}, feedback: [], doNotTouch: ["workflow-orchestrator/"] });
+
+    expect(message).toBe(
+      [
+        "# Task",
+        "Do it.",
+        "",
+        "# Rules",
+        "- Write your results where the skills above and the project's rules say.",
+        "- Do not change anything in: workflow-orchestrator/",
+        "",
+      ].join("\n"),
+    );
+    expect(promptSection(message, PROMPT_SECTIONS.write)).toEqual([]);
   });
 });
 

@@ -13,7 +13,6 @@ export type AgentStepDeps = {
   projectFiles: ProjectFiles;
   runFiles: RunFiles;
   cwd: string; // the host project root
-  artefactGlobs: string[];
   defaultModel: { id: string };
   doNotTouch: string[];
   onEvent: (runId: string, event: RunEvent) => void;
@@ -40,7 +39,6 @@ export async function runAgentStep(deps: AgentStepDeps, runId: string, step: Age
 
   const previous = state.steps[step.id]?.cursorRunIds ?? [];
   const attempt = previous.length + 1;
-  const patterns = [...new Set([...step.writes, ...deps.artefactGlobs])];
   deps.onEvent(runId, { type: "step-started", stepId: step.id, attempt });
 
   let handle: RunHandle | null = null;
@@ -51,7 +49,7 @@ export async function runAgentStep(deps: AgentStepDeps, runId: string, step: Age
   if (ref && handle) {
     before = ref.before;
   } else {
-    before = await deps.projectFiles.snapshot(patterns);
+    before = await deps.projectFiles.snapshot(step.writes);
     const message = buildPrompt({
       step,
       agent,
@@ -94,7 +92,7 @@ export async function runAgentStep(deps: AgentStepDeps, runId: string, step: Age
   } finally {
     deps.onHandle?.(runId, null);
   }
-  const after = await deps.projectFiles.snapshot(patterns);
+  const after = await deps.projectFiles.snapshot(step.writes);
   const { writes, missing } = diffSnapshots(before, after, step.writes);
 
   const record: StepRecord = {

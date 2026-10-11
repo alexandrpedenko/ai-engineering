@@ -1,6 +1,6 @@
 # workflow-orchestrator — MVP spec
 
-**Status:** draft, in review (2026-10-11). Slices 0–5.5 built; slice 5.5 in review. Body frozen: changes go in Amendments.
+**Status:** draft, in review (2026-10-11). Slices 0–5.8 built; slice 5.8 in review. Body frozen: changes go in Amendments.
 
 A folder you drop into a project that already has Cursor skills, agents and
 artefacts. It reads them, lets you draw a workflow from them on a canvas
@@ -433,3 +433,25 @@ was error-prone; the settings UI in
 [specs/proposal-settings-and-projects.md](specs/proposal-settings-and-projects.md)
 is parked in favour of this.
 
+
+**2026-10-11, slice 5.8 — artefacts anywhere in the project (planned).**
+Spec said (Config, ADR-0007): `artefactGlobs` (default `discovery/**`,
+`wiki/**`, `delivery/**`, `docs/**`) decides which artefacts are listed,
+which files `/api/files` opens, and what a step's snapshot covers.
+Now: slice 5.8, [specs/5.8-artefacts-anywhere.md](specs/5.8-artefacts-anywhere.md),
+per ADR-0014 (proposed). Skills decide where output goes. A step's `writes` and a
+gate's `shows` are optional. The snapshot covers every non-ignored project
+file. `artefactGlobs` only narrows the project view. The server listens on
+localhost. Status: spec drafted.
+Why: projects name their folders differently (`kb/`, `ux-space/`), skills
+write where their own instructions say, and delivery changes code anywhere.
+Goal 1 ("no setup") didn't hold for any project not shaped like the fixture.
+
+**2026-10-11, slice 5.8 built — artefacts anywhere in the project.**
+Spec said: see the slice 5.8 entry above (planned).
+Now: built as [specs/5.8-artefacts-anywhere.md](specs/5.8-artefacts-anywhere.md)
+with its three build amendments. `ProjectFiles.isEditable` is now
+`canOpen` (async). `snapshot(declared)` covers every project file. A new
+domain function `gateFiles` decides what a gate shows. `/api/files` opens
+existing project files only, except `.env*`. ADR-0014 is accepted.
+Why: [ADR-0014](adr/0014-skills-own-artefact-locations.md).

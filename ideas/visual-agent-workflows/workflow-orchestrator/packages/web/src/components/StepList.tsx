@@ -11,8 +11,8 @@ export function StepList({ workflow }: { workflow: Workflow }) {
             primary={`${i + 1}. ${step.label}`}
             secondary={
               step.type === "agent"
-                ? `${step.agent} · writes ${step.writes.join(", ") || "nothing"}`
-                : `review of ${step.shows.join(", ") || "nothing"} · rejections go to ${step.onReject}`
+                ? `${step.agent} · writes ${step.writes.join(", ") || "where its skills say"}`
+                : `review of ${step.shows.join(", ") || "the files changed before it"} · rejections go to ${step.onReject}`
             }
           />
           <Stack direction="row" spacing={1}>

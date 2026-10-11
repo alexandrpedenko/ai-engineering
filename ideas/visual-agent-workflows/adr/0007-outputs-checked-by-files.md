@@ -1,6 +1,6 @@
 # ADR-0007 — A step's outputs are checked on disk, not taken from the agent's summary
 
-**Status:** Accepted (2026-10-11)
+**Status:** Accepted (2026-10-11). What a snapshot covers is refined by ADR-0014.
 
 ## Context
 

@@ -20,6 +20,12 @@ describe("stepTimeline", () => {
     const rows = stepTimeline(waitingRun(), []);
     expect(states(rows)).toEqual(["elicit:done", "review:waiting", "design:pending"]);
     expect(rows[0]?.record?.writes).toEqual([{ path: "discovery/requirements.md", change: "created" }]);
+    expect(rows[1]?.shows).toEqual(["discovery/requirements.md"]);
+  });
+
+  it("takes a waiting gate's files from the outcome, not from the workflow", () => {
+    const details = runDetails({ status: "waiting", gateId: "review", shows: ["ux-space/flows.md"], state: runState({ steps: { elicit: record() } }) });
+    expect(stepTimeline(details, [])[1]?.shows).toEqual(["ux-space/flows.md"]);
   });
 
   it("takes newer records from step-finished events", () => {

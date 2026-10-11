@@ -107,11 +107,9 @@ describe("validate", () => {
     expect(errors(validate(later, context))[0]?.message).toBe('"review" sends rejections to "design", which isn\'t before it');
   });
 
-  it("warns about an agent step that writes nothing", () => {
+  it("accepts an agent step that names no files to write", () => {
     const workflow = baWorkflow((w) => Object.assign(w.steps[2]!, { writes: [] }));
-    expect(validate(workflow, context)).toEqual([
-      { severity: "warning", stepId: "design", message: '"design" writes no files, so its result can\'t be checked' },
-    ]);
+    expect(validate(workflow, context)).toEqual([]);
   });
 
   it("warns about a missing or unknown phase without making it an error", () => {

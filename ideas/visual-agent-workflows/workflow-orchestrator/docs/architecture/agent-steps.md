@@ -12,8 +12,8 @@ code:
   - packages/core/src/infrastructure/FsRunFiles.ts
 depends_on: [prompts, project-registry]
 used_by: [engine, runs-and-events]
-adrs: [4, 5, 6, 7, 13]
-specs: [2-schema-compile, 3-cursor-runtime, 4-server, 5.5-retry, 5.6-claude-runtime]
+adrs: [4, 5, 6, 7, 13, 14]
+specs: [2-schema-compile, 3-cursor-runtime, 4-server, 5.5-retry, 5.6-claude-runtime, 5.8-artefacts-anywhere]
 updated: 2026-10-11
 ---
 
@@ -30,12 +30,12 @@ ref     = runFiles.getRef(runId, step, attempt)
 if ref and runtime.attach(ref.cursorRunId) finds the run:      ← reattach (ADR-0006)
     before = ref.before; no events are forwarded again
 else:
-    before = snapshot(step.writes + artefactGlobs)
+    before = snapshot(declared: step.writes)                  ← every project file
     handle = runtime.start({ cwd, model, message: buildPrompt(…), key: "<runId>:<stepId>:<attempt>" })
     runFiles.putRef({ …, cursorRunId: handle.id, before })      ← saved BEFORE waiting
     forward handle.events() as agent-event
 onHandle(handle) … result = handle.wait() … onHandle(null)      ← lets the supervisor cancel
-after   = snapshot(same patterns)
+after   = snapshot(declared: step.writes)
 record  = { status: done | failed, cursorRunIds, writes, missing, summary, usage, durationMs }
 ```
 
@@ -43,7 +43,9 @@ record  = { status: done | failed, cursorRunIds, writes, missing, summary, usage
 (summary `cancelled` when empty). **An agent that can't be started** (the
 runtime's `start` throws: wrong plan, bad key, unknown model) gives a `failed`
 record with summary `couldn't start the agent: <message>` and no run ref, so
-the run ends `failed` and can be retried. An error **while waiting** on a
+the run ends `failed` and can be retried. `writes` is every project file that
+changed, wherever it is (ADR-0014); `missing` lists declared `writes` patterns
+that saw no change, and is empty when the step declares none. An error **while waiting** on a
 started agent is thrown instead: the run becomes `interrupted` and `continue`
 reattaches. The registry is passed in fresh for each
 step, so a skill edited between steps is used.

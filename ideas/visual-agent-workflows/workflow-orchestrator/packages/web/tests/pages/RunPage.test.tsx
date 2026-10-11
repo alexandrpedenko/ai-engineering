@@ -47,6 +47,19 @@ describe("RunPage at a gate", () => {
     expect(api.calls).toContain("resume run-1 reject:Add acceptance checks");
   });
 
+  it("shows the files the run says the gate waits on", async () => {
+    const api = new FakeOrchestratorApi();
+    api.runsById["run-1"] = runDetails({ status: "waiting", gateId: "review", shows: ["ux-space/flows.md"], state: runState({ steps: { elicit: record() } }) });
+    api.files["ux-space/flows.md"] = "# Flows\nBook a room in three taps.";
+    renderPage(<RunPage />, { path: "/runs/:runId", at: "/runs/run-1", api });
+    expect(await screen.findByText(/Book a room in three taps/)).toBeTruthy();
+  });
+
+  it("says when nothing was changed before the gate", async () => {
+    render(runDetails({ status: "waiting", gateId: "review", shows: [], state: runState({ steps: { elicit: record() } }) }));
+    expect(await screen.findByText("No files were changed before this gate.")).toBeTruthy();
+  });
+
   it("says when a gate's file doesn't exist", async () => {
     const api = new FakeOrchestratorApi();
     api.runsById["run-1"] = waitingRun();

@@ -1,4 +1,4 @@
-import { readFile } from "node:fs/promises";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { jsonBody, testServer } from "../support/testServer";
@@ -26,17 +26,29 @@ describe("/api/files", () => {
   });
 
   it("writes an artefact", async () => {
-    const response = await server.app.request("/api/files?path=wiki/glossary.md", jsonBody("PUT", { content: "# Glossary" }));
+    const response = await server.app.request("/api/files?path=wiki/README.md", jsonBody("PUT", { content: "# Wiki" }));
     expect(response.status).toBe(204);
-    expect(await readFile(join(server.projectRoot, "wiki/glossary.md"), "utf8")).toBe("# Glossary");
+    expect(await readFile(join(server.projectRoot, "wiki/README.md"), "utf8")).toBe("# Wiki");
   });
 
-  it("refuses paths outside skills, agents and artefacts, missing paths, and bad bodies", async () => {
-    expect((await server.app.request("/api/files?path=src/index.ts")).status).toBe(400);
+  it("opens a file in any folder of the project, with no config", async () => {
+    await mkdir(join(server.projectRoot, "kb"), { recursive: true });
+    await writeFile(join(server.projectRoot, "kb/a.md"), "# A");
+
+    const response = await server.app.request("/api/files?path=kb/a.md");
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({ path: "kb/a.md", content: "# A" });
+    expect((await server.app.request("/api/files?path=src/index.ts")).status).toBe(200);
+  });
+
+  it("refuses .env files, paths outside the project, missing files, and bad bodies", async () => {
+    await writeFile(join(server.projectRoot, ".env"), "KEY=1");
+    expect((await server.app.request("/api/files?path=.env")).status).toBe(400);
     expect((await server.app.request("/api/files?path=../secrets.md")).status).toBe(400);
     expect((await server.app.request("/api/files")).status).toBe(400);
-    expect((await server.app.request("/api/files?path=discovery/none.md")).status).toBe(404);
-    expect((await server.app.request("/api/files?path=wiki/x.md", jsonBody("PUT", { text: "x" }))).status).toBe(400);
-    expect((await server.app.request("/api/files?path=wiki/x.md", { method: "PUT", body: "not json" })).status).toBe(400);
+    expect((await server.app.request("/api/files?path=discovery/none.md")).status).toBe(400);
+    expect((await server.app.request("/api/files?path=wiki/README.md", jsonBody("PUT", { text: "x" }))).status).toBe(400);
+    expect((await server.app.request("/api/files?path=wiki/README.md", { method: "PUT", body: "not json" })).status).toBe(400);
   });
 });

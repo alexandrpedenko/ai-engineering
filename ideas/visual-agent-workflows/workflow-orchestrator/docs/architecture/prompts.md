@@ -25,7 +25,9 @@ one markdown message. Sections, in this order, each left out when empty:
 # Read first                                      step.reads
 # You must write                                  step.writes
 # Reviewer feedback on your previous attempt      numbered, oldest first
-# Rules                                           "Do not change anything in: workflow-orchestrator/"
+# Rules                                           with no step.writes: "Write your results where the skills
+                                                  above and the project's rules say."; then
+                                                  "Do not change anything in: workflow-orchestrator/"
 ```
 
 The headings are exported as `PROMPT_SECTIONS`; `promptSection(message,

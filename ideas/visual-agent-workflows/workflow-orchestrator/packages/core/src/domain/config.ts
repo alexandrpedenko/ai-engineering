@@ -15,7 +15,7 @@ export const OrchestratorConfig = z
     workflowsDir: z.string().default(".cursor/workflows"),
     skillDirs: z.array(z.string()).default([".cursor/skills", ".agents/skills"]),
     agentDirs: z.array(z.string()).default([".cursor/agents"]),
-    artefactGlobs: z.array(z.string()).default(["discovery/**", "wiki/**", "delivery/**", "docs/**"]),
+    artefactGlobs: z.array(z.string()).optional(), // unset: every markdown or text file is an artefact
     runtime: RuntimeKind.default("cursor"),
     models: z
       .strictObject({ cursor: z.string().default(DEFAULT_MODELS.cursor), claude: z.string().default(DEFAULT_MODELS.claude) })

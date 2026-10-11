@@ -17,7 +17,6 @@ export function agentDeps(runtime: AgentRuntime, overrides: Partial<AgentStepDep
     projectFiles,
     runFiles,
     cwd: "/host",
-    artefactGlobs: ["discovery/**"],
     defaultModel: { id: "composer-2.5" },
     doNotTouch: ["workflow-orchestrator/"],
     onEvent: (_, event) => events.push(event),

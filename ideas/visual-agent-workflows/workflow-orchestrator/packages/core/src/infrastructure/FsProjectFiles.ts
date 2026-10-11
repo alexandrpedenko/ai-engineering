@@ -1,6 +1,8 @@
+import { execFile } from "node:child_process";
 import { createHash } from "node:crypto";
 import { mkdir, readdir, readFile, stat, writeFile } from "node:fs/promises";
 import { dirname, isAbsolute, join, posix, relative } from "node:path";
+import { promisify } from "node:util";
 import picomatch from "picomatch";
 import { glob } from "tinyglobby";
 import type { ProjectFiles } from "../application/ProjectFiles";
@@ -9,11 +11,29 @@ import type { Snapshot } from "../domain/outputs";
 import type { Artefact, MarkdownDoc, UnreadableDoc } from "../domain/registry";
 import { parseMarkdown } from "./frontmatter";
 
+const run = promisify(execFile);
 const trimSlashes = (dir: string) => dir.replace(/^\.\/|\/+$/g, "");
 
+const TEXT_FILES = ["**/*.md", "**/*.mdx", "**/*.txt"];
+const HASH_LIMIT_BYTES = 5 * 1024 * 1024;
+
+async function git(cwd: string, args: string[]): Promise<string> {
+  const { stdout } = await run("git", args, { cwd, maxBuffer: 256 * 1024 * 1024 });
+  return stdout;
+}
+
+async function isFile(path: string): Promise<boolean> {
+  try {
+    return (await stat(path)).isFile();
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") return false;
+    throw error;
+  }
+}
+
 // ProjectFiles on the real file system, rooted at config.projectRoot. Missing
-// skill or agent folders give no docs. node_modules, .git and the orchestrator
-// folder itself are never artefacts.
+// skill or agent folders give no docs. node_modules, .git, the orchestrator
+// folder and (in a git repository) gitignored files are never project files.
 export class FsProjectFiles implements ProjectFiles {
   readonly root: string;
 
@@ -40,40 +60,37 @@ export class FsProjectFiles implements ProjectFiles {
   }
 
   async artefacts(): Promise<Artefact[]> {
-    const paths = await this.match(this.config.artefactGlobs);
+    const own = [this.config.workflowsDir, ...this.config.skillDirs, ...this.config.agentDirs].map((dir) => `${trimSlashes(dir)}/**`);
+    const isOwn = picomatch(own, { dot: true });
+    const isText = picomatch(TEXT_FILES, { dot: true });
+    const inGlobs = this.config.artefactGlobs ? picomatch(this.config.artefactGlobs, { dot: true }) : () => true;
     const artefacts: Artefact[] = [];
-    for (const path of paths.sort()) {
+    for (const path of await this.projectFiles()) {
+      if (isOwn(path) || !isText(path) || !inGlobs(path)) continue;
       const info = await stat(join(this.root, path));
       artefacts.push({ path, size: info.size, mtimeMs: info.mtimeMs });
     }
     return artefacts;
   }
 
-  async snapshot(patterns: string[]): Promise<Snapshot> {
-    const matches: Record<string, string[]> = {};
-    for (const pattern of patterns) matches[pattern] = (await this.match([pattern])).sort();
+  async snapshot(declared: string[]): Promise<Snapshot> {
+    const paths = await this.projectFiles();
     const hashes: Record<string, string> = {};
-    for (const path of [...new Set(Object.values(matches).flat())].sort()) {
-      const content = await readFile(join(this.root, path));
-      hashes[path] = createHash("sha1").update(content).digest("hex");
+    for (const path of paths) hashes[path] = await this.hash(path);
+    const matches: Record<string, string[]> = {};
+    for (const pattern of declared) {
+      const isMatch = picomatch(pattern, { dot: true });
+      matches[pattern] = paths.filter((path) => isMatch(path));
     }
     return { hashes, matches };
   }
 
-  isEditable(path: string): boolean {
+  async canOpen(path: string): Promise<boolean> {
     if (!path || isAbsolute(path) || path.includes("\\")) return false;
     const normal = posix.normalize(path);
     if (normal !== path || normal.startsWith("../") || normal === "..") return false;
-    const segments = normal.split("/");
-    if (segments.includes(".git") || segments.includes("node_modules")) return false;
-    const orchestrator = this.orchestratorPath();
-    if (orchestrator && (normal === orchestrator || normal.startsWith(`${orchestrator}/`))) return false;
-    const patterns = [
-      ...this.config.skillDirs.map((dir) => `${trimSlashes(dir)}/**/*.md`),
-      ...this.config.agentDirs.map((dir) => `${trimSlashes(dir)}/*.md`),
-      ...this.config.artefactGlobs,
-    ];
-    return picomatch(patterns, { dot: true })(normal);
+    if (/^\.env(\..*)?$/.test(posix.basename(normal))) return false;
+    return (await this.projectFiles()).includes(normal);
   }
 
   async readText(path: string): Promise<{ content: string; size: number } | null> {
@@ -99,13 +116,47 @@ export class FsProjectFiles implements ProjectFiles {
     return inside && !inside.startsWith("..") && !isAbsolute(inside) ? inside : null;
   }
 
-  // Files under the root matching the patterns, never node_modules, .git or
-  // the orchestrator folder.
-  private async match(patterns: string[]): Promise<string[]> {
-    const ignore = ["**/node_modules/**", "**/.git/**"];
+  // Every file in the project, sorted: from git (tracked and untracked, minus
+  // what .gitignore excludes) when the root is inside a git work tree that
+  // doesn't ignore it, otherwise from walking the folders. Git can list
+  // deleted or submodule entries, so those are checked to be files. Never .git,
+  // node_modules or the orchestrator folder.
+  private async projectFiles(): Promise<string[]> {
     const orchestrator = this.orchestratorPath();
-    if (orchestrator) ignore.push(`${orchestrator}/**`);
-    return await glob(patterns, { cwd: this.root, onlyFiles: true, dot: false, ignore });
+    const ignore = ["**/node_modules/**", "**/.git/**", ...(orchestrator ? [`${orchestrator}/**`] : [])];
+    const fromGit = await this.gitFiles();
+    const listed = fromGit ?? (await glob("**", { cwd: this.root, onlyFiles: true, dot: true, ignore }));
+    const files: string[] = [];
+    for (const path of new Set(listed)) {
+      const segments = path.split("/");
+      if (segments.includes(".git") || segments.includes("node_modules")) continue;
+      if (orchestrator && (path === orchestrator || path.startsWith(`${orchestrator}/`))) continue;
+      files.push(path);
+    }
+    if (fromGit === null) return files.sort();
+    const existing: string[] = [];
+    for (const path of files) if (await isFile(join(this.root, path))) existing.push(path);
+    return existing.sort();
+  }
+
+  // The git file list relative to the root, or null when git can't give one:
+  // not a git work tree, the root is ignored by its repository, or no git.
+  private async gitFiles(): Promise<string[] | null> {
+    try {
+      await git(this.root, ["check-ignore", "-q", "--", this.root]);
+      return null; // exit 0: the root itself is ignored
+    } catch (error) {
+      if ((error as { code?: unknown }).code !== 1) return null; // 128: not a repository; ENOENT: no git
+    }
+    const output = await git(this.root, ["ls-files", "-z", "--cached", "--others", "--exclude-standard"]);
+    return output.split("\0").filter((path) => path !== "");
+  }
+
+  // A content hash, or size and modification time for files over 5 MB.
+  private async hash(path: string): Promise<string> {
+    const info = await stat(join(this.root, path));
+    if (info.size > HASH_LIMIT_BYTES) return `${info.size}:${info.mtimeMs}`;
+    return createHash("sha1").update(await readFile(join(this.root, path))).digest("hex");
   }
 
   private async markdownFilesIn(dir: string): Promise<string[]> {

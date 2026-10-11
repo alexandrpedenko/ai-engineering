@@ -23,7 +23,7 @@ case or the supervisor, return the result. They get their dependencies as
 | --- | --- | --- |
 | GET | `/api/health` | `{ ok, node, runtime }` (`cursor`, `claude` or `fake`) |
 | GET | `/api/project` | the registry |
-| GET / PUT | `/api/files?path=` | `{ path, content }` / `{ content }` → 204 (skill, agent, artefact files only) |
+| GET / PUT | `/api/files?path=` | `{ path, content }` / `{ content }` → 204 (existing project files except `.env*`; see `canOpen` in [project-registry](project-registry.md)) |
 | GET / PUT | `/api/phases` | `{ phases }` / → 204 |
 | GET | `/api/workflows` | `[{ id, name, phase, problems }]` |
 | GET / PUT / DELETE | `/api/workflows/:id` | `{ workflow, problems }` / `{ problems }` / 204 |

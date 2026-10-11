@@ -10,6 +10,7 @@ import {
 } from "@langchain/langgraph";
 import { ConflictError } from "../application/errors";
 import type { RunEngine, RunOutcome } from "../application/RunEngine";
+import { gateFiles } from "../domain/gateFiles";
 import { GateDecision, type RunEvent, type RunState, type StepRecord } from "../domain/runState";
 import type { AgentStep, GateStep, Workflow } from "../domain/workflow";
 
@@ -54,8 +55,8 @@ function runIdOf(config: LangGraphRunnableConfig): string {
 
 // The gate's work: pause, then record the answer. Nothing happens before the
 // interrupt, because the node runs again from its first line on resume.
-function gateNode(gate: GateStep, state: RunState): Partial<RunState> {
-  const pause: GatePause = { gateId: gate.id, shows: gate.shows };
+function gateNode(workflow: Workflow, gate: GateStep, state: RunState): Partial<RunState> {
+  const pause: GatePause = { gateId: gate.id, shows: gateFiles(workflow, gate, state) };
   const decision = GateDecision.parse(interrupt(pause));
   const decisions = { [gate.id]: [decision] };
   if (decision.decision === "approve") return { decisions };
@@ -129,7 +130,7 @@ export class LangGraphRunEngine implements RunEngine {
           [...new Set([after(step.id), END])],
         );
       } else {
-        graph.addNode(step.id, (state: RunState) => gateNode(step, state));
+        graph.addNode(step.id, (state: RunState) => gateNode(workflow, step, state));
         graph.addConditionalEdges(
           step.id,
           (state: RunState) => {

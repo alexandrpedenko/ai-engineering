@@ -6,7 +6,7 @@ import { baWorkflow, registry } from "../support/workflows";
 
 describe("readWorkflow", () => {
   it("returns the workflow and its problems", async () => {
-    const store = new MemoryWorkflowStore([baWorkflow((w) => Object.assign(w.steps[2]!, { writes: [] }))]);
+    const store = new MemoryWorkflowStore([baWorkflow((w) => Object.assign(w, { phase: "testing" }))]);
 
     const { workflow, problems } = await readWorkflow({ store, registry }, "ba-discovery");
 

@@ -27,8 +27,10 @@ export function RunPage() {
   const clearDraft = useGateDraftStore((state) => state.clearDraft);
 
   const rows = run.data ? stepTimeline(run.data, events) : [];
-  const waitingGate = rows.find((row) => row.state === "waiting")?.step as GateStep | undefined;
-  const files = useFiles(waitingGate?.shows ?? []);
+  const waitingRow = rows.find((row) => row.state === "waiting");
+  const waitingGate = waitingRow?.step as GateStep | undefined;
+  const shows = waitingRow?.shows ?? [];
+  const files = useFiles(shows);
 
   if (run.isPending) return <Typography>Loading…</Typography>;
   if (run.error) {
@@ -95,7 +97,7 @@ export function RunPage() {
           if (row.state === "waiting" && waitingGate) {
             return (
               <GatePanel
-                files={waitingGate.shows.map((path, i) => {
+                files={shows.map((path, i) => {
                   const file = files[i];
                   if (!file || file.isPending) return { path, loading: true };
                   if (file.error) return { path, error: isNotFound(file.error) ? "File not found." : file.error.message };

@@ -6,10 +6,11 @@ code:
   - packages/core/src/application/RunEngine.ts
   - packages/core/src/domain/runState.ts
   - packages/core/src/infrastructure/LangGraphRunEngine.ts
+  - packages/core/src/domain/gateFiles.ts
 depends_on: [workflows, agent-steps]
 used_by: [runs-and-events, cli, composition]
-adrs: [3, 6]
-specs: [2-schema-compile, 3-cursor-runtime, 5.5-retry]
+adrs: [3, 6, 14]
+specs: [2-schema-compile, 3-cursor-runtime, 5.5-retry, 5.8-artefacts-anywhere]
 updated: 2026-10-11
 ---
 
@@ -45,7 +46,10 @@ LangGraph-specific is saved in workflow files. The run id is LangGraph's
   ([agent-steps](agent-steps.md)) and stores the record. Edge after it:
   `failed` → end; else the next step.
 - **Gate** → a node whose **only** work is `interrupt({ gateId, shows })`,
-  then recording the parsed `GateDecision` (ADR-0006: nothing before the
+  where `shows` is `gateFiles(workflow, gate, state)`: the gate's own `shows`
+  if it has any, else the files created or modified by the agent steps from
+  its `onReject` step up to it (latest attempt, step order, each once). Then
+  it records the parsed `GateDecision` (ADR-0006: nothing before the
   interrupt, because the node re-runs from its first line on resume). Edge
   after it: approve → next step; reject → `onReject` with the feedback
   appended for that step and `revisions + 1`; reject when `revisions` already

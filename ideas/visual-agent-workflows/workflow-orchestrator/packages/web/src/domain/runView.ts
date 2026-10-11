@@ -18,6 +18,7 @@ export type StepView = {
   attempt: number; // attempts so far, including one running now
   record?: StepRecord; // the latest finished attempt
   decisions: GateDecision[]; // gates only
+  shows?: string[]; // a waiting gate: the files it asks the reviewer to read
 };
 
 export type RunHeadline = {
@@ -76,6 +77,7 @@ export function stepTimeline(details: RunDetails, events: LoggedEvent[]): StepVi
       else if (record) view.state = record.status === "done" ? "done" : "failed";
     } else if (!moving && outcome?.status === "waiting" && outcome.gateId === step.id) {
       view.state = "waiting";
+      view.shows = outcome.shows;
     } else if (!moving && outcome?.status === "rejected" && outcome.gateId === step.id) {
       view.state = "rejected";
     } else if (decisions.at(-1)?.decision === "approve") {

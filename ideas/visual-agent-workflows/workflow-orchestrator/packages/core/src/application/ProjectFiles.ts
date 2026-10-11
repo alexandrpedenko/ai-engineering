@@ -1,21 +1,23 @@
 import type { Snapshot } from "../domain/outputs";
 import type { Artefact, MarkdownDoc, UnreadableDoc } from "../domain/registry";
 
-// Read access to the host project's skills, agents and artefacts.
+// Access to the host project's files: skills, agents, artefacts, and the
+// whole project's file list for snapshots.
 export interface ProjectFiles {
   readonly root: string;
   // Every SKILL.md under each skill folder, in config order, then path order.
   skillDocs(): Promise<(MarkdownDoc | UnreadableDoc)[]>;
   // Every *.md directly inside each agent folder, in config order, then path order.
   agentDocs(): Promise<(MarkdownDoc | UnreadableDoc)[]>;
-  // Every file matching the artefact globs.
+  // Every markdown or text file outside the skill, agent and workflow folders
+  // (only those matching the artefact globs, when the config sets them).
   artefacts(): Promise<Artefact[]>;
-  // Content hashes of every file matching any of the patterns, and which
-  // paths each pattern matched.
-  snapshot(patterns: string[]): Promise<Snapshot>;
+  // A hash of every file in the project, and which of those paths each
+  // declared pattern matched.
+  snapshot(declared: string[]): Promise<Snapshot>;
   // Whether a person may read and edit this file through the orchestrator:
-  // a skill, agent or artefact file inside the project.
-  isEditable(path: string): boolean;
+  // an existing project file, not a .env file.
+  canOpen(path: string): Promise<boolean>;
   // null when the file doesn't exist.
   readText(path: string): Promise<{ content: string; size: number } | null>;
   writeText(path: string, content: string): Promise<void>;

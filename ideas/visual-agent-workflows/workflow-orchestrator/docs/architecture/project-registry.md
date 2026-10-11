@@ -18,7 +18,7 @@ code:
 depends_on: []
 used_by: [workflows, prompts, agent-steps, http-api, cli, composition]
 adrs: [1, 5]
-specs: [1-registry, 4-server, 5.6-claude-runtime, 5.7-local-settings]
+specs: [1-registry, 4-server, 5.6-claude-runtime, 5.7-local-settings, 5.8-artefacts-anywhere]
 updated: 2026-10-11
 ---
 
@@ -50,7 +50,7 @@ the caller) → **settings.json** → **orchestrator.config.json** → **default
 | `workflowsDir` | `.cursor/workflows` | project root |
 | `skillDirs` | `.cursor/skills`, `.agents/skills` | project root |
 | `agentDirs` | `.cursor/agents` | project root |
-| `artefactGlobs` | `discovery/**`, `wiki/**`, `delivery/**`, `docs/**` | project root |
+| `artefactGlobs` | unset (every markdown or text file) | project root |
 | `runtime` | `cursor` (or `claude`; `ORCH_RUNTIME` overrides) | |
 | `models` | `{ cursor: "composer-2.5", claude: "claude-opus-5-5" }` | default model per runtime; an old `defaultModel` is read as `models.cursor` |
 | `dataDir` | `.data` | orchestrator folder |
@@ -69,7 +69,9 @@ or a bad key → `InvalidConfigError` naming the file and each key.
 - **Agent**: every `*.md` directly in an agent dir. Name from frontmatter
   `name`, else the file name. Optional `model` (`inherit` means "use the
   default").
-- **Artefact**: every file matching an artefact glob, with size and mtime.
+- **Artefact**: every `*.md`, `*.mdx` or `*.txt` project file outside the
+  skill, agent and workflow dirs, with size and mtime; only those matching
+  `artefactGlobs` when it is set.
 - **Warnings, never errors**: bad YAML, missing description, a duplicate name
   (the first in read order wins; `.cursor/skills` before `.agents/skills`).
 - Sorted: skills and agents by name, artefacts by path.
@@ -81,22 +83,28 @@ frontmatter into a skill or agent (`toSkill`, `toAgentDef`) is domain.
 
 `ProjectFiles` (port) / `FsProjectFiles` (adapter) also:
 
-- `snapshot(patterns)`: content hashes for the file check
-  ([agent-steps](agent-steps.md)).
-- `isEditable(path)`: a relative path inside the project, not under `.git`,
-  `node_modules` or the orchestrator folder, matching a skill dir
-  (`**/*.md`), an agent dir (`*.md`) or an artefact glob.
+- `snapshot(declared)`: a hash of every project file (files over 5 MB:
+  `size:mtimeMs`), and which files each declared pattern matched, for the file
+  check ([agent-steps](agent-steps.md)).
+- `canOpen(path)`: a normalised relative path that is in the project file
+  list and isn't `.env` or `.env.*`. Only existing files.
 - `readText` / `writeText`, used through `readProjectFile` /
-  `writeProjectFile`, which refuse non-editable paths and files over 1 MB.
+  `writeProjectFile`, which refuse paths `canOpen` refuses and files over 1 MB.
 
-`node_modules`, `.git` and the orchestrator folder are never artefacts and
-never snapshotted.
+**The project file list** (ADR-0014) is what all three use. When the root is
+inside a git work tree that doesn't ignore it: `git ls-files --cached
+--others --exclude-standard` (tracked and untracked, gitignored files left
+out; deleted entries dropped). Otherwise (no git, not a repository, or a root
+the enclosing repository ignores, like `.data/sample-project`): every file
+under the root. Either way `node_modules`, `.git` and the orchestrator folder
+are never in it.
 
 ## Where to change what
 
 - A new place to look for skills or agents → config default + `FsProjectFiles`.
 - What counts as a valid skill/agent file → `toSkill` / `toAgentDef`.
-- What a person may edit → `FsProjectFiles.isEditable`.
+- What a person may open and edit → `FsProjectFiles.canOpen`.
+- Which files a snapshot covers → `FsProjectFiles.projectFiles`.
 
 ## Tests
 

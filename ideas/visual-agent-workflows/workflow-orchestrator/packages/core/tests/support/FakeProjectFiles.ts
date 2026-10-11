@@ -27,7 +27,7 @@ export class FakeProjectFiles implements ProjectFiles {
   editable = new Set<string>();
   texts = new Map<string, string>();
 
-  isEditable(path: string) {
+  async canOpen(path: string) {
     return this.editable.has(path);
   }
 
@@ -40,9 +40,9 @@ export class FakeProjectFiles implements ProjectFiles {
     this.texts.set(path, content);
   }
 
-  async snapshot(patterns: string[]): Promise<Snapshot> {
+  async snapshot(declared: string[]): Promise<Snapshot> {
     const index = Math.min(this.snapshotCalls.length, this.snapshots.length - 1);
-    this.snapshotCalls.push(patterns);
+    this.snapshotCalls.push(declared);
     return this.snapshots[index] ?? { hashes: {}, matches: {} };
   }
 }

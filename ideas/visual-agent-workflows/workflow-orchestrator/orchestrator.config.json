@@ -7,11 +7,5 @@
   "agentDirs": [
     ".cursor/agents"
   ],
-  "artefactGlobs": [
-    "discovery/**",
-    "wiki/**",
-    "delivery/**",
-    "docs/**"
-  ],
   "dataDir": ".data"
 }
