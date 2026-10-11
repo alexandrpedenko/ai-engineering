@@ -1,7 +1,7 @@
 import { mkdir, readdir, readFile, unlink, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import type { z } from "zod";
-import { InvalidInputError, NotFoundError } from "../application/errors";
+import { ConflictError, InvalidInputError, NotFoundError } from "../application/errors";
 import type { WorkflowStore } from "../application/WorkflowStore";
 import type { ResolvedConfig } from "../domain/config";
 import { DEFAULT_PHASES, type Phase, PhasesFile } from "../domain/phase";
@@ -46,6 +46,15 @@ export class FsWorkflowStore implements WorkflowStore {
     await this.write(`${workflow.id}.json`, workflow);
   }
 
+  async create(workflow: Workflow): Promise<void> {
+    try {
+      await this.write(`${workflow.id}.json`, workflow, "wx");
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === "EEXIST") throw new ConflictError(`a workflow "${workflow.id}" already exists`);
+      throw error;
+    }
+  }
+
   async remove(id: string): Promise<void> {
     if (!/^[a-z][a-z0-9-]*$/.test(id)) throw new NotFoundError(`no workflow "${id}"`);
     try {
@@ -64,9 +73,10 @@ export class FsWorkflowStore implements WorkflowStore {
     await this.write("phases.json", { phases });
   }
 
-  private async write(name: string, value: unknown): Promise<void> {
+  // Writes the file; flag "wx" fails with EEXIST instead of replacing one.
+  private async write(name: string, value: unknown, flag: "w" | "wx" = "w"): Promise<void> {
     await mkdir(this.dir, { recursive: true });
-    await writeFile(join(this.dir, name), `${JSON.stringify(value, null, 2)}\n`);
+    await writeFile(join(this.dir, name), `${JSON.stringify(value, null, 2)}\n`, { flag });
   }
 
   // The file parsed with the schema; null when it doesn't exist.

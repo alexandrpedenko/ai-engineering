@@ -24,6 +24,7 @@ const Workflow = z
   .object({ id: z.string(), name: z.string(), steps: z.array(z.object({ id: z.string(), type: z.enum(["agent", "gate"]) }).loose()) })
   .loose();
 export const WorkflowWithProblems = z.object({ workflow: Workflow, problems: z.array(Problem) });
+export const Problems = z.object({ problems: z.array(Problem) });
 export const RunSummaries = z.array(
   z.object({ runId: z.string(), workflowId: z.string(), startedAt: z.string(), status: z.string(), busy: z.boolean() }),
 );

@@ -5,6 +5,7 @@ export const queryKeys = {
   phases: ["phases"] as const,
   workflows: ["workflows"] as const,
   workflow: (id: string) => ["workflows", id] as const,
+  workflowCheck: (draft: unknown) => ["workflow-check", draft] as const,
   runsAll: ["runs"] as const,
   runs: (workflowId?: string) => ["runs", "list", workflowId ?? "all"] as const,
   run: (runId: string) => ["runs", "one", runId] as const,

@@ -2,10 +2,20 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, renderHook, waitFor } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { describe, expect, it } from "vitest";
-import { useCancelRun, useContinueRun, useResumeRun, useRetryRun, useStartRun } from "../../src/application/mutations";
+import {
+  useCancelRun,
+  useContinueRun,
+  useCreateWorkflow,
+  useDeleteWorkflow,
+  useResumeRun,
+  useRetryRun,
+  useSaveWorkflow,
+  useStartRun,
+} from "../../src/application/mutations";
 import { OrchestratorApiContext } from "../../src/application/orchestratorApiContext";
 import { queryKeys } from "../../src/application/queryKeys";
 import { FakeOrchestratorApi } from "../support/FakeOrchestratorApi";
+import { workflow } from "../support/sampleData";
 
 // Renders a hook with a query client the test can inspect.
 function setup<T>(hook: () => T) {
@@ -63,5 +73,45 @@ describe("mutation hooks", () => {
     act(() => result.current.mutate({ decision: "approve" }));
 
     await waitFor(() => expect(result.current.error?.message).toBe("run is busy"));
+  });
+});
+
+describe("workflow file mutations", () => {
+  it("useCreateWorkflow and useSaveWorkflow send the workflow and mark the list and the workflow stale", async () => {
+    for (const [hook, call] of [
+      [useCreateWorkflow, "create"],
+      [useSaveWorkflow, "save"],
+    ] as const) {
+      const { api, client, result } = setup(() => hook());
+      if (call === "create") delete api.workflowsById["ba-discovery"];
+      client.setQueryData(queryKeys.workflows, []);
+      client.setQueryData(queryKeys.workflow("ba-discovery"), {});
+
+      await act(async () => await result.current.mutateAsync(workflow));
+
+      expect(api.calls).toEqual([`${call} ba-discovery`]);
+      expect(client.getQueryState(queryKeys.workflows)?.isInvalidated).toBe(true);
+      expect(client.getQueryState(queryKeys.workflow("ba-discovery"))?.isInvalidated).toBe(true);
+    }
+  });
+
+  it("useCreateWorkflow exposes a taken id as an error", async () => {
+    const { result } = setup(() => useCreateWorkflow());
+
+    act(() => result.current.mutate(workflow));
+
+    await waitFor(() => expect(result.current.error?.message).toBe('a workflow "ba-discovery" already exists'));
+  });
+
+  it("useDeleteWorkflow drops the workflow's query and marks the list stale", async () => {
+    const { api, client, result } = setup(() => useDeleteWorkflow("ba-discovery"));
+    client.setQueryData(queryKeys.workflows, []);
+    client.setQueryData(queryKeys.workflow("ba-discovery"), {});
+
+    await act(async () => await result.current.mutateAsync());
+
+    expect(api.calls).toEqual(["delete ba-discovery"]);
+    expect(client.getQueryState(queryKeys.workflow("ba-discovery"))).toBeUndefined();
+    expect(client.getQueryState(queryKeys.workflows)?.isInvalidated).toBe(true);
   });
 });

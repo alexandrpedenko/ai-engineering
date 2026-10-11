@@ -1,3 +1,5 @@
+import { readFile } from "node:fs/promises";
+import { join } from "node:path";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { jsonBody, testServer } from "../support/testServer";
 
@@ -40,6 +42,47 @@ describe("/api/workflows", () => {
     const mismatch = await server.app.request("/api/workflows/other", jsonBody("PUT", await getWorkflow()));
     expect(mismatch.status).toBe(400);
     expect(await mismatch.json()).toMatchObject({ error: expect.stringMatching(/doesn't match "other"/) });
+  });
+});
+
+describe("POST /api/workflows", () => {
+  it("creates a workflow file and returns its problems; a second create is a conflict", async () => {
+    const workflow = { ...(await getWorkflow()), id: "created", name: "Created" };
+
+    const created = await server.app.request("/api/workflows", jsonBody("POST", { workflow }));
+    expect(created.status).toBe(201);
+    expect(await created.json()).toEqual({ problems: [] });
+    expect(await readFile(join(server.projectRoot, ".cursor/workflows/created.json"), "utf8")).toContain('"name": "Created"');
+
+    const again = await server.app.request("/api/workflows", jsonBody("POST", { workflow }));
+    expect(again.status).toBe(409);
+    expect(await again.json()).toEqual({ error: 'a workflow "created" already exists' });
+    await server.app.request("/api/workflows/created", { method: "DELETE" });
+  });
+
+  it("refuses a body without a valid workflow", async () => {
+    expect((await server.app.request("/api/workflows", jsonBody("POST", { workflow: { name: "x" } }))).status).toBe(400);
+    expect((await server.app.request("/api/workflows", jsonBody("POST", []))).status).toBe(400);
+  });
+});
+
+describe("POST /api/workflows/check", () => {
+  it("returns a draft's problems and writes nothing", async () => {
+    const workflow = { ...(await getWorkflow()), id: "draft", steps: (await getWorkflow()).steps.map((s, i) => (i === 0 ? { ...s, agent: "ghost" } : s)) };
+
+    const response = await server.app.request("/api/workflows/check", jsonBody("POST", { workflow }));
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({ problems: [{ severity: "error", stepId: "elicit", message: 'unknown agent "ghost"' }] });
+    await expect(readFile(join(server.projectRoot, ".cursor/workflows/draft.json"), "utf8")).rejects.toThrow();
+  });
+
+  it("answers a broken draft with its schema problems", async () => {
+    const response = await server.app.request("/api/workflows/check", jsonBody("POST", { workflow: { name: "x" } }));
+
+    expect(response.status).toBe(200);
+    const { problems } = (await response.json()) as { problems: { severity: string }[] };
+    expect(problems.length).toBeGreaterThan(0);
   });
 });
 

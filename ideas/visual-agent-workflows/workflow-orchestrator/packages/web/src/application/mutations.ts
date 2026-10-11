@@ -1,4 +1,4 @@
-import type { GateDecision } from "@orch/core";
+import type { GateDecision, Workflow } from "@orch/core";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useOrchestratorApi } from "./orchestratorApiContext";
 import { queryKeys } from "./queryKeys";
@@ -45,4 +45,39 @@ export function useRetryRun(runId: string) {
 export function useCancelRun(runId: string) {
   const api = useOrchestratorApi();
   return useRunAction(runId, async (id) => await api.cancel(id));
+}
+
+// Creates a workflow file. The workflow list and every workflow query go stale.
+export function useCreateWorkflow() {
+  const api = useOrchestratorApi();
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: async (workflow: Workflow) => await api.createWorkflow(workflow),
+    onSuccess: async () => await client.invalidateQueries({ queryKey: queryKeys.workflows }),
+  });
+}
+
+// Saves a workflow over its file. The list and this workflow are refetched
+// before the returned promise settles, so a page shows the saved version next.
+export function useSaveWorkflow() {
+  const api = useOrchestratorApi();
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: async (workflow: Workflow) => await api.saveWorkflow(workflow),
+    onSuccess: async () => await client.invalidateQueries({ queryKey: queryKeys.workflows }),
+  });
+}
+
+// Deletes a workflow file. Its own query is dropped (not refetched into a 404)
+// and the list goes stale.
+export function useDeleteWorkflow(id: string) {
+  const api = useOrchestratorApi();
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: async () => await api.deleteWorkflow(id),
+    onSuccess: async () => {
+      client.removeQueries({ queryKey: queryKeys.workflow(id), exact: true });
+      await client.invalidateQueries({ queryKey: queryKeys.workflows, exact: true });
+    },
+  });
 }

@@ -49,6 +49,8 @@ describe("/api/files", () => {
     expect((await server.app.request("/api/files")).status).toBe(400);
     expect((await server.app.request("/api/files?path=discovery/none.md")).status).toBe(400);
     expect((await server.app.request("/api/files?path=wiki/README.md", jsonBody("PUT", { text: "x" }))).status).toBe(400);
-    expect((await server.app.request("/api/files?path=wiki/README.md", { method: "PUT", body: "not json" })).status).toBe(400);
+    expect((await server.app.request("/api/files?path=wiki/README.md", { method: "PUT", body: "not json" })).status).toBe(415);
+    const notJson = { method: "PUT", headers: { "content-type": "application/json" }, body: "not json" };
+    expect((await server.app.request("/api/files?path=wiki/README.md", notJson)).status).toBe(400);
   });
 });

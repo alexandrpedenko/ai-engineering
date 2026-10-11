@@ -1,7 +1,7 @@
 import { readFile, rm, unlink, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
-import { InvalidInputError, NotFoundError } from "../../src/application/errors";
+import { ConflictError, InvalidInputError, NotFoundError } from "../../src/application/errors";
 import { OrchestratorConfig, type ResolvedConfig } from "../../src/domain/config";
 import { FsWorkflowStore } from "../../src/infrastructure/FsWorkflowStore";
 import { copyOfSampleProject, orchestratorDir, sampleProject } from "../support/paths";
@@ -83,6 +83,22 @@ describe("FsWorkflowStore", () => {
     expect(await store.get("copy")).toBeNull();
     await expect(store.remove("copy")).rejects.toBeInstanceOf(NotFoundError);
     await expect(store.remove("../x")).rejects.toBeInstanceOf(NotFoundError);
+  });
+
+  it("creates a workflow file, and refuses an id that has a file, readable or not, leaving it as it was", async () => {
+    const root = await copyOfSampleProject();
+    temps.push(root);
+    const store = new FsWorkflowStore(configFor(root));
+    const workflow = await store.get("ba-discovery");
+    if (!workflow) throw new Error("fixture workflow missing");
+    await writeFile(join(root, ".cursor/workflows/broken.json"), "not json");
+
+    await store.create({ ...workflow, id: "fresh", name: "Fresh" });
+    expect((await store.get("fresh"))?.name).toBe("Fresh");
+    await expect(store.create({ ...workflow, name: "Other" })).rejects.toBeInstanceOf(ConflictError);
+    await expect(store.create({ ...workflow, id: "broken" })).rejects.toThrow('a workflow "broken" already exists');
+    expect((await store.get("ba-discovery"))?.name).toBe("BA discovery");
+    expect(await readFile(join(root, ".cursor/workflows/broken.json"), "utf8")).toBe("not json");
   });
 
   it("saves phases", async () => {

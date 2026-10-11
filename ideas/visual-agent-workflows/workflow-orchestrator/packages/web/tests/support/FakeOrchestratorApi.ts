@@ -20,6 +20,9 @@ export class FakeOrchestratorApi implements OrchestratorApi {
   files: Record<string, string> = {};
   history: Record<string, LoggedEvent[]> = {};
   startedRunId = "run-new";
+  checkProblems: Problem[] = []; // what checkWorkflow answers
+  readonly saved: Workflow[] = []; // every workflow sent to createWorkflow or saveWorkflow, in order
+  readonly checked: Workflow[] = []; // every workflow sent to checkWorkflow, in order
   failures: Partial<Record<keyof OrchestratorApi, Error>> = {};
   readonly calls: string[] = [];
   private readonly watchers = new Map<string, Set<(event: LoggedEvent) => void>>();
@@ -48,6 +51,31 @@ export class FakeOrchestratorApi implements OrchestratorApi {
     const found = this.workflowsById[id];
     if (!found) throw new ApiError(404, `no workflow "${id}"`);
     return found;
+  }
+  async createWorkflow(workflow: Workflow) {
+    this.calls.push(`create ${workflow.id}`);
+    this.fail("createWorkflow");
+    if (this.workflowsById[workflow.id]) throw new ApiError(409, `a workflow "${workflow.id}" already exists`);
+    this.store(workflow);
+    return { problems: [] };
+  }
+  async saveWorkflow(workflow: Workflow) {
+    this.calls.push(`save ${workflow.id}`);
+    this.fail("saveWorkflow");
+    this.store(workflow);
+    return { problems: [] };
+  }
+  async deleteWorkflow(id: string) {
+    this.calls.push(`delete ${id}`);
+    this.fail("deleteWorkflow");
+    delete this.workflowsById[id];
+    this.workflowList = this.workflowList.filter((w) => w.id !== id);
+  }
+  async checkWorkflow(workflow: Workflow) {
+    this.calls.push(`check ${workflow.id}`);
+    this.checked.push(workflow);
+    this.fail("checkWorkflow");
+    return this.checkProblems;
   }
   async runs(workflowId?: string) {
     return this.runList.filter((run) => !workflowId || run.workflowId === workflowId);
@@ -90,6 +118,14 @@ export class FakeOrchestratorApi implements OrchestratorApi {
       set.delete(onEvent);
       this.calls.push(`stop ${runId}`);
     };
+  }
+
+  // Keeps a created or saved workflow, so later reads return it.
+  private store(workflow: Workflow) {
+    this.saved.push(workflow);
+    this.workflowsById[workflow.id] = { workflow, problems: [] };
+    const summary = { id: workflow.id, name: workflow.name, phase: workflow.phase, problems: [] };
+    this.workflowList = [...this.workflowList.filter((w) => w.id !== workflow.id), summary];
   }
 
   // Sends a live event to everyone watching the run.

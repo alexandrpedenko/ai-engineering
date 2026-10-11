@@ -1,4 +1,4 @@
-import { NotFoundError } from "../../src/application/errors";
+import { ConflictError, NotFoundError } from "../../src/application/errors";
 import type { WorkflowStore } from "../../src/application/WorkflowStore";
 import { DEFAULT_PHASES, type Phase } from "../../src/domain/phase";
 import type { Workflow } from "../../src/domain/workflow";
@@ -24,6 +24,11 @@ export class MemoryWorkflowStore implements WorkflowStore {
   }
 
   async save(workflow: Workflow) {
+    this.workflows.set(workflow.id, workflow);
+  }
+
+  async create(workflow: Workflow) {
+    if (this.workflows.has(workflow.id) || this.broken.has(workflow.id)) throw new ConflictError(`a workflow "${workflow.id}" already exists`);
     this.workflows.set(workflow.id, workflow);
   }
 

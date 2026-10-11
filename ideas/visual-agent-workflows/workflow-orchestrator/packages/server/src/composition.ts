@@ -35,6 +35,7 @@ import {
 } from "@orch/core/infrastructure";
 import { Hono } from "hono";
 import { errorResponse } from "./routes/errors";
+import { localOnly } from "./routes/localOnly";
 import { eventRoutes } from "./routes/eventRoutes";
 import { healthRoutes } from "./routes/healthRoutes";
 import { phaseRoutes } from "./routes/phaseRoutes";
@@ -65,9 +66,11 @@ const settingsOverride = () => (process.env.ORCH_SETTINGS_FILE ? { settingsPath:
 // The workflow-orchestrator folder (three levels above this file).
 export const orchestratorDir = resolve(dirname(fileURLToPath(import.meta.url)), "../../..");
 
-// The HTTP app over the given services. Every error goes through errorResponse.
+// The HTTP app over the given services. Only local, JSON requests get
+// through (localOnly); every error goes through errorResponse.
 export function createApp(services: ServerServices) {
   return new Hono()
+    .use("/api/*", localOnly())
     .route("/api", healthRoutes({ runtime: services.runtimeName }))
     .route("/api", projectRoutes(services))
     .route("/api", phaseRoutes(services))

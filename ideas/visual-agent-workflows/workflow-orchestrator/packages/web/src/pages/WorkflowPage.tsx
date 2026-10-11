@@ -1,4 +1,4 @@
-import { Alert, Grid, Stack, Typography } from "@mui/material";
+import { Alert, Button, Grid, Stack, Typography } from "@mui/material";
 import { useNavigate, useParams } from "react-router";
 import { useStartRun } from "../application/mutations";
 import { usePhases, useRuns, useWorkflow } from "../application/queries";
@@ -29,9 +29,14 @@ export function WorkflowPage() {
 
   return (
     <Stack spacing={3}>
-      <Stack spacing={0.5}>
-        <Typography variant="h5">{wf.name}</Typography>
-        <Typography color="text.secondary">phase: {phase}</Typography>
+      <Stack direction="row" sx={{ alignItems: "flex-start", justifyContent: "space-between" }}>
+        <Stack spacing={0.5}>
+          <Typography variant="h5">{wf.name}</Typography>
+          <Typography color="text.secondary">phase: {phase}</Typography>
+        </Stack>
+        <Button variant="outlined" onClick={() => navigate(`/workflows/${id}/edit`)}>
+          Edit
+        </Button>
       </Stack>
       <ProblemList problems={problems} />
       <Grid container spacing={3}>

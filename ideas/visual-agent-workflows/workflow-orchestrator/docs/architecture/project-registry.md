@@ -87,7 +87,11 @@ frontmatter into a skill or agent (`toSkill`, `toAgentDef`) is domain.
   `size:mtimeMs`), and which files each declared pattern matched, for the file
   check ([agent-steps](agent-steps.md)).
 - `canOpen(path)`: a normalised relative path that is in the project file
-  list and isn't `.env` or `.env.*`. Only existing files.
+  list, whose real location (after symlinks) is inside the project root, and
+  that isn't a file that commonly holds credentials (`.env`, `.env.*`,
+  `.envrc`, `.npmrc`, `.pypirc`, `.netrc`, `*.pem`, `*.key`, `*.p12`, `*.pfx`,
+  `id_rsa*` and other SSH keys, anything under `.ssh/`, `.aws/`, `.gnupg/`).
+  Only existing files.
 - `readText` / `writeText`, used through `readProjectFile` /
   `writeProjectFile`, which refuse paths `canOpen` refuses and files over 1 MB.
 
@@ -96,8 +100,8 @@ inside a git work tree that doesn't ignore it: `git ls-files --cached
 --others --exclude-standard` (tracked and untracked, gitignored files left
 out; deleted entries dropped). Otherwise (no git, not a repository, or a root
 the enclosing repository ignores, like `.data/sample-project`): every file
-under the root. Either way `node_modules`, `.git` and the orchestrator folder
-are never in it.
+under the root, not following symlinks. Either way `node_modules`, `.git`
+and the orchestrator folder are never in it.
 
 ## Where to change what
 

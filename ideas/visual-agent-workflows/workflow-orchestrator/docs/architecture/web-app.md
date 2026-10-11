@@ -1,15 +1,15 @@
 ---
 title: Web app
 area: web-app
-summary: The React app — its layers, routes, data hooks and live run view.
+summary: The React app — its layers, routes, data hooks, live run view and workflow editor.
 code:
   - packages/web/src/**
   - packages/web/index.html
   - packages/web/vite.config.ts
 depends_on: [http-api]
 used_by: []
-adrs: [9, 10, 11]
-specs: [5-shell-and-runs, 5.5-retry, 5.8-artefacts-anywhere]
+adrs: [9, 10, 11, 14]
+specs: [5-shell-and-runs, 5.5-retry, 5.8-artefacts-anywhere, 6-workflow-editor]
 updated: 2026-10-11
 ---
 
@@ -20,9 +20,11 @@ updated: 2026-10-11
 ## Layers (ADR-0010)
 
 ```
-domain/        pure: groupWorkflowsByPhase, problemCounts, stepTimeline, runHeadline, eventLine, ApiError
+domain/        pure: groupWorkflowsByPhase, problemCounts, stepTimeline, runHeadline, eventLine, ApiError,
+               workflowGraph (questions), workflowEdits (edits), workflowCanvas (toCanvas)
 application/   OrchestratorApi (port), queries.ts, mutations.ts, useRunEvents, useGateDraftStore,
-               useServerStatus, queryKeys, the API context
+               useWorkflowDraftStore + useWorkflowDraft, useWorkflowCheck, useServerStatus,
+               queryKeys, the API context
 api/           HttpOrchestratorApi (fetch + EventSource), responseSchemas (zod checks of answers)
 components/    presentational only: props in, callbacks out (no hooks from application, no router)
 pages/         connect hooks to components; may use react-router
@@ -37,15 +39,20 @@ bootstrap/     providers (MUI theme, QueryClient, OrchestratorApi), BrowserRoute
 | --- | --- |
 | `/` | → `/project` |
 | `/project` | `ProjectPage`: skills, agents, artefacts, warnings |
-| `/workflows/:id` | `WorkflowPage`: steps, problems, start form, its runs |
+| `/workflows/:id` | `WorkflowPage`: steps, problems, start form, its runs, Edit |
+| `/workflows/:id/edit` | `WorkflowEditorPage`: the workflow editor (below) |
 | `/runs` | `RunsPage` |
 | `/runs/:runId` | `RunPage`: the live run |
 | other | `NotFoundPage` |
 
 `AppLayout` wraps them: app bar (project name, server status and the agent
 runtime, from `/api/health`) and
-`AppSidebar` (phases in order with their workflows and problem dots,
-Unsorted only when needed, runs waiting at a gate).
+`AppSidebar` (phases in order with their workflows and problem dots, "●" on
+a workflow with an unsaved draft, "+ New workflow" under each group, Unsorted
+only when needed, runs waiting at a gate). "+ New workflow" opens
+`NewWorkflowDialog` (name → id with `idFromName`, refused while taken); the
+workflow is created at once with one empty agent step (`newWorkflow`) and the
+editor opens.
 
 ## Data (ADR-0011)
 
@@ -58,7 +65,9 @@ Unsorted only when needed, runs waiting at a gate).
   outcome into the run's cache entry and refreshes run lists; on
   `step-finished` / `run-crashed` refreshes the run.
 - **Client state → Zustand**: `useGateDraftStore` keeps gate feedback being
-  typed, per run.
+  typed, per run; `useWorkflowDraftStore` keeps unsaved workflow drafts and
+  the selected step, per workflow (memory only); `useDraftIds` gives the ids
+  with drafts and re-renders only when that list changes.
 - Answers are checked with zod in `api/`; errors become `ApiError` (status,
   message, problems).
 
@@ -74,6 +83,42 @@ the running step, the gate panel (the files in the run outcome's `shows`,
 read via `/api/files`, or "No files were changed before this gate."; Approve,
 Reject with feedback), Continue for interrupted runs, Retry on the failure banner, and
 **Cancel this step** under the running step.
+
+## The workflow editor
+
+The **draft** (a `Workflow`) is the source of truth. `useWorkflowDraft(id,
+saved)` gives the draft or else the saved workflow, `dirty`, the selected
+step, and `edit(change)`: every change is a pure function from
+`workflowEdits` (`addStep`, `removeStep`, `renameStep`, `connect`,
+`disconnect`, `moveStep`, `updateAgentStep`, `updateGate`, `updateWorkflow`,
+`addInput` / `updateInput` / `removeInput`), applied to the latest draft.
+Questions (`findStep`, `nextStep`, `agentStepsBefore`, `positionOf`, the id
+rules) are in `workflowGraph`. `toCanvas(workflow, problems, selectedId)`
+turns the draft into plain nodes and edges (next-step edges, and a dashed
+reject edge per gate); a step with no saved position is drawn in a row by its
+place in the file, and new steps go right of every drawn node.
+
+`WorkflowCanvas` (React Flow) draws them; it keeps its own copy of the nodes
+only so nodes follow the mouse while dragged (a new canvas arriving mid-drag
+leaves dragged nodes where they are), and reports gestures as edits (drag
+stop → `moveStep` for every dragged node, connect → `connect`, Delete →
+`removeStep` / `disconnect`). Each node is a `group` named "step <id>", with
+a "has errors" / "has warnings" dot whose tooltip lists the problems. Reject edges can't be selected or deleted. `StepInspector`
+edits the selected step (id with rename-everywhere, label, agent and skill
+pickers from the registry, instructions, model, optional reads / writes /
+shows, next step, reject target from `agentStepsBefore`); `StepPalette` adds
+steps; `WorkflowFields` edits name, phase and inputs.
+
+Problems come from the server: while there is a draft, `useWorkflowCheck`
+sends it to `POST /api/workflows/check` once it has stopped changing for
+400 ms, and the answer colours the nodes and fills the problem list; a failed
+check is shown as such. **Save** → `PUT /api/workflows/:id`; the draft is
+dropped only if nothing was edited while saving (`markSaved`). **Discard
+changes** drops it; **Delete** asks first, shows a failure in the dialog, and
+forgets the draft. A failed reload of the saved workflow is a banner while a
+draft is open. Closing the tab with a draft asks the browser to confirm. The
+route mounts the page with `key` = workflow id, so its own state starts fresh
+for each workflow.
 
 ## Tests
 

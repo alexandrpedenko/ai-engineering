@@ -1,7 +1,7 @@
 import { execFile } from "node:child_process";
 import { createHash } from "node:crypto";
-import { mkdir, readdir, readFile, stat, writeFile } from "node:fs/promises";
-import { dirname, isAbsolute, join, posix, relative } from "node:path";
+import { mkdir, readdir, readFile, realpath, stat, writeFile } from "node:fs/promises";
+import { dirname, isAbsolute, join, posix, relative, sep } from "node:path";
 import { promisify } from "node:util";
 import picomatch from "picomatch";
 import { glob } from "tinyglobby";
@@ -15,6 +15,29 @@ const run = promisify(execFile);
 const trimSlashes = (dir: string) => dir.replace(/^\.\/|\/+$/g, "");
 
 const TEXT_FILES = ["**/*.md", "**/*.mdx", "**/*.txt"];
+
+// Files that commonly hold credentials. Never opened through the orchestrator,
+// even when they are in the project's file list.
+const SECRET_FILES = [
+  "**/.env",
+  "**/.env.*",
+  "**/.envrc",
+  "**/.npmrc",
+  "**/.pypirc",
+  "**/.netrc",
+  "**/*.pem",
+  "**/*.key",
+  "**/*.p12",
+  "**/*.pfx",
+  "**/id_rsa*",
+  "**/id_dsa*",
+  "**/id_ecdsa*",
+  "**/id_ed25519*",
+  "**/.ssh/**",
+  "**/.aws/**",
+  "**/.gnupg/**",
+];
+const isSecret = picomatch(SECRET_FILES, { dot: true });
 const HASH_LIMIT_BYTES = 5 * 1024 * 1024;
 
 async function git(cwd: string, args: string[]): Promise<string> {
@@ -89,8 +112,9 @@ export class FsProjectFiles implements ProjectFiles {
     if (!path || isAbsolute(path) || path.includes("\\")) return false;
     const normal = posix.normalize(path);
     if (normal !== path || normal.startsWith("../") || normal === "..") return false;
-    if (/^\.env(\..*)?$/.test(posix.basename(normal))) return false;
-    return (await this.projectFiles()).includes(normal);
+    if (isSecret(normal)) return false;
+    if (!(await this.projectFiles()).includes(normal)) return false;
+    return await this.staysInside(normal);
   }
 
   async readText(path: string): Promise<{ content: string; size: number } | null> {
@@ -110,6 +134,13 @@ export class FsProjectFiles implements ProjectFiles {
     await writeFile(join(this.root, path), content);
   }
 
+  // Whether the file's real location (after following any symlinks on the
+  // way) is inside the project root.
+  private async staysInside(path: string): Promise<boolean> {
+    const [root, target] = await Promise.all([realpath(this.root), realpath(join(this.root, path))]);
+    return target.startsWith(`${root}${sep}`);
+  }
+
   // The orchestrator folder relative to the root, when it is inside it.
   private orchestratorPath(): string | null {
     const inside = relative(this.root, this.config.orchestratorDir).split("\\").join("/");
@@ -125,7 +156,7 @@ export class FsProjectFiles implements ProjectFiles {
     const orchestrator = this.orchestratorPath();
     const ignore = ["**/node_modules/**", "**/.git/**", ...(orchestrator ? [`${orchestrator}/**`] : [])];
     const fromGit = await this.gitFiles();
-    const listed = fromGit ?? (await glob("**", { cwd: this.root, onlyFiles: true, dot: true, ignore }));
+    const listed = fromGit ?? (await glob("**", { cwd: this.root, onlyFiles: true, dot: true, ignore, followSymbolicLinks: false }));
     const files: string[] = [];
     for (const path of new Set(listed)) {
       const segments = path.split("/");

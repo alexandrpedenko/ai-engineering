@@ -1,5 +1,5 @@
 import { execFile } from "node:child_process";
-import { mkdir, mkdtemp, readFile, rm, utimes, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, symlink, utimes, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { promisify } from "node:util";
@@ -167,6 +167,29 @@ describe("FsProjectFiles opening files", () => {
     expect(await files.canOpen(path)).toBe(expected);
   });
 
+  it("refuses files that commonly hold credentials", async () => {
+    const root = await tempDir();
+    const secrets = [".env", "app/.env.local", ".envrc", ".npmrc", "certs/server.pem", "certs/server.key", "keys/id_ed25519", "home/.ssh/config", "home/.aws/credentials"];
+    await write(root, Object.fromEntries([...secrets, "kb/a.md"].map((path) => [path, "x"])));
+    const files = new FsProjectFiles(configFor(root));
+
+    for (const path of secrets) expect(await files.canOpen(path), path).toBe(false);
+    expect(await files.canOpen("kb/a.md")).toBe(true);
+  });
+
+  it("refuses a symlink that leads outside the project, and the walk doesn't follow linked folders", async () => {
+    const outside = await tempDir();
+    await write(outside, { "secret.md": "s", "dir/inner.md": "i" });
+    const root = await tempDir();
+    await write(root, { "kb/a.md": "a" });
+    await symlink(join(outside, "secret.md"), join(root, "kb/link.md"));
+    await symlink(join(outside, "dir"), join(root, "linked"));
+    const files = new FsProjectFiles(configFor(root));
+
+    expect(await files.canOpen("kb/link.md")).toBe(false);
+    expect(Object.keys((await files.snapshot([])).hashes)).not.toContain("linked/inner.md");
+  });
+
   it("refuses .env files, node_modules and the orchestrator folder", async () => {
     const root = await tempDir();
     await write(root, { ".env": "K=1", "config/.env.local": "K=1", "docs/node_modules/x.md": "x", "orch/notes.md": "x", "kb/a.md": "a" });
@@ -177,6 +200,19 @@ describe("FsProjectFiles opening files", () => {
     expect(await inRoot.canOpen("docs/node_modules/x.md")).toBe(false);
     expect(await inRoot.canOpen("orch/notes.md")).toBe(false);
     expect(await inRoot.canOpen("kb/a.md")).toBe(true);
+  });
+
+  it("refuses a symlink in a git repository that leads outside the project", async () => {
+    const outside = await tempDir();
+    await write(outside, { "secret.md": "s" });
+    const root = await tempDir();
+    await gitRepo(root, { "kb/a.md": "a" });
+    await symlink(join(outside, "secret.md"), join(root, "kb/link.md"));
+    await symlink(join(root, "kb/a.md"), join(root, "kb/alias.md"));
+    const files = new FsProjectFiles(configFor(root));
+
+    expect(await files.canOpen("kb/link.md")).toBe(false);
+    expect(await files.canOpen("kb/alias.md")).toBe(true);
   });
 
   it("refuses a gitignored file", async () => {

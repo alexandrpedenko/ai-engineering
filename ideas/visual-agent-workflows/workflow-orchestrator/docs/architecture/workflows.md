@@ -7,16 +7,19 @@ code:
   - packages/core/src/domain/phase.ts
   - packages/core/src/domain/validate.ts
   - packages/core/src/domain/template.ts
+  - packages/core/src/domain/parseWorkflow.ts
   - packages/core/src/application/WorkflowStore.ts
   - packages/core/src/application/listWorkflows.ts
   - packages/core/src/application/readWorkflow.ts
   - packages/core/src/application/saveWorkflow.ts
+  - packages/core/src/application/createWorkflow.ts
+  - packages/core/src/application/checkWorkflow.ts
   - packages/core/src/application/savePhases.ts
   - packages/core/src/infrastructure/FsWorkflowStore.ts
 depends_on: [project-registry]
 used_by: [prompts, engine, runs-and-events, http-api, web-app]
 adrs: [2, 9]
-specs: [2-schema-compile, 3-cursor-runtime, 4-server]
+specs: [2-schema-compile, 3-cursor-runtime, 4-server, 6-workflow-editor]
 updated: 2026-10-11
 ---
 
@@ -66,9 +69,16 @@ A workflow with errors **can be saved** but not run (ADR-0002).
 
 `WorkflowStore` (port) / `FsWorkflowStore` (adapter): `get`, `list` (a broken
 file is listed with its error), `save` (pretty JSON, 2 spaces, final newline),
-`remove`, `phases`, `savePhases`. Use cases: `listWorkflows` and
+`create` (the same, but a `ConflictError` instead of replacing an existing
+file, readable or not: written with the `wx` flag, so two creates can't both
+win), `remove`, `phases`, `savePhases`. Use cases: `listWorkflows` and
 `readWorkflow` (with problems), `saveWorkflow` (body must parse and its id
-must match the URL), `savePhases` (ids unique).
+must match the URL; overwrites), `createWorkflow` (body must parse; saved with
+`store.create`),
+`checkWorkflow` (problems without saving; a body that doesn't parse gives its
+schema problems instead of an error), `savePhases` (ids unique). All three
+workflow use cases read a body with `parseWorkflow` (one error problem per
+schema issue, named by its path).
 
 A run never reads the workflow file again after it starts: it keeps a copy
 (see [runs-and-events](runs-and-events.md)).

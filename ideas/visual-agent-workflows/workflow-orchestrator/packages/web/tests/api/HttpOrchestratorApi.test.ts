@@ -140,3 +140,35 @@ describe("HttpOrchestratorApi.watchRun", () => {
     expect(source.closed).toBe(true);
   });
 });
+
+describe("HttpOrchestratorApi workflow files", () => {
+  it("creates, saves, checks and deletes with the right method, URL and body", async () => {
+    const api = new HttpOrchestratorApi();
+    const json = { "content-type": "application/json" };
+
+    let calls = respondWith(201, { problems: [] });
+    expect(await api.createWorkflow(workflow)).toEqual({ problems: [] });
+    expect(calls).toEqual([{ url: "/api/workflows", method: "POST", body: JSON.stringify({ workflow }), headers: json }]);
+
+    calls = respondWith(200, { problems: [{ severity: "warning", message: "no phase" }] });
+    expect(await api.saveWorkflow(workflow)).toEqual({ problems: [{ severity: "warning", message: "no phase" }] });
+    expect(calls).toEqual([{ url: "/api/workflows/ba-discovery", method: "PUT", body: JSON.stringify(workflow), headers: json }]);
+
+    calls = respondWith(200, { problems: [{ severity: "error", stepId: "elicit", message: "unknown agent" }] });
+    expect(await api.checkWorkflow(workflow)).toEqual([{ severity: "error", stepId: "elicit", message: "unknown agent" }]);
+    expect(calls).toEqual([{ url: "/api/workflows/check", method: "POST", body: JSON.stringify({ workflow }), headers: json }]);
+
+    calls = respondWith(204);
+    await api.deleteWorkflow("ba-discovery");
+    expect(calls).toEqual([{ url: "/api/workflows/ba-discovery", method: "DELETE", headers: undefined }]);
+  });
+
+  it("turns a 409 on create into an ApiError with the server's message", async () => {
+    respondWith(409, { error: 'a workflow "ba-discovery" already exists' });
+
+    const created = new HttpOrchestratorApi().createWorkflow(workflow);
+
+    await expect(created).rejects.toBeInstanceOf(ApiError);
+    await expect(created).rejects.toMatchObject({ status: 409, message: 'a workflow "ba-discovery" already exists' });
+  });
+});

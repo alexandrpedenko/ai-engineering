@@ -6,8 +6,8 @@ code:
   - packages/server/src/routes/**
 depends_on: [runs-and-events, workflows, project-registry]
 used_by: [web-app]
-adrs: [10]
-specs: [4-server, 5.5-retry]
+adrs: [10, 15]
+specs: [4-server, 5.5-retry, 6-workflow-editor]
 updated: 2026-10-11
 ---
 
@@ -23,15 +23,22 @@ case or the supervisor, return the result. They get their dependencies as
 | --- | --- | --- |
 | GET | `/api/health` | `{ ok, node, runtime }` (`cursor`, `claude` or `fake`) |
 | GET | `/api/project` | the registry |
-| GET / PUT | `/api/files?path=` | `{ path, content }` / `{ content }` → 204 (existing project files except `.env*`; see `canOpen` in [project-registry](project-registry.md)) |
+| GET / PUT | `/api/files?path=` | `{ path, content }` / `{ content }` → 204 (existing project files inside the project, not credential files; see `canOpen` in [project-registry](project-registry.md)) |
 | GET / PUT | `/api/phases` | `{ phases }` / → 204 |
 | GET | `/api/workflows` | `[{ id, name, phase, problems }]` |
-| GET / PUT / DELETE | `/api/workflows/:id` | `{ workflow, problems }` / `{ problems }` / 204 |
+| POST | `/api/workflows` | `{ workflow }` → **201** `{ problems }`; **400** when it isn't a workflow; **409** when the id is taken |
+| POST | `/api/workflows/check` | `{ workflow }` → `{ problems }`, nothing saved (a broken draft → its schema problems, still 200) |
+| GET / PUT / DELETE | `/api/workflows/:id` | `{ workflow, problems }` / `{ problems }` (PUT's body is the workflow itself, not `{ workflow }`) / 204 |
 | POST | `/api/workflows/:id/runs` | `{ inputs }` → **202** `{ runId }` |
 | GET | `/api/runs?workflowId=` | `[{ runId, workflowId, startedAt, status, busy }]` |
 | GET | `/api/runs/:runId` | `{ runId, workflow, inputs, startedAt, busy, outcome }` |
 | POST | `/api/runs/:runId/resume` · `/continue` · `/retry` · `/cancel` | **202** |
 | GET | `/api/runs/:runId/events?after=` | SSE |
+
+**Only local, JSON requests get through** (`localOnly`, ADR-0015): a host
+name other than `localhost` / `127.0.0.1` / `[::1]` or a non-local `Origin`
+→ 403; a body that isn't `application/json` → 415. This keeps other sites'
+pages (and DNS rebinding) away from a server that has no login.
 
 **Starting and moving a run answer 202 at once**; what happens next arrives as
 events.

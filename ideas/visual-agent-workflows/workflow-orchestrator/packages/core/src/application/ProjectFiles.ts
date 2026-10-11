@@ -16,7 +16,8 @@ export interface ProjectFiles {
   // declared pattern matched.
   snapshot(declared: string[]): Promise<Snapshot>;
   // Whether a person may read and edit this file through the orchestrator:
-  // an existing project file, not a .env file.
+  // an existing project file whose real location is inside the project, and
+  // not a file that commonly holds credentials (.env, keys, .npmrc, …).
   canOpen(path: string): Promise<boolean>;
   // null when the file doesn't exist.
   readText(path: string): Promise<{ content: string; size: number } | null>;

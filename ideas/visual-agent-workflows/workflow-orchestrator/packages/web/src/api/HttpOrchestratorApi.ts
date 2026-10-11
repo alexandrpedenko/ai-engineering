@@ -48,6 +48,22 @@ export class HttpOrchestratorApi implements OrchestratorApi {
     };
   }
 
+  async createWorkflow(workflow: Workflow): Promise<{ problems: Problem[] }> {
+    return schemas.Problems.parse(await this.send("POST", "/api/workflows", { workflow })) as { problems: Problem[] };
+  }
+
+  async saveWorkflow(workflow: Workflow): Promise<{ problems: Problem[] }> {
+    return schemas.Problems.parse(await this.send("PUT", `/api/workflows/${encodeURIComponent(workflow.id)}`, workflow)) as { problems: Problem[] };
+  }
+
+  async deleteWorkflow(id: string): Promise<void> {
+    await this.send("DELETE", `/api/workflows/${encodeURIComponent(id)}`);
+  }
+
+  async checkWorkflow(workflow: Workflow): Promise<Problem[]> {
+    return schemas.Problems.parse(await this.send("POST", "/api/workflows/check", { workflow })).problems as Problem[];
+  }
+
   async runs(workflowId?: string): Promise<RunSummary[]> {
     const query = workflowId ? `?workflowId=${encodeURIComponent(workflowId)}` : "";
     return (await this.get(`/api/runs${query}`, schemas.RunSummaries)) as RunSummary[];

@@ -10,11 +10,14 @@ export { diffSnapshots, type FileChange, type Snapshot } from "./domain/outputs"
 export { GateDecision, type RunEvent, type RunState, type StepEvent, type StepRecord, type Usage } from "./domain/runState";
 export { toSkill } from "./domain/skill";
 export { fillTemplate, templateRefs } from "./domain/template";
+export { parseWorkflow, type ParsedWorkflow } from "./domain/parseWorkflow";
 export { hasErrors, validate, type Problem, type ValidationContext } from "./domain/validate";
 export { AgentStep, Edge, GateStep, Step, Workflow, WorkflowInput } from "./domain/workflow";
 export type { AgentRunRequest, AgentRunResult, AgentRuntime, RunHandle } from "./application/AgentRuntime";
 export { ConflictError, InvalidConfigError, InvalidInputError, MissingCredentialsError, NotFoundError } from "./application/errors";
+export { checkWorkflow } from "./application/checkWorkflow";
 export { continueRun } from "./application/continueRun";
+export { createWorkflow } from "./application/createWorkflow";
 export type { EventLog, LogEvent, LoggedEvent } from "./application/EventLog";
 export { listRuns, type RunListDeps, type RunSummary } from "./application/listRuns";
 export { listWorkflows, type WorkflowSummary } from "./application/listWorkflows";

@@ -1,6 +1,6 @@
 # workflow-orchestrator — MVP spec
 
-**Status:** draft, in review (2026-10-11). Slices 0–5.8 built; slice 5.8 in review. Body frozen: changes go in Amendments.
+**Status:** draft, in review (2026-10-11). Slices 0–6 built; slice 6 in review. Body frozen: changes go in Amendments.
 
 A folder you drop into a project that already has Cursor skills, agents and
 artefacts. It reads them, lets you draw a workflow from them on a canvas
@@ -289,7 +289,7 @@ adds. Every slice ships server and web tests for what it touches and ends with
 | 3 | Cursor runtime | `CursorRuntime`, `outputs` (ADR-0007), run refs (ADR-0006), `npm run wf -- run <id>` CLI with a terminal gate prompt | the BA workflow runs on the fixture for real and writes `discovery/requirements.md`; killing the CLI mid-step and re-running reattaches instead of starting a second Cursor run | built, in review (real Cursor run pending): [specs/3-cursor-runtime.md](specs/3-cursor-runtime.md) |
 | 4 | server | Hono routes above, SQLite checkpointer, JSONL event log per run, SSE | a run started over HTTP survives a server restart and resumes at its gate; the event log replays | done: [specs/4-server.md](specs/4-server.md) |
 | 5 | app shell + run views | the shell: sidebar of phases (ADR-0009) → workflows, project view (skills, agents, artefacts), runs list, run view with live events, gate panel showing the files with approve / reject. The canvas is no longer the whole page. | a full BA run done from the browser only; two phases with their workflows listed in order | done: [specs/5-shell-and-runs.md](specs/5-shell-and-runs.md) |
-| 6 | workflow editor | React Flow canvas for one workflow, palette (agent step, gate), inspector with agent/skill/phase pickers, validation shown on nodes, save; new workflow inside a phase | the BA workflow can be drawn from scratch and runs the same as the hand-written JSON | — |
+| 6 | workflow editor | React Flow canvas for one workflow, palette (agent step, gate), inspector with agent/skill/phase pickers, validation shown on nodes, save; new workflow inside a phase | the BA workflow can be drawn from scratch and runs the same as the hand-written JSON | built, in review: [specs/6-workflow-editor.md](specs/6-workflow-editor.md) |
 | 7 | file editor | Monaco for skills, agents, artefacts; save through `/api/files` | edit a skill in the browser, re-run, the change is in the next prompt | — |
 | 8 | delivery | a delivery workflow on the fixture (implement → tests check → review), git-diff summary in the gate | a reviewed requirement turns into a code change in the fixture with the diff shown at the gate | — |
 
@@ -455,3 +455,29 @@ with its three build amendments. `ProjectFiles.isEditable` is now
 domain function `gateFiles` decides what a gate shows. `/api/files` opens
 existing project files only, except `.env*`. ADR-0014 is accepted.
 Why: [ADR-0014](adr/0014-skills-own-artefact-locations.md).
+
+**2026-10-11, slice 6 built — two workflow routes.**
+Spec said (Server API): `GET /api/workflows`; `GET/PUT/DELETE
+/api/workflows/:id`.
+Now: also `POST /api/workflows` (`{ workflow }` → 201 `{ problems }`, 409
+when the id is taken; use case `createWorkflow`) and `POST
+/api/workflows/check` (`{ workflow }` → `{ problems }` without saving; a body
+that isn't a workflow gives its schema problems; use case `checkWorkflow`).
+`PUT` still overwrites. Built with [specs/6-workflow-editor.md](specs/6-workflow-editor.md).
+Why: creating must not overwrite an existing file, and the web app can't run
+`validate` itself (it imports core as types only), so the editor asks the
+server.
+
+**2026-10-11, slice 6 review — local-only server; `WorkflowStore.create`; stricter `canOpen`.**
+Spec said (Server API, ports): routes answer any request; `WorkflowStore {
+get, list, save, remove, phases, savePhases }`; `ProjectFiles.canOpen`
+refuses `.env*` (slice 5.8).
+Now: every `/api` route refuses a non-local host name or `Origin` (403) and a
+non-JSON body (415), per [ADR-0015](adr/0015-server-answers-local-json-requests-only.md)
+(proposed). `WorkflowStore` gains `create` (never overwrites). `canOpen` also
+refuses symlinks that lead outside the project and common credential files
+(see the 5.8 spec's amendment). `POST /api/workflows` answers 400 for a body
+that isn't a workflow.
+Why: the slice 6 security review: a page on another site could create a
+workflow and start a run; DNS rebinding could read and write project files;
+a committed symlink reached files outside the project.

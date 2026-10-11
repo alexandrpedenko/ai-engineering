@@ -10,6 +10,13 @@ export interface OrchestratorApi {
   phases(): Promise<Phase[]>;
   workflows(): Promise<WorkflowSummary[]>;
   workflow(id: string): Promise<{ workflow: Workflow; problems: Problem[] }>;
+  // Saves a new workflow file; a 409 ApiError when its id is taken.
+  createWorkflow(workflow: Workflow): Promise<{ problems: Problem[] }>;
+  // Overwrites the workflow file with the same id.
+  saveWorkflow(workflow: Workflow): Promise<{ problems: Problem[] }>;
+  deleteWorkflow(id: string): Promise<void>;
+  // A draft's problems, without saving it.
+  checkWorkflow(workflow: Workflow): Promise<Problem[]>;
   runs(workflowId?: string): Promise<RunSummary[]>;
   run(runId: string): Promise<RunDetails>;
   file(path: string): Promise<{ path: string; content: string }>;

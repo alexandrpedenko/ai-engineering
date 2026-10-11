@@ -51,7 +51,8 @@ On top of it:
 - `createServerServices({ projectRoot, dataDir, fake })` → `ServerServices`
   with a `RunSupervisor` (event log `FsEventLog`). Starts without a key; runs
   answer 503 until one is set.
-- `createApp(services)` mounts the routes and the error handler.
+- `createApp(services)` puts `localOnly` (ADR-0015) in front of every `/api`
+  route, then mounts the routes and the error handler.
 
 `main.ts` reads the environment and serves on `127.0.0.1:ORCH_PORT` (this
 machine only; the web dev server proxies `/api` there), then prints

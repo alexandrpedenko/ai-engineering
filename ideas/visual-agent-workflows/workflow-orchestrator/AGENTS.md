@@ -60,8 +60,9 @@ What goes where, by question:
   SDK events. Inside the boundary, trust the types.
 - Named exports only. Default exports only where a tool requires them
   (`vite.config.ts`).
-- `import type` for anything used only as a type. `web` imports from
-  `@orch/core` with `import type` only.
+- `import type` for anything used only as a type. `web/src` imports from
+  `@orch/core` with `import type` only (web tests may use core's schemas to
+  build sample data).
 - No non-null assertions (`!`) except on the DOM root in `bootstrap/`.
 - Imports without file extensions (`moduleResolution: "bundler"`).
 - MUI 9 has no system props: layout and typography values (`alignItems`,

@@ -18,6 +18,12 @@ describe("WorkflowPage", () => {
     expect(screen.getByText("3. Sketch the design")).toBeTruthy();
   });
 
+  it("goes to the editor", async () => {
+    render();
+    await userEvent.click(await screen.findByRole("button", { name: "Edit" }));
+    expect(screen.getByTestId("location").textContent).toBe("/workflows/ba-discovery/edit");
+  });
+
   it("starts a run with the inputs and goes to it", async () => {
     const api = new FakeOrchestratorApi();
     render(api);
