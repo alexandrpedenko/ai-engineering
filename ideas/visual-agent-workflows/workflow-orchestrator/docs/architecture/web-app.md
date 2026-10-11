@@ -42,7 +42,8 @@ bootstrap/     providers (MUI theme, QueryClient, OrchestratorApi), BrowserRoute
 | `/runs/:runId` | `RunPage`: the live run |
 | other | `NotFoundPage` |
 
-`AppLayout` wraps them: app bar (project name, server status) and
+`AppLayout` wraps them: app bar (project name, server status and the agent
+runtime, from `/api/health`) and
 `AppSidebar` (phases in order with their workflows and problem dots,
 Unsorted only when needed, runs waiting at a gate).
 

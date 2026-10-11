@@ -2,7 +2,7 @@ import { cp, mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { createProjectServices, createRunServices, orchestratorDir } from "../src/composition";
+import { createProjectServices, createRunServices, createServerServices, orchestratorDir } from "../src/composition";
 
 const temps: string[] = [];
 afterEach(async () => {
@@ -52,6 +52,28 @@ describe("createRunServices", () => {
     vi.stubEnv("CURSOR_API_KEY", "");
     try {
       await expect(createRunServices({ ...paths, fake: false })).rejects.toThrow("CURSOR_API_KEY is not set");
+    } finally {
+      vi.unstubAllEnvs();
+    }
+  });
+
+  it("asks for the key of the configured runtime", async () => {
+    const paths = await tempCopyOfSample();
+    vi.stubEnv("ORCH_RUNTIME", "claude");
+    vi.stubEnv("ANTHROPIC_API_KEY", "");
+    try {
+      await expect(createRunServices({ ...paths, fake: false })).rejects.toThrow("ANTHROPIC_API_KEY is not set");
+    } finally {
+      vi.unstubAllEnvs();
+    }
+  });
+
+  it("reports which runtime the server uses", async () => {
+    const paths = await tempCopyOfSample();
+    vi.stubEnv("ORCH_RUNTIME", "claude");
+    try {
+      expect((await createServerServices({ ...paths, fake: false })).runtimeName).toBe("claude");
+      expect((await createServerServices({ ...paths, fake: true })).runtimeName).toBe("fake");
     } finally {
       vi.unstubAllEnvs();
     }

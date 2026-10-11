@@ -14,6 +14,7 @@ export type FakeReply = {
   holds?: boolean; // wait() doesn't answer until the run is cancelled
   placeholders?: boolean; // writes a short placeholder to each file the message says to write
   delayMs?: number; // wait() takes this long (cancel ends it early), so a run can be watched
+  startFails?: string; // start() throws an error with this message, like a refused API key
 };
 
 // A placeholder for each plain path (not a glob) in the message's "You must
@@ -50,6 +51,7 @@ export class FakeAgentRuntime implements AgentRuntime {
         : (this.replies[Math.min(index, this.replies.length - 1)] ?? {});
 
     const writes = { ...(reply.placeholders ? placeholderWrites(request) : {}), ...reply.writes };
+    if (reply.startFails) throw new Error(reply.startFails);
     for (const [path, content] of Object.entries(writes)) {
       await mkdir(dirname(join(request.cwd, path)), { recursive: true });
       await writeFile(join(request.cwd, path), content);

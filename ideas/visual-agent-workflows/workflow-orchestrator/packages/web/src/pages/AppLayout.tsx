@@ -8,7 +8,7 @@ import { groupWorkflowsByPhase } from "../domain/grouping";
 
 // The frame around every page: app bar, sidebar of phases and workflows, the page.
 export function AppLayout() {
-  const status = useServerStatus();
+  const server = useServerStatus();
   const project = useProject();
   const phases = usePhases();
   const workflows = useWorkflows();
@@ -31,7 +31,7 @@ export function AppLayout() {
             </Typography>
           )}
           <Box sx={{ flexGrow: projectName ? 0 : 1 }} />
-          <ServerStatusChip status={status} />
+          <ServerStatusChip status={server.status} {...(server.runtime ? { runtime: server.runtime } : {})} />
         </Toolbar>
       </AppBar>
       <Box sx={{ display: "flex", flexGrow: 1, minHeight: 0 }}>

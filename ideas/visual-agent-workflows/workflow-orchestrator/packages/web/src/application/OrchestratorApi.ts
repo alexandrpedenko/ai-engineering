@@ -4,7 +4,8 @@ import type { RunDetails } from "../domain/runView";
 // What the web app needs from the orchestrator server. Hooks depend on this,
 // never on fetch; web/src/api implements it. Failed requests reject with ApiError.
 export interface OrchestratorApi {
-  isServerUp(): Promise<boolean>;
+  // Whether the server answers, and which agent runtime it uses ("cursor", "claude", "fake").
+  health(): Promise<{ up: boolean; runtime?: string }>;
   project(): Promise<Registry>;
   phases(): Promise<Phase[]>;
   workflows(): Promise<WorkflowSummary[]>;

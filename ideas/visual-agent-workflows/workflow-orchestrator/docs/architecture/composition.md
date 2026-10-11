@@ -8,11 +8,12 @@ code:
   - packages/core/src/index.ts
   - packages/core/src/infrastructure/index.ts
   - orchestrator.config.json
+  - settings.example.json
   - scripts/**
 depends_on: [project-registry, workflows, engine, agent-steps, runs-and-events]
 used_by: [http-api, cli]
-adrs: [1, 4, 8, 10]
-specs: [3-cursor-runtime, 4-server]
+adrs: [1, 4, 8, 10, 13]
+specs: [3-cursor-runtime, 4-server, 5.6-claude-runtime, 5.7-local-settings]
 updated: 2026-10-11
 ---
 
@@ -29,8 +30,13 @@ what the CLI and the server share:
 - config (`loadConfig`, after loading `workflow-orchestrator/.env` if present)
 - `FsProjectFiles`, a `scan()` of the registry, `FsWorkflowStore`, `FsRunFiles`
 - the agent runtime, chosen **when a step runs**: `FakeAgentRuntime` with
-  placeholder writes, two sample events and `ORCH_FAKE_DELAY_MS` when `fake`, else `CursorAgentRuntime` with
-  `CURSOR_API_KEY` (missing → `MissingCredentialsError`)
+  placeholder writes, two sample events and `ORCH_FAKE_DELAY_MS` when `fake`;
+  else a `ProviderAgentRuntime` over the configured provider
+  (`createAgentProvider(config.runtime, key)`), with the key from
+  `CREDENTIALS[runtime]` (missing → `MissingCredentialsError` naming that
+  variable). One instance per process, so it can reattach to runs it started;
+  rebuilt only if the key changes. The step's default model is
+  `config.models[config.runtime]`.
 - `LangGraphRunEngine` on a `SqliteSaver` at `<dataDir>/checkpoints.sqlite`
   (tests may pass another checkpointer), with an `agentStep` that re-scans the
   registry for each step
@@ -47,7 +53,9 @@ On top of it:
   answer 503 until one is set.
 - `createApp(services)` mounts the routes and the error handler.
 
-`main.ts` reads the environment and serves on `ORCH_PORT`.
+`main.ts` reads the environment and serves on `ORCH_PORT`, then prints
+`describeSetup(config)`: the project and runtime in use and where each came
+from.
 
 `core/src/index.ts` is `@orch/core` (domain + application, what the server's
 routes and the web's types may use); `core/src/infrastructure/index.ts` is
@@ -57,7 +65,10 @@ routes and the web's types may use); `core/src/infrastructure/index.ts` is
 
 | variable | meaning |
 | --- | --- |
-| `CURSOR_API_KEY` | needed to run real agents (env or `workflow-orchestrator/.env`) |
+| `CURSOR_API_KEY` | needed for `runtime: "cursor"` (env or `workflow-orchestrator/.env`) |
+| `ANTHROPIC_API_KEY` | needed for `runtime: "claude"` (env or `workflow-orchestrator/.env`) |
+| `ORCH_RUNTIME` | `cursor` or `claude`; overrides the config's `runtime` |
+| `ORCH_SETTINGS_FILE` | another settings file instead of `settings.json`; the test runner sets it to a missing file so tests never read your settings |
 | `ORCH_PROJECT_ROOT` | the project, relative to the orchestrator folder (overrides the config) |
 | `ORCH_FAKE=1` | the server runs on the fake agent |
 | `ORCH_FAKE_DELAY_MS` | how long each fake agent run takes (`dev:sample` uses 8000), so runs can be watched and cancelled |
@@ -70,7 +81,9 @@ routes and the web's types may use); `core/src/infrastructure/index.ts` is
 | `<project>/.cursor/skills`, `.agents/skills`, `.cursor/agents` | project | read; edited only through `/api/files` |
 | `<project>/discovery`, `wiki`, … (artefact globs) | project | read; written by agents and `/api/files` |
 | `<project>/.cursor/workflows/*.json`, `phases.json` | project | read and written by the orchestrator |
-| `workflow-orchestrator/orchestrator.config.json`, `.env` | orchestrator | read |
+| `workflow-orchestrator/orchestrator.config.json` | orchestrator (committed) | read: how projects are laid out |
+| `workflow-orchestrator/settings.json` | this machine (gitignored) | read: project path, runtime, models |
+| `workflow-orchestrator/.env` | this machine (gitignored) | read: API keys |
 | `.data/checkpoints.sqlite` | orchestrator | LangGraph state of every run |
 | `.data/runs/<runId>/run.json` | orchestrator | the workflow and inputs the run started with |
 | `.data/runs/<runId>/refs/<step>-<attempt>.json` | orchestrator | agent run id + before-snapshot |

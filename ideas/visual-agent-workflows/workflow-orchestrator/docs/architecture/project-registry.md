@@ -4,6 +4,7 @@ area: project-registry
 summary: Finding the host project, reading its skills, agents and artefacts, and letting people edit those files.
 code:
   - packages/core/src/domain/config.ts
+  - packages/core/src/domain/settings.ts
   - packages/core/src/domain/registry.ts
   - packages/core/src/domain/skill.ts
   - packages/core/src/domain/agentDef.ts
@@ -17,7 +18,7 @@ code:
 depends_on: []
 used_by: [workflows, prompts, agent-steps, http-api, cli, composition]
 adrs: [1, 5]
-specs: [1-registry, 4-server]
+specs: [1-registry, 4-server, 5.6-claude-runtime, 5.7-local-settings]
 updated: 2026-10-11
 ---
 
@@ -26,10 +27,22 @@ updated: 2026-10-11
 **What it answers:** which project are we working on, and what's in it that
 a workflow can use?
 
-## Config
+## Config and settings
 
-`orchestrator.config.json` in the orchestrator folder (all keys optional,
-unknown keys are errors). `loadConfig(orchestratorDir, overrides)` resolves it:
+Two files in the orchestrator folder, both optional, unknown keys are errors:
+
+- **`settings.json`** (gitignored; copy `settings.example.json`): this
+  machine's choices: `projectRoot`, `runtime`, `models`. Nothing else.
+- **`orchestrator.config.json`** (committed): how projects are laid out.
+
+For `projectRoot`, `runtime` and each model the first that is set wins:
+**overrides** (`--project`, `ORCH_PROJECT_ROOT`, `ORCH_RUNTIME`, passed in by
+the caller) → **settings.json** → **orchestrator.config.json** → **defaults**.
+`loadConfig` returns where `projectRoot` and `runtime` came from in
+`sources`; the server and `npm run wf` print it at start
+(`project /code/booking (settings.json) · runtime claude (settings.json)`).
+
+`loadConfig(orchestratorDir, overrides)` resolves both:
 
 | key | default | relative to |
 | --- | --- | --- |
@@ -38,12 +51,13 @@ unknown keys are errors). `loadConfig(orchestratorDir, overrides)` resolves it:
 | `skillDirs` | `.cursor/skills`, `.agents/skills` | project root |
 | `agentDirs` | `.cursor/agents` | project root |
 | `artefactGlobs` | `discovery/**`, `wiki/**`, `delivery/**`, `docs/**` | project root |
-| `defaultModel` | `{ id: "composer-2.5" }` | |
+| `runtime` | `cursor` (or `claude`; `ORCH_RUNTIME` overrides) | |
+| `models` | `{ cursor: "composer-2.5", claude: "claude-opus-5-5" }` | default model per runtime; an old `defaultModel` is read as `models.cursor` |
 | `dataDir` | `.data` | orchestrator folder |
 
-`overrides.projectRoot` / `overrides.dataDir` win (they come from `--project`,
+`overrides.projectRoot` / `overrides.dataDir` / `overrides.runtime` win (they come from `--project`,
 `ORCH_PROJECT_ROOT`, or tests). A project root that isn't a folder, bad JSON
-or a bad key → `InvalidConfigError` naming each key.
+or a bad key → `InvalidConfigError` naming the file and each key.
 
 ## The registry
 

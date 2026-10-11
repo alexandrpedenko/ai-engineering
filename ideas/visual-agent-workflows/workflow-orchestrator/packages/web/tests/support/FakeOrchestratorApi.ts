@@ -29,9 +29,10 @@ export class FakeOrchestratorApi implements OrchestratorApi {
     if (error) throw error;
   }
 
-  async isServerUp() {
+  runtime = "fake";
+  async health() {
     if (this.serverUp instanceof Error) throw this.serverUp;
-    return this.serverUp;
+    return { up: this.serverUp, runtime: this.runtime };
   }
   async project() {
     this.fail("project");

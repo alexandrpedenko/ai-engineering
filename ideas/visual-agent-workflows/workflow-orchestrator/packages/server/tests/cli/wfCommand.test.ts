@@ -15,6 +15,7 @@ function setup(options: { answers?: string[]; afterResume?: RunOutcome[]; curren
   let emit: (runId: string, event: RunEvent) => void = () => {};
 
   const services: WfServices = {
+    setup: "project /host (settings.json) · runtime claude (settings.json)",
     start: async (workflowId, inputs) => {
       calls.push(`start ${workflowId} ${JSON.stringify(inputs)}`);
       emit("run-1", { type: "step-started", stepId: "elicit", attempt: 1 });
@@ -61,7 +62,7 @@ describe("runWfCommand run", () => {
     expect(await runWfCommand(["run", "ba-discovery", "--input", "focus=a=b", "--fake"], deps)).toBe(0);
 
     expect(calls).toEqual(['start ba-discovery {"focus":"a=b"}', "resume run-1 approve"]);
-    expect(output()).toMatch(/^run run-1\n▸ elicit \(attempt 1\)\n/);
+    expect(output()).toMatch(/^project \/host \(settings\.json\) · runtime claude \(settings\.json\)\nrun run-1\n▸ elicit \(attempt 1\)\n/);
     expect(output()).toMatch(/finished {2}run-1\n$/);
   });
 

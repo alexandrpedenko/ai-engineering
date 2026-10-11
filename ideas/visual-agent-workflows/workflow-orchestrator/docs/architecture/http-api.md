@@ -21,7 +21,7 @@ case or the supervisor, return the result. They get their dependencies as
 
 | method | path | answer |
 | --- | --- | --- |
-| GET | `/api/health` | `{ ok, node }` |
+| GET | `/api/health` | `{ ok, node, runtime }` (`cursor`, `claude` or `fake`) |
 | GET | `/api/project` | the registry |
 | GET / PUT | `/api/files?path=` | `{ path, content }` / `{ content }` → 204 (skill, agent, artefact files only) |
 | GET / PUT | `/api/phases` | `{ phases }` / → 204 |

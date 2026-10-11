@@ -2,6 +2,7 @@ import type { ProjectFiles, Registry, RunEngine, RunFiles, RunSupervisor, Workfl
 
 // What the routes need, built by composition.ts.
 export type ServerServices = {
+  runtimeName: string; // "cursor", "claude" or "fake"
   scan: () => Promise<Registry>;
   projectFiles: ProjectFiles;
   store: WorkflowStore;

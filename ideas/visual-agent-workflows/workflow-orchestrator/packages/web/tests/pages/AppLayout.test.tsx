@@ -11,7 +11,7 @@ describe("AppLayout", () => {
   it("shows the project name and the server status", async () => {
     render();
     expect(await screen.findByText("sample-project")).toBeTruthy();
-    expect(await screen.findByText("server: up")).toBeTruthy();
+    expect(await screen.findByText("server: up · runtime: fake")).toBeTruthy();
   });
 
   it("lists the phases in order with their workflows, and no Unsorted group when not needed", async () => {

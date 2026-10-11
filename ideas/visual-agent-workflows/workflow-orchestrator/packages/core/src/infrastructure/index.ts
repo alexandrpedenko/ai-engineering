@@ -1,6 +1,9 @@
 // Adapters for @orch/core's ports. Imported only by composition code.
-export { CursorAgentRuntime, type CursorSdk } from "./CursorAgentRuntime";
-export { toRunResult, toStepEvents } from "./cursorMessages";
+export type { AgentProvider, ProviderRun } from "./agentRuntime/AgentProvider";
+export { ClaudeProvider, type ClaudeQuery } from "./agentRuntime/claude/ClaudeProvider";
+export { CREDENTIALS, createAgentProvider } from "./agentRuntime/createAgentProvider";
+export { CursorProvider, type CursorSdk } from "./agentRuntime/cursor/CursorProvider";
+export { INTERRUPTED_SUMMARY, ProviderAgentRuntime } from "./agentRuntime/ProviderAgentRuntime";
 export { FakeAgentRuntime, type FakeReply } from "./FakeAgentRuntime";
 export { parseMarkdown } from "./frontmatter";
 export { FsProjectFiles } from "./FsProjectFiles";

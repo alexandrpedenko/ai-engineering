@@ -25,7 +25,9 @@ export type AgentStepDeps = {
 
 // Runs one attempt of an agent step. If this attempt was already started (a
 // run ref exists) it reattaches to that agent run instead of starting a new
-// one. Which files changed is read from disk before and after, not from the
+// one. An agent that can't be started gives a failed record; an error while
+// waiting on a started agent is thrown (the run is then interrupted and can
+// reattach). Which files changed is read from disk before and after, not from the
 // agent's summary.
 export async function runAgentStep(deps: AgentStepDeps, runId: string, step: AgentStep, state: RunState): Promise<StepRecord> {
   const agent = deps.registry.agents.find((a) => a.name === step.agent);
@@ -58,12 +60,28 @@ export async function runAgentStep(deps: AgentStepDeps, runId: string, step: Age
       feedback: state.feedback[step.id] ?? [],
       doNotTouch: deps.doNotTouch,
     });
-    handle = await deps.runtime.start({
-      cwd: deps.cwd,
-      model: resolveModel(step, agent, deps.defaultModel),
-      message,
-      key: `${runId}:${step.id}:${attempt}`,
-    });
+    try {
+      handle = await deps.runtime.start({
+        cwd: deps.cwd,
+        model: resolveModel(step, agent, deps.defaultModel),
+        message,
+        key: `${runId}:${step.id}:${attempt}`,
+        subagents: deps.registry.agents.map((a) => ({ name: a.name, description: a.description, prompt: a.body })),
+      });
+    } catch (error) {
+      // The agent never ran (wrong plan, bad key, unknown model…): a failed
+      // step the person can retry once it's fixed, not a crashed run.
+      const record: StepRecord = {
+        status: "failed",
+        cursorRunIds: previous,
+        writes: [],
+        missing: [],
+        summary: `couldn't start the agent: ${error instanceof Error ? error.message : String(error)}`,
+        durationMs: 0,
+      };
+      deps.onEvent(runId, { type: "step-finished", stepId: step.id, record });
+      return record;
+    }
     const startedAt = (deps.now?.() ?? new Date()).toISOString();
     await deps.runFiles.putRef({ runId, stepId: step.id, attempt, cursorRunId: handle.id, before, startedAt });
     for await (const event of handle.events()) deps.onEvent(runId, { type: "agent-event", stepId: step.id, event });

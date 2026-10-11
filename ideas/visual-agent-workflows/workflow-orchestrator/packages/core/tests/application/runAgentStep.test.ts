@@ -92,6 +92,20 @@ describe("runAgentStep", () => {
     ]);
   });
 
+  it("returns a failed record, not an error, when the agent can't be started", async () => {
+    const { deps, events, runFiles } = setup({ startFails: "[plan_required] Cloud Agent is not available for free users." });
+
+    const record = await runAgentStep(deps, "run-1", elicit, emptyState);
+
+    expect(record).toMatchObject({
+      status: "failed",
+      cursorRunIds: [],
+      summary: "couldn't start the agent: [plan_required] Cloud Agent is not available for free users.",
+    });
+    expect(events.map((e) => e.type)).toEqual(["step-started", "step-finished"]);
+    expect(runFiles.refs.size).toBe(0);
+  });
+
   it("refuses an agent or skill that isn't in the project", async () => {
     const { deps } = setup();
     await expect(runAgentStep(deps, "run-1", { ...elicit, agent: "ghost" }, emptyState)).rejects.toThrow('agent "ghost"');

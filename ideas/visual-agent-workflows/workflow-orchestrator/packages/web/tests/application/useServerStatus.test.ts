@@ -5,11 +5,11 @@ import { FakeOrchestratorApi } from "../support/FakeOrchestratorApi";
 import { renderHookWithProviders } from "../support/renderWithProviders";
 
 describe("useServerStatus", () => {
-  it("starts as checking, then reports up", async () => {
+  it("starts as checking, then reports up with the runtime", async () => {
     const { result } = renderHookWithProviders(() => useServerStatus());
 
-    expect(result.current).toBe("checking");
-    await waitFor(() => expect(result.current).toBe("up"));
+    expect(result.current.status).toBe("checking");
+    await waitFor(() => expect(result.current).toEqual({ status: "up", runtime: "fake" }));
   });
 
   it("reports down when the API fails", async () => {
@@ -18,6 +18,6 @@ describe("useServerStatus", () => {
 
     const { result } = renderHookWithProviders(() => useServerStatus(), api);
 
-    await waitFor(() => expect(result.current).toBe("down"));
+    await waitFor(() => expect(result.current).toEqual({ status: "down" }));
   });
 });

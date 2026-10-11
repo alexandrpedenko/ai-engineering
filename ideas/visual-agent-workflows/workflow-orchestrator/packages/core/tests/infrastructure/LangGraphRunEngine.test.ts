@@ -169,6 +169,18 @@ describe("LangGraphRunEngine", () => {
     expect(runtime.requests[2]?.key).toBe("run-1:design:2");
   });
 
+  it("ends a run whose agent can't be started as failed, and a retry works once it can", async () => {
+    const { engine, stepsRun } = setup([{ startFails: "plan required" }, {}]);
+
+    const failed = await engine.start("run-1", baWorkflow(), inputs);
+    expect(failed).toMatchObject({ status: "failed", stepId: "elicit" });
+    expect(failed.state.steps.elicit?.summary).toBe("couldn't start the agent: plan required");
+
+    const retried = await engine.retry("run-1", baWorkflow());
+    expect(retried).toMatchObject({ status: "waiting", gateId: "review" });
+    expect(stepsRun()).toEqual(["elicit", "elicit"]);
+  });
+
   it("refuses to retry a run that isn't failed", async () => {
     const { engine } = setup();
     await expect(engine.retry("nope", baWorkflow())).rejects.toBeInstanceOf(ConflictError);

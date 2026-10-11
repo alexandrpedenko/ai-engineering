@@ -1,6 +1,6 @@
 import type { RunResult, SDKMessage } from "@cursor/sdk";
-import type { AgentRunResult } from "../application/AgentRuntime";
-import type { StepEvent } from "../domain/runState";
+import type { AgentRunResult } from "../../../application/AgentRuntime";
+import type { StepEvent } from "../../../domain/runState";
 
 // The StepEvents in one Cursor SDK message. Keeps only fields the SDK calls
 // stable: tool arguments and results are dropped.

@@ -22,10 +22,11 @@ export class HttpOrchestratorApi implements OrchestratorApi {
     private readonly openEventSource: (url: string) => EventSourceLike = (url) => new EventSource(url),
   ) {}
 
-  async isServerUp(): Promise<boolean> {
+  async health(): Promise<{ up: boolean; runtime?: string }> {
     const response = await fetch(`${this.baseUrl}/api/health`);
-    if (!response.ok) return false;
-    return schemas.Health.parse(await response.json()).ok;
+    if (!response.ok) return { up: false };
+    const health = schemas.Health.parse(await response.json());
+    return health.runtime ? { up: health.ok, runtime: health.runtime } : { up: health.ok };
   }
 
   async project(): Promise<Registry> {

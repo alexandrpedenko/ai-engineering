@@ -22,7 +22,8 @@ import {
   type ResolvedConfig,
 } from "@orch/core";
 import {
-  CursorAgentRuntime,
+  CREDENTIALS,
+  createAgentProvider,
   FakeAgentRuntime,
   FsEventLog,
   FsProjectFiles,
@@ -30,6 +31,7 @@ import {
   FsWorkflowStore,
   LangGraphRunEngine,
   loadConfig,
+  ProviderAgentRuntime,
 } from "@orch/core/infrastructure";
 import { Hono } from "hono";
 import { errorResponse } from "./routes/errors";
@@ -41,13 +43,32 @@ import { runRoutes } from "./routes/runRoutes";
 import type { ServerServices } from "./routes/ServerServices";
 import { workflowRoutes } from "./routes/workflowRoutes";
 
+const from: Record<string, string> = {
+  override: "flag or environment",
+  "settings.json": "settings.json",
+  "orchestrator.config.json": "orchestrator.config.json",
+  default: "default",
+};
+
+// One line naming the project and agent runtime a process uses, and where each
+// came from, e.g. "project /code/booking (settings.json) · runtime claude (settings.json)".
+export function describeSetup(config: ResolvedConfig, fake: boolean): string {
+  const runtime = fake ? "fake agent" : `runtime ${config.runtime} (${from[config.sources?.runtime ?? "default"]})`;
+  return `project ${config.projectRoot} (${from[config.sources?.projectRoot ?? "default"]}) · ${runtime}`;
+}
+
+// The settings file to read: ORCH_SETTINGS_FILE when set (the test runner
+// points it at a file that doesn't exist, so tests never see a developer's
+// own settings), else workflow-orchestrator/settings.json.
+const settingsOverride = () => (process.env.ORCH_SETTINGS_FILE ? { settingsPath: process.env.ORCH_SETTINGS_FILE } : {});
+
 // The workflow-orchestrator folder (three levels above this file).
 export const orchestratorDir = resolve(dirname(fileURLToPath(import.meta.url)), "../../..");
 
 // The HTTP app over the given services. Every error goes through errorResponse.
 export function createApp(services: ServerServices) {
   return new Hono()
-    .route("/api", healthRoutes())
+    .route("/api", healthRoutes({ runtime: services.runtimeName }))
     .route("/api", projectRoutes(services))
     .route("/api", phaseRoutes(services))
     .route("/api", workflowRoutes(services))
@@ -59,7 +80,7 @@ export function createApp(services: ServerServices) {
 // The config and the registry scan for one host project. `projectRoot`
 // overrides the config file (relative to the orchestrator folder).
 export async function createProjectServices(options: { projectRoot?: string } = {}) {
-  const config = await loadConfig(orchestratorDir, options);
+  const config = await loadConfig(orchestratorDir, { ...options, ...settingsOverride() });
   const files = new FsProjectFiles(config);
   return { config, scan: async () => await scanProject(files) };
 }
@@ -93,6 +114,8 @@ async function wire(options: WiringOptions, callbacks: Callbacks) {
   const config: ResolvedConfig = await loadConfig(orchestratorDir, {
     ...(options.projectRoot ? { projectRoot: options.projectRoot } : {}),
     ...(options.dataDir ? { dataDir: options.dataDir } : {}),
+    ...(process.env.ORCH_RUNTIME ? { runtime: process.env.ORCH_RUNTIME } : {}),
+    ...settingsOverride(),
   });
   await mkdir(config.dataDir, { recursive: true });
 
@@ -107,11 +130,16 @@ async function wire(options: WiringOptions, callbacks: Callbacks) {
       ],
     },
   ]);
+  // One runtime per process (it remembers the runs it started), rebuilt only
+  // if the key changes. The key is read when a step runs.
+  const variable = CREDENTIALS[config.runtime];
+  let real: { runtime: ProviderAgentRuntime; apiKey: string } | null = null;
   const runtime = (): AgentRuntime => {
     if (options.fake) return fakeRuntime;
-    const apiKey = process.env.CURSOR_API_KEY;
-    if (!apiKey) throw new MissingCredentialsError("CURSOR_API_KEY");
-    return new CursorAgentRuntime({ apiKey });
+    const apiKey = process.env[variable];
+    if (!apiKey) throw new MissingCredentialsError(variable);
+    if (real?.apiKey !== apiKey) real = { runtime: new ProviderAgentRuntime(createAgentProvider(config.runtime, apiKey), apiKey), apiKey };
+    return real.runtime;
   };
   const assertCanRun = () => void runtime();
 
@@ -133,7 +161,7 @@ async function wire(options: WiringOptions, callbacks: Callbacks) {
           runFiles,
           cwd: config.projectRoot,
           artefactGlobs: config.artefactGlobs,
-          defaultModel: config.defaultModel,
+          defaultModel: { id: config.models[config.runtime] },
           doNotTouch,
           onEvent: callbacks.onEvent,
           ...(callbacks.onHandle ? { onHandle: callbacks.onHandle } : {}),
@@ -144,7 +172,8 @@ async function wire(options: WiringOptions, callbacks: Callbacks) {
       ),
     onEvent: callbacks.onEvent,
   });
-  return { config, projectFiles, scan, store, runFiles, engine, assertCanRun };
+  const runtimeName = options.fake ? "fake" : config.runtime;
+  return { config, projectFiles, scan, store, runFiles, engine, assertCanRun, runtimeName };
 }
 
 const newRunId = () => `run-${randomUUID().slice(0, 8)}`;
@@ -159,6 +188,7 @@ export async function createRunServices(options: RunServicesOptions) {
   const runDeps = { engine: w.engine, runFiles: w.runFiles };
   return {
     config: w.config,
+    setup: describeSetup(w.config, options.fake),
     start: async (workflowId: string, inputs: Record<string, string>) => {
       const workflow = await w.store.get(workflowId);
       if (!workflow) throw new NotFoundError(`no workflow "${workflowId}" in ${join(w.config.projectRoot, w.config.workflowsDir)}`);
@@ -192,5 +222,14 @@ export async function createServerServices(options: WiringOptions): Promise<Serv
     assertCanRun: w.assertCanRun,
     reportError: (error) => console.error("event log write failed:", error),
   });
-  return { config: w.config, scan: w.scan, projectFiles: w.projectFiles, store: w.store, runFiles: w.runFiles, engine: w.engine, supervisor };
+  return {
+    config: w.config,
+    runtimeName: w.runtimeName,
+    scan: w.scan,
+    projectFiles: w.projectFiles,
+    store: w.store,
+    runFiles: w.runFiles,
+    engine: w.engine,
+    supervisor,
+  };
 }

@@ -106,6 +106,16 @@ describe("RunSupervisor", () => {
     await expect(supervisor.cancel(runId)).rejects.toBeInstanceOf(ConflictError);
   });
 
+  it("settles a run whose agent can't be started as failed, not crashed", async () => {
+    const { supervisor, eventLog } = setup([{ startFails: "plan required" }]);
+    const { runId } = await supervisor.start("ba-discovery", {});
+    await supervisor.settled(runId);
+
+    const types = (await eventLog.read(runId)).map((e) => e.event.type);
+    expect(types).not.toContain("run-crashed");
+    expect((await eventLog.read(runId)).at(-1)?.event).toMatchObject({ type: "run-settled", outcome: { status: "failed" } });
+  });
+
   it("logs run-crashed when the engine throws, and frees the run", async () => {
     const { supervisor, eventLog } = setup([{}], { failingEngine: true });
     const { runId } = await supervisor.start("ba-discovery", {});

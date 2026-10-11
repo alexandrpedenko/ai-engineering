@@ -1,0 +1,5 @@
+{
+  "projectRoot": "/absolute/path/to/your/project",
+  "runtime": "cursor",
+  "models": { "cursor": "composer-2.5", "claude": "claude-opus-5-5" }
+}

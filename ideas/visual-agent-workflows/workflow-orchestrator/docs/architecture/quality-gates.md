@@ -42,6 +42,9 @@ slice is handed over only with it passing.
   store, project files, a fake run engine, a fake `OrchestratorApi`, sample
   data, temp copies of `fixtures/sample-project`.
 
+Tests never read a developer's `settings.json`: `vitest.config.ts` sets
+`ORCH_SETTINGS_FILE` to a file that doesn't exist.
+
 `fixtures/sample-project` is a small host project (two skills, two agents, a
 brief, a wiki page, the BA workflow). Tests never edit it; they copy it.
 

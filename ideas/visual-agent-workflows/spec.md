@@ -410,3 +410,26 @@ a new attempt (LangGraph `Command({ goto })`); `POST /api/runs/:runId/retry`
 → 202; `npm run wf -- retry <runId>`. Slice 5.5 is built and in review.
 Why: [specs/5.5-retry.md](specs/5.5-retry.md).
 
+**2026-10-11, slice 5.6 — a Claude Agent SDK runtime (planned).**
+Spec said: non-goal "a second agent runtime (Claude Agent SDK). The port
+allows it; no adapter yet."
+Now: slice 5.6, [specs/5.6-claude-runtime.md](specs/5.6-claude-runtime.md), adds
+`ClaudeAgentRuntime`, chosen per project by config (ADR-0013, proposed).
+Status: spec drafted.
+Why: the Cursor SDK refuses free-plan accounts even for local agents
+(`plan_required`), so without a second runtime no real workflow can run on
+such an account.
+
+**2026-10-11, slice 5.7 — a local settings file.**
+Spec said (Config): one `orchestrator.config.json` with `projectRoot`, and
+`ORCH_PROJECT_ROOT` to override it.
+Now: a gitignored `settings.json` next to it holds this machine's
+`projectRoot`, `runtime` and `models`; the committed config keeps only how
+projects are laid out. Precedence: flag / environment → `settings.json` →
+`orchestrator.config.json` → defaults. Built:
+[specs/5.7-local-settings.md](specs/5.7-local-settings.md).
+Why: choosing project and provider by environment variables on every command
+was error-prone; the settings UI in
+[specs/proposal-settings-and-projects.md](specs/proposal-settings-and-projects.md)
+is parked in favour of this.
+

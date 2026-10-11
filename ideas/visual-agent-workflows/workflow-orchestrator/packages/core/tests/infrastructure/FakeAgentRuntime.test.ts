@@ -38,6 +38,10 @@ describe("FakeAgentRuntime", () => {
     expect((await (await runtime.start(request("x"))).wait()).summary).toBe("0:x");
   });
 
+  it("throws from start() when a reply says so", async () => {
+    await expect(new FakeAgentRuntime([{ startFails: "no plan" }]).start(request("a"))).rejects.toThrow("no plan");
+  });
+
   it("records requests", async () => {
     const runtime = new FakeAgentRuntime();
     await runtime.start(request("a"));

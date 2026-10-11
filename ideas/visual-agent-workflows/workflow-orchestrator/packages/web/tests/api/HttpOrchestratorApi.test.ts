@@ -23,11 +23,11 @@ afterEach(() => {
 });
 
 describe("HttpOrchestratorApi reads", () => {
-  it("isServerUp calls /api/health and reads ok; false on a non-2xx answer", async () => {
-    respondWith(200, { ok: true, node: "v25" });
-    expect(await new HttpOrchestratorApi("http://srv").isServerUp()).toBe(true);
+  it("health calls /api/health and reads ok and the runtime; down on a non-2xx answer", async () => {
+    respondWith(200, { ok: true, node: "v25", runtime: "claude" });
+    expect(await new HttpOrchestratorApi("http://srv").health()).toEqual({ up: true, runtime: "claude" });
     respondWith(503, {});
-    expect(await new HttpOrchestratorApi().isServerUp()).toBe(false);
+    expect(await new HttpOrchestratorApi().health()).toEqual({ up: false });
   });
 
   it("gets each resource from its URL", async () => {

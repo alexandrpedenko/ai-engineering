@@ -1,7 +1,7 @@
 import type { AgentOptions, Run, RunResult, SDKAgent, SDKMessage } from "@cursor/sdk";
 import { describe, expect, it } from "vitest";
-import type { StepEvent } from "../../src/domain/runState";
-import { CursorAgentRuntime, type CursorSdk } from "../../src/infrastructure/CursorAgentRuntime";
+import type { StepEvent } from "../../../../src/domain/runState";
+import { type CursorSdk, CursorProvider } from "../../../../src/infrastructure/agentRuntime/cursor/CursorProvider";
 
 const KEY = "crsr_secret_key";
 const request = { cwd: "/host", model: { id: "composer-2.5" }, message: "Do it", key: "run-1:elicit:1" };
@@ -24,13 +24,12 @@ function fakeRun(options: { messages?: SDKMessage[]; result?: Partial<RunResult>
   } as Run;
 }
 
-function fakeSdk(run: Run, failWith?: Error) {
+function fakeSdk(run: Run, getRunError?: Error) {
   const created: AgentOptions[] = [];
   const sent: { message: unknown; options: unknown }[] = [];
   let closed = 0;
   const sdk: CursorSdk = {
     create: async (options) => {
-      if (failWith) throw failWith;
       created.push(options);
       return {
         agentId: "agent-1",
@@ -43,7 +42,10 @@ function fakeSdk(run: Run, failWith?: Error) {
         },
       } as unknown as SDKAgent;
     },
-    getRun: async () => run,
+    getRun: async () => {
+      if (getRunError) throw getRunError;
+      return run;
+    },
   };
   return { sdk, created, sent, closed: () => closed };
 }
@@ -54,11 +56,11 @@ async function collect(events: AsyncIterable<StepEvent>) {
   return all;
 }
 
-describe("CursorAgentRuntime.start", () => {
+describe("CursorProvider.open", () => {
   it("creates a local agent in the project with its own settings, and sends with the idempotency key", async () => {
     const { sdk, created, sent } = fakeSdk(fakeRun());
 
-    await new CursorAgentRuntime({ apiKey: KEY, sdk }).start(request);
+    await new CursorProvider({ apiKey: KEY, sdk }).open(request);
 
     expect(created).toEqual([{ apiKey: KEY, model: { id: "composer-2.5" }, local: { cwd: "/host", settingSources: ["project"] } }]);
     expect(sent).toEqual([{ message: "Do it", options: { idempotencyKey: "run-1:elicit:1" } }]);
@@ -68,44 +70,29 @@ describe("CursorAgentRuntime.start", () => {
     const messages: SDKMessage[] = [{ type: "tool_call", agent_id: "a", run_id: "r", call_id: "c", name: "edit", status: "running" }];
     const { sdk, closed } = fakeSdk(fakeRun({ messages, result: { result: "Wrote it", durationMs: 10 } }));
 
-    const handle = await new CursorAgentRuntime({ apiKey: KEY, sdk }).start(request);
+    const run = await new CursorProvider({ apiKey: KEY, sdk }).open(request);
 
-    expect(handle.id).toBe("agent-run-1");
-    expect(await collect(handle.events())).toEqual([{ kind: "tool", callId: "c", name: "edit", status: "running" }]);
-    expect(await handle.wait()).toEqual({ status: "finished", summary: "Wrote it", durationMs: 10 });
+    expect(run.id).toBe("agent-run-1");
+    expect(await collect(run.events())).toEqual([{ kind: "tool", callId: "c", name: "edit", status: "running" }]);
+    expect(await run.result()).toEqual({ status: "finished", summary: "Wrote it", durationMs: 10 });
     expect(closed()).toBe(1);
-  });
-
-  it("never lets the API key out in an error", async () => {
-    const { sdk } = fakeSdk(fakeRun(), new Error(`auth failed for ${KEY}`));
-
-    await expect(new CursorAgentRuntime({ apiKey: KEY, sdk }).start(request)).rejects.toThrow("auth failed for [redacted]");
   });
 });
 
-describe("CursorAgentRuntime.attach", () => {
-  it("returns a finished run's real result", async () => {
-    const { sdk } = fakeSdk(fakeRun({ result: { result: "from before" } }));
-
-    const handle = await new CursorAgentRuntime({ apiKey: KEY, sdk }).attach("agent-run-1", "/host");
-
-    expect((await handle?.wait())?.summary).toBe("from before");
+describe("CursorProvider.find", () => {
+  it("returns a finished run with its real result", async () => {
+    const found = await new CursorProvider({ apiKey: KEY, sdk: fakeSdk(fakeRun({ result: { result: "from before" } })).sdk }).find("agent-run-1", "/host");
+    if (!found || found === "cut-off") throw new Error("expected a run");
+    expect((await found.result()).summary).toBe("from before");
   });
 
-  it("reports a run still marked running as cut off with its process", async () => {
-    const { sdk } = fakeSdk(fakeRun({ status: "running" }));
-
-    const handle = await new CursorAgentRuntime({ apiKey: KEY, sdk }).attach("agent-run-1", "/host");
-
-    expect(await handle?.wait()).toEqual({ status: "error", summary: "the agent run was interrupted (its process stopped)", durationMs: 0 });
+  it("says a run still marked running was cut off", async () => {
+    expect(await new CursorProvider({ apiKey: KEY, sdk: fakeSdk(fakeRun({ status: "running" })).sdk }).find("x", "/host")).toBe("cut-off");
   });
 
   it("returns null when the run can't be found, and rethrows other errors", async () => {
     const notFound = Object.assign(new Error("run not found"), { status: 404 });
-    const missing: CursorSdk = { create: async () => ({}) as SDKAgent, getRun: async () => { throw notFound; } };
-    const broken: CursorSdk = { create: async () => ({}) as SDKAgent, getRun: async () => { throw new Error("network down"); } };
-
-    expect(await new CursorAgentRuntime({ apiKey: KEY, sdk: missing }).attach("x", "/host")).toBeNull();
-    await expect(new CursorAgentRuntime({ apiKey: KEY, sdk: broken }).attach("x", "/host")).rejects.toThrow("network down");
+    expect(await new CursorProvider({ apiKey: KEY, sdk: fakeSdk(fakeRun(), notFound).sdk }).find("x", "/host")).toBeNull();
+    await expect(new CursorProvider({ apiKey: KEY, sdk: fakeSdk(fakeRun(), new Error("network down")).sdk }).find("x", "/host")).rejects.toThrow("network down");
   });
 });

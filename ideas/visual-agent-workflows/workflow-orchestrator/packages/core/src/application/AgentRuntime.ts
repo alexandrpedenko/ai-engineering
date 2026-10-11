@@ -5,6 +5,9 @@ export type AgentRunRequest = {
   model: { id: string };
   message: string;
   key: string; // "<runId>:<stepId>:<attempt>", the same for a retry of the same attempt
+  // The project's agent files, for runtimes that don't read the project's
+  // agent folder themselves. Optional; a runtime may ignore it.
+  subagents?: { name: string; description: string; prompt: string }[];
 };
 
 export type AgentRunResult = {

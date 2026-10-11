@@ -12,6 +12,7 @@ import { formatOutcome, formatRunEvent } from "./formatRunEvent";
 
 // What the command needs from a set of run services (see composition.ts).
 export type WfServices = {
+  setup: string; // which project and runtime this process uses
   start(workflowId: string, inputs: Record<string, string>): Promise<{ runId: string; outcome: RunOutcome }>;
   resume(runId: string, decision: GateDecision): Promise<RunOutcome>;
   continue(runId: string): Promise<RunOutcome>;
@@ -99,6 +100,7 @@ export async function runWfCommand(argv: string[], deps: WfDeps): Promise<number
     // status runs no agent, so it never needs an API key.
     const fake = parsed.fake || parsed.command === "status";
     const services = await deps.services({ ...(projectRoot ? { projectRoot } : {}), fake }, onEvent);
+    if (parsed.command !== "status") deps.write(`${services.setup}\n`);
 
     if (parsed.command === "status") {
       const outcome = await services.outcome(parsed.target);

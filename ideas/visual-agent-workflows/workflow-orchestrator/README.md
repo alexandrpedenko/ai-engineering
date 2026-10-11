@@ -4,21 +4,33 @@ Draw workflows from your project's Cursor skills and agents, run them, and get
 the results as changed files in the project. Design: [../spec.md](../spec.md),
 decisions: [../adr/](../adr/).
 
-## Use it in a project
+## Set up
 
 ```bash
-cd my-project                      # has .cursor/skills, .cursor/agents, discovery/ …
-git clone <this repo> workflow-orchestrator   # or copy the folder
-echo "workflow-orchestrator/" >> .gitignore   # or add it as a submodule instead
 cd workflow-orchestrator
-cp .env.example .env               # set CURSOR_API_KEY
 npm install
-npm run dev                        # http://localhost:5173
+cp settings.example.json settings.json   # then edit: your project's path and the agent
+cp .env.example .env                     # then add CURSOR_API_KEY and/or ANTHROPIC_API_KEY
+npm run dev                              # http://localhost:5173
 ```
 
-Needs Node 22.13 or newer. The parent folder is the project it works on;
-`ORCH_PROJECT_ROOT` points it somewhere else. Workflows are saved in the
-project's `.cursor/workflows/` folder.
+`settings.json` (not committed) says which project to work on and which
+agent runs the steps:
+
+```json
+{ "projectRoot": "/Users/me/code/booking-app", "runtime": "claude" }
+```
+
+- `runtime`: `cursor` (needs `CURSOR_API_KEY`, a paid Cursor plan) or `claude`
+  (needs `ANTHROPIC_API_KEY`). Optional `models` sets the default model per runtime.
+- Without `settings.json` the project is the folder that contains
+  `workflow-orchestrator/` and the agent is Cursor.
+- `--project <path>`, `ORCH_PROJECT_ROOT` and `ORCH_RUNTIME` still override
+  it for a single command.
+- The server and `npm run wf` print which project and agent they use, and why.
+
+Workflows are saved in the project's `.cursor/workflows/` folder. Needs Node
+22.13 or newer.
 
 ## Scripts
 

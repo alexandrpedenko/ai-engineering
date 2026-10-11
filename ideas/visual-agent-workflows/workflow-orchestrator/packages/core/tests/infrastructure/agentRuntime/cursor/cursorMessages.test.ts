@@ -1,6 +1,6 @@
 import type { RunResult, SDKMessage } from "@cursor/sdk";
 import { describe, expect, it } from "vitest";
-import { toRunResult, toStepEvents } from "../../src/infrastructure/cursorMessages";
+import { toRunResult, toStepEvents } from "../../../../src/infrastructure/agentRuntime/cursor/cursorMessages";
 
 const ids = { agent_id: "agent-1", run_id: "run-1" };
 

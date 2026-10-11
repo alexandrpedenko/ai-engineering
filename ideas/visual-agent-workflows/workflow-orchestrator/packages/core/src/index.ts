@@ -2,7 +2,7 @@
 // "@orch/core/infrastructure".
 export { toAgentDef } from "./domain/agentDef";
 export { buildPrompt, PROMPT_SECTIONS, promptSection, resolveModel, type PromptInput } from "./domain/buildPrompt";
-export { OrchestratorConfig, type ResolvedConfig } from "./domain/config";
+export { OrchestratorConfig, type ResolvedConfig, RuntimeKind } from "./domain/config";
 export { DEFAULT_PHASES, Phase, PhasesFile } from "./domain/phase";
 export type { AgentDef, Artefact, MarkdownDoc, Registry, RegistryWarning, Skill, UnreadableDoc } from "./domain/registry";
 export { diffSnapshots, type FileChange, type Snapshot } from "./domain/outputs";

@@ -6,7 +6,7 @@ import { z } from "zod";
 const Problem = z.object({ severity: z.enum(["error", "warning"]), stepId: z.string().optional(), message: z.string() });
 const Named = z.object({ name: z.string(), path: z.string(), description: z.string() }).loose();
 
-export const Health = z.object({ ok: z.boolean() });
+export const Health = z.object({ ok: z.boolean(), runtime: z.string().optional() });
 export const Registry = z
   .object({
     root: z.string(),
