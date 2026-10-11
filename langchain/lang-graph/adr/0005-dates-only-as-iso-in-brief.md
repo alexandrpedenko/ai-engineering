@@ -1,6 +1,6 @@
 # ADR-0005 — Dates come only as ISO strings stated in the brief
 
-**Status:** Accepted (2026-10-04)
+**Status:** Superseded by ADR-0008 (2026-10-11)
 
 ## Context
 

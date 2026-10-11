@@ -35,7 +35,7 @@ what later books need from it; they don't fix cells.
 | | book | status | spec |
 | --- | --- | --- | --- |
 | 1 | state, nodes, edges — a brief validated by a graph; reducers; the clarification edge | done | [specs/1-state-nodes-edges.md](specs/1-state-nodes-edges.md) |
-| 2 | model nodes — parse the brief with a model; dependencies through the graph's context; fake-model tests | roadmap | — |
+| 2 | model nodes — parse the brief with a model; dependencies through the graph's context; fake-model tests | spec drafted | [specs/2-model-nodes.md](specs/2-model-nodes.md) |
 | 3 | the hotel agent by hand — a tool loop built from nodes, then used as a subgraph | roadmap | — |
 | 4 | fan-out and loops — one research branch per city in parallel; the budget-trim loop; `Command` | roadmap | — |
 | 5 | persistence — SQLite checkpoints, state history, resuming after quitting, a schema change | roadmap | — |
@@ -578,3 +578,18 @@ from book 14. Whether the image comes from `langgraph build` or a plain
 Dockerfile is decided when the book's spec is written.
 **Why.** Asked for (2026-10-05): an LLMOps shape, close to a real one. Project
 3 reuses the same files.
+
+### A4 — 2026-10-11 · before book 2 · relative dates against a fixed today (ADR-0008)
+
+**Said.** ADR-0005: `parse_brief` keeps only dates written as ISO dates.
+`TripContext` has no "today". Book 2's "done when" cites ADR-0005, and P1's
+ADR-0002 is "extended by 0005 here".
+**Now.** ADR-0008 supersedes ADR-0005. `parse_brief` resolves a phrase that
+names a day ("this Saturday", "the 20th", "next Monday for a week") against
+`TripContext.today`, a new field with default `config.TODAY = "2026-10-05"`.
+A period that names no day ("next week") still goes to clarification. Book 2
+is done when a brief with no dates, or only such a period, goes to
+clarification. `parse` eval rows carry their `today`.
+**Why.** Asked for on 2026-10-11: almost every brief written in words states
+its dates relative to today. The fixed date keeps relative dates inside the
+hotel data's October window.
