@@ -1,6 +1,6 @@
 import { Alert, Box, Button, Stack, Typography } from "@mui/material";
 import type { GateStep } from "@orch/core";
-import { useParams } from "react-router";
+import { useNavigate, useParams } from "react-router";
 import { useCancelRun, useContinueRun, useResumeRun, useRetryRun } from "../application/mutations";
 import { useFiles, useRun } from "../application/queries";
 import { useGateDraftStore } from "../application/useGateDraftStore";
@@ -16,6 +16,7 @@ import { runHeadline, stepTimeline } from "../domain/runView";
 // One run, live: its steps, what the agent is doing, the gate when it waits.
 export function RunPage() {
   const runId = useParams().runId ?? "";
+  const navigate = useNavigate();
   const run = useRun(runId);
   const events = useRunEvents(runId);
   const resume = useResumeRun(runId);
@@ -108,6 +109,7 @@ export function RunPage() {
                 onFeedbackChange={(text) => setDraft(runId, text)}
                 onApprove={() => resume.mutate({ decision: "approve" }, { onSuccess: () => clearDraft(runId) })}
                 onReject={(feedback) => resume.mutate({ decision: "reject", feedback }, { onSuccess: () => clearDraft(runId) })}
+                onEditFile={(path) => navigate(`/files?path=${encodeURIComponent(path)}`)}
               />
             );
           }

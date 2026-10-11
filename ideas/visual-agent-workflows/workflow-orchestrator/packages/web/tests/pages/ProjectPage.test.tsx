@@ -23,4 +23,12 @@ describe("ProjectPage", () => {
 
     expect(await screen.findByText("missing description")).toBeTruthy();
   });
+
+  it("opens a skill or an artefact in the editor", async () => {
+    renderPage(<ProjectPage />, { path: "/project", at: "/project" });
+
+    await userEvent.click(await screen.findByText("requirements-elicitation"));
+
+    expect(screen.getByTestId("location").textContent).toBe(`/files?path=${encodeURIComponent(".cursor/skills/requirements-elicitation/SKILL.md")}`);
+  });
 });

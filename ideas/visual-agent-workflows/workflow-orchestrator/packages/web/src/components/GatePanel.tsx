@@ -10,15 +10,17 @@ type Props = {
   onFeedbackChange: (text: string) => void;
   onApprove: () => void;
   onReject: (feedback: string) => void;
+  onEditFile: (path: string) => void;
 };
 
-// The files a gate asks a person to check, and their answer. Reject needs feedback.
-export function GatePanel({ files, feedback, sending, onFeedbackChange, onApprove, onReject }: Props) {
+// The files a gate asks a person to check (each can be opened in the editor),
+// and their answer. Reject needs feedback.
+export function GatePanel({ files, feedback, sending, onFeedbackChange, onApprove, onReject, onEditFile }: Props) {
   return (
     <Stack spacing={2} aria-label="gate">
       {files.length === 0 && <Typography color="text.secondary">No files were changed before this gate.</Typography>}
       {files.map((file) => (
-        <FileView key={file.path} {...file} />
+        <FileView key={file.path} {...file} onEdit={() => onEditFile(file.path)} />
       ))}
       <TextField
         label="Feedback (needed to reject)"

@@ -19,7 +19,11 @@ export interface OrchestratorApi {
   checkWorkflow(workflow: Workflow): Promise<Problem[]>;
   runs(workflowId?: string): Promise<RunSummary[]>;
   run(runId: string): Promise<RunDetails>;
-  file(path: string): Promise<{ path: string; content: string }>;
+  // A project file's text and version (which changes whenever the text does).
+  file(path: string): Promise<{ path: string; content: string; version: string }>;
+  // Saves a project file and returns its new version. With `baseVersion`, a
+  // 409 ApiError when the file changed on disk since that version.
+  saveFile(path: string, content: string, baseVersion?: string): Promise<{ version: string }>;
   startRun(workflowId: string, inputs: Record<string, string>): Promise<{ runId: string }>;
   resume(runId: string, decision: GateDecision): Promise<void>;
   continueRun(runId: string): Promise<void>;

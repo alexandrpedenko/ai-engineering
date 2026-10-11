@@ -4,6 +4,9 @@ import { ApiError } from "../../src/domain/apiError";
 import type { RunDetails } from "../../src/domain/runView";
 import { registry, workflow } from "./sampleData";
 
+// A file's version in the fake: "v:" and its content.
+export const versionOf = (content: string) => `v:${content}`;
+
 // An OrchestratorApi whose answers a test sets directly. Records every action
 // in `calls`; `emit` pushes a live event to whoever watches that run.
 export class FakeOrchestratorApi implements OrchestratorApi {
@@ -13,7 +16,9 @@ export class FakeOrchestratorApi implements OrchestratorApi {
     { id: "discovery", name: "Discovery", order: 1 },
     { id: "delivery", name: "Delivery", order: 2 },
   ];
-  workflowList: WorkflowSummary[] = [{ id: "ba-discovery", name: "BA discovery", phase: "discovery", problems: [] }];
+  workflowList: WorkflowSummary[] = [
+    { id: "ba-discovery", name: "BA discovery", phase: "discovery", agents: ["business-analyst", "architect"], skills: ["requirements-elicitation"], problems: [] },
+  ];
   workflowsById: Record<string, { workflow: Workflow; problems: Problem[] }> = { "ba-discovery": { workflow, problems: [] } };
   runList: RunSummary[] = [];
   runsById: Record<string, RunDetails> = {};
@@ -88,7 +93,18 @@ export class FakeOrchestratorApi implements OrchestratorApi {
   async file(path: string) {
     const content = this.files[path];
     if (content === undefined) throw new ApiError(404, `no file "${path}"`);
-    return { path, content };
+    return { path, content, version: versionOf(content) };
+  }
+  // Refuses (409) when `baseVersion` is given and isn't the file's version in `files`.
+  async saveFile(path: string, content: string, baseVersion?: string) {
+    this.calls.push(`saveFile ${path}${baseVersion === undefined ? " (overwrite)" : ""}`);
+    this.fail("saveFile");
+    const current = this.files[path];
+    if (baseVersion !== undefined && current !== undefined && versionOf(current) !== baseVersion) {
+      throw new ApiError(409, `"${path}" changed on disk since it was opened`);
+    }
+    this.files[path] = content;
+    return { version: versionOf(content) };
   }
   async startRun(workflowId: string, inputs: Record<string, string>) {
     this.calls.push(`start ${workflowId} ${JSON.stringify(inputs)}`);
@@ -124,7 +140,15 @@ export class FakeOrchestratorApi implements OrchestratorApi {
   private store(workflow: Workflow) {
     this.saved.push(workflow);
     this.workflowsById[workflow.id] = { workflow, problems: [] };
-    const summary = { id: workflow.id, name: workflow.name, phase: workflow.phase, problems: [] };
+    const agentSteps = workflow.steps.filter((step) => step.type === "agent");
+    const summary: WorkflowSummary = {
+      id: workflow.id,
+      name: workflow.name,
+      agents: [...new Set(agentSteps.map((step) => step.agent))],
+      skills: [...new Set(agentSteps.flatMap((step) => step.skills))],
+      problems: [],
+    };
+    if (workflow.phase) summary.phase = workflow.phase;
     this.workflowList = [...this.workflowList.filter((w) => w.id !== workflow.id), summary];
   }
 

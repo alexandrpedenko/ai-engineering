@@ -9,6 +9,7 @@ import {
   useDeleteWorkflow,
   useResumeRun,
   useRetryRun,
+  useSaveFile,
   useSaveWorkflow,
   useStartRun,
 } from "../../src/application/mutations";
@@ -113,5 +114,29 @@ describe("workflow file mutations", () => {
     expect(api.calls).toEqual(["delete ba-discovery"]);
     expect(client.getQueryState(queryKeys.workflow("ba-discovery"))).toBeUndefined();
     expect(client.getQueryState(queryKeys.workflows)?.isInvalidated).toBe(true);
+  });
+});
+
+describe("useSaveFile", () => {
+  it("sends the base version, keeps the saved text and version in the file's cache, and marks the project stale", async () => {
+    const { api, client, result } = setup(() => useSaveFile("kb/a.md"));
+    api.files["kb/a.md"] = "old";
+    client.setQueryData(queryKeys.project, {});
+
+    await act(async () => await result.current.mutateAsync({ content: "new", baseVersion: "v:old" }));
+
+    expect(api.calls).toEqual(["saveFile kb/a.md"]);
+    expect(client.getQueryData(queryKeys.file("kb/a.md"))).toEqual({ path: "kb/a.md", content: "new", version: "v:new" });
+    expect(client.getQueryState(queryKeys.project)?.isInvalidated).toBe(true);
+  });
+
+  it("exposes a file that changed on disk as a 409", async () => {
+    const { api, result } = setup(() => useSaveFile("kb/a.md"));
+    api.files["kb/a.md"] = "changed elsewhere";
+
+    act(() => result.current.mutate({ content: "mine", baseVersion: "v:old" }));
+
+    await waitFor(() => expect(result.current.error).toMatchObject({ status: 409 }));
+    expect(api.files["kb/a.md"]).toBe("changed elsewhere");
   });
 });

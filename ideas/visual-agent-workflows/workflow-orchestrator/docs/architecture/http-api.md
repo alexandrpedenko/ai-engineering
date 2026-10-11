@@ -7,7 +7,7 @@ code:
 depends_on: [runs-and-events, workflows, project-registry]
 used_by: [web-app]
 adrs: [10, 15]
-specs: [4-server, 5.5-retry, 6-workflow-editor]
+specs: [4-server, 5.5-retry, 6-workflow-editor, 7-file-editor]
 updated: 2026-10-11
 ---
 
@@ -23,9 +23,9 @@ case or the supervisor, return the result. They get their dependencies as
 | --- | --- | --- |
 | GET | `/api/health` | `{ ok, node, runtime }` (`cursor`, `claude` or `fake`) |
 | GET | `/api/project` | the registry |
-| GET / PUT | `/api/files?path=` | `{ path, content }` / `{ content }` → 204 (existing project files inside the project, not credential files; see `canOpen` in [project-registry](project-registry.md)) |
+| GET / PUT | `/api/files?path=` | `{ path, content, version }` / `{ content, baseVersion? }` → `{ version }`; **409** `{ error, version }` when `baseVersion` is given and the file changed since (existing project files inside the project, not credential files; see `canOpen` in [project-registry](project-registry.md)) |
 | GET / PUT | `/api/phases` | `{ phases }` / → 204 |
-| GET | `/api/workflows` | `[{ id, name, phase, problems }]` |
+| GET | `/api/workflows` | `[{ id, name, phase, agents, skills, problems }]` (`agents`, `skills`: names the steps use) |
 | POST | `/api/workflows` | `{ workflow }` → **201** `{ problems }`; **400** when it isn't a workflow; **409** when the id is taken |
 | POST | `/api/workflows/check` | `{ workflow }` → `{ problems }`, nothing saved (a broken draft → its schema problems, still 200) |
 | GET / PUT / DELETE | `/api/workflows/:id` | `{ workflow, problems }` / `{ problems }` (PUT's body is the workflow itself, not `{ workflow }`) / 204 |

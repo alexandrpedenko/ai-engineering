@@ -18,7 +18,14 @@ export const Registry = z
   .loose();
 export const Phases = z.object({ phases: z.array(z.object({ id: z.string(), name: z.string(), order: z.number() }).loose()) });
 export const WorkflowSummaries = z.array(
-  z.object({ id: z.string(), name: z.string(), phase: z.string().optional(), problems: z.array(Problem) }),
+  z.object({
+    id: z.string(),
+    name: z.string(),
+    phase: z.string().optional(),
+    agents: z.array(z.string()),
+    skills: z.array(z.string()),
+    problems: z.array(Problem),
+  }),
 );
 const Workflow = z
   .object({ id: z.string(), name: z.string(), steps: z.array(z.object({ id: z.string(), type: z.enum(["agent", "gate"]) }).loose()) })
@@ -38,7 +45,8 @@ export const RunDetails = z
     outcome: z.object({ status: z.string(), state: z.object({}).loose() }).loose().nullable(),
   })
   .loose();
-export const FileContent = z.object({ path: z.string(), content: z.string() });
+export const FileContent = z.object({ path: z.string(), content: z.string(), version: z.string() });
+export const FileSaved = z.object({ version: z.string() });
 export const Started = z.object({ runId: z.string() });
 export const ErrorBody = z.object({ error: z.string(), problems: z.array(Problem).optional() }).loose();
 export const LogEventData = z.object({ type: z.string() }).loose();

@@ -73,8 +73,13 @@ export class HttpOrchestratorApi implements OrchestratorApi {
     return (await this.get(`/api/runs/${encodeURIComponent(runId)}`, schemas.RunDetails)) as unknown as RunDetails;
   }
 
-  async file(path: string): Promise<{ path: string; content: string }> {
+  async file(path: string): Promise<{ path: string; content: string; version: string }> {
     return await this.get(`/api/files?path=${encodeURIComponent(path)}`, schemas.FileContent);
+  }
+
+  async saveFile(path: string, content: string, baseVersion?: string): Promise<{ version: string }> {
+    const body = baseVersion === undefined ? { content } : { content, baseVersion };
+    return schemas.FileSaved.parse(await this.send("PUT", `/api/files?path=${encodeURIComponent(path)}`, body));
   }
 
   async startRun(workflowId: string, inputs: Record<string, string>): Promise<{ runId: string }> {

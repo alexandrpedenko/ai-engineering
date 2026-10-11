@@ -14,7 +14,7 @@ export { parseWorkflow, type ParsedWorkflow } from "./domain/parseWorkflow";
 export { hasErrors, validate, type Problem, type ValidationContext } from "./domain/validate";
 export { AgentStep, Edge, GateStep, Step, Workflow, WorkflowInput } from "./domain/workflow";
 export type { AgentRunRequest, AgentRunResult, AgentRuntime, RunHandle } from "./application/AgentRuntime";
-export { ConflictError, InvalidConfigError, InvalidInputError, MissingCredentialsError, NotFoundError } from "./application/errors";
+export { ConflictError, FileChangedError, InvalidConfigError, InvalidInputError, MissingCredentialsError, NotFoundError } from "./application/errors";
 export { checkWorkflow } from "./application/checkWorkflow";
 export { continueRun } from "./application/continueRun";
 export { createWorkflow } from "./application/createWorkflow";

@@ -1,9 +1,10 @@
 import { Alert, Box, Divider, Stack, Typography } from "@mui/material";
 import type { Problem } from "@orch/core";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router";
 import { useDeleteWorkflow, useSaveWorkflow } from "../application/mutations";
 import { usePhases, useProject, useWorkflow } from "../application/queries";
+import { useLeaveWarning } from "../application/useLeaveWarning";
 import { useWorkflowCheck } from "../application/useWorkflowCheck";
 import { type WorkflowDraft, useWorkflowDraft } from "../application/useWorkflowDraft";
 import { ConfirmDialog } from "../components/ConfirmDialog";
@@ -58,16 +59,6 @@ function inspectorActions(draft: WorkflowDraft, stepId: string): InspectorAction
     setNext: (to) => draft.edit((w) => (to ? connect(w, stepId, to) : disconnect(w, stepId))),
     remove: () => removeStepAndDeselect(draft, stepId),
   };
-}
-
-// Asks the browser to confirm closing the tab while `active`.
-function useLeaveWarning(active: boolean) {
-  useEffect(() => {
-    if (!active) return;
-    const warn = (event: BeforeUnloadEvent) => event.preventDefault();
-    window.addEventListener("beforeunload", warn);
-    return () => window.removeEventListener("beforeunload", warn);
-  }, [active]);
 }
 
 // Edits one workflow on a canvas: palette and workflow fields on the left,

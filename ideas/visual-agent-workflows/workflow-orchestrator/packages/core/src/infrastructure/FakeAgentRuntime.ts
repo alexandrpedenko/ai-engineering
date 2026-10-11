@@ -17,16 +17,29 @@ export type FakeReply = {
   startFails?: string; // start() throws an error with this message, like a refused API key
 };
 
+// The non-blank lines between the message's "Skills to follow" and "Task"
+// headings. (promptSection would stop at a skill body's own "# " heading.)
+function skillLines(message: string): string[] {
+  const lines = message.split("\n");
+  const start = lines.indexOf(PROMPT_SECTIONS.skills);
+  const end = lines.indexOf(PROMPT_SECTIONS.task);
+  if (start === -1 || end <= start) return [];
+  return lines.slice(start + 1, end).filter((line) => line.trim() !== "");
+}
+
 // A placeholder for each plain path (not a glob) in the message's "You must
-// write" section, mentioning the attempt and any reviewer feedback.
+// write" section, mentioning the attempt, the skills it was told to follow
+// and any reviewer feedback.
 function placeholderWrites(request: AgentRunRequest): Record<string, string> {
   const paths = promptSection(request.message, PROMPT_SECTIONS.write)
     .map((line) => line.replace(/^- /, "").trim())
     .filter((path) => path && !/[*?[\]{}]/.test(path));
+  const skills = skillLines(request.message);
   const feedback = promptSection(request.message, PROMPT_SECTIONS.feedback);
   const writes: Record<string, string> = {};
   for (const path of paths) {
     const lines = [`# ${path}`, "", `Placeholder written by the fake agent (${request.key}). A real agent would write this file.`];
+    if (skills.length > 0) lines.push("", "## Skills it was told to follow", ...skills.map((line) => `> ${line}`));
     if (feedback.length > 0) lines.push("", "## Reviewer feedback it was given", ...feedback);
     writes[path] = `${lines.join("\n")}\n`;
   }

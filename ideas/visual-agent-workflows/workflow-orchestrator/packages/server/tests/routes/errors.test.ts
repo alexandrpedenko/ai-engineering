@@ -1,4 +1,4 @@
-import { ConflictError, InvalidInputError, MissingCredentialsError, NotFoundError } from "@orch/core";
+import { ConflictError, FileChangedError, InvalidInputError, MissingCredentialsError, NotFoundError } from "@orch/core";
 import { Hono } from "hono";
 import { describe, expect, it } from "vitest";
 import { errorResponse } from "../../src/routes/errors";
@@ -21,6 +21,7 @@ describe("errorResponse", () => {
     expect(await answerFor(new InvalidInputError("nope", problems))).toMatchObject({ status: 400, body: { error: "nope: bad", problems } });
     expect(await answerFor(new NotFoundError("no run"))).toMatchObject({ status: 404, body: { error: "no run" } });
     expect(await answerFor(new ConflictError("busy"))).toMatchObject({ status: 409, body: { error: "busy" } });
+    expect(await answerFor(new FileChangedError("kb/a.md", "v2"))).toMatchObject({ status: 409, body: { error: '"kb/a.md" changed on disk since it was opened', version: "v2" } });
     expect(await answerFor(new MissingCredentialsError("CURSOR_API_KEY"))).toMatchObject({ status: 503, body: { error: "CURSOR_API_KEY is not set" } });
   });
 

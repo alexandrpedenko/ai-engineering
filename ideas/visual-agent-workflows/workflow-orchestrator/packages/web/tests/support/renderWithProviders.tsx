@@ -25,9 +25,10 @@ export function renderHookWithProviders<T>(hook: () => T, api: OrchestratorApi =
   return renderHook(hook, { wrapper: providers(api) });
 }
 
-// Shows where the app navigated to, for pages that navigate away.
+// Shows where the app navigated to (path and query), for pages that navigate away.
 function Location() {
-  return <div data-testid="location">{useLocation().pathname}</div>;
+  const { pathname, search } = useLocation();
+  return <div data-testid="location">{`${pathname}${search}`}</div>;
 }
 
 // Renders `page` at `at`, matched by the route `path` (e.g. "/runs/:runId").

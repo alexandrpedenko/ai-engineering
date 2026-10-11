@@ -18,7 +18,7 @@ code:
 depends_on: []
 used_by: [workflows, prompts, agent-steps, http-api, cli, composition]
 adrs: [1, 5]
-specs: [1-registry, 4-server, 5.6-claude-runtime, 5.7-local-settings, 5.8-artefacts-anywhere]
+specs: [1-registry, 4-server, 5.6-claude-runtime, 5.7-local-settings, 5.8-artefacts-anywhere, 7-file-editor]
 updated: 2026-10-11
 ---
 
@@ -94,6 +94,12 @@ frontmatter into a skill or agent (`toSkill`, `toAgentDef`) is domain.
   Only existing files.
 - `readText` / `writeText`, used through `readProjectFile` /
   `writeProjectFile`, which refuse paths `canOpen` refuses and files over 1 MB.
+  Both give the file's **version** (the SHA-1 of its bytes), which changes
+  whenever the content does. `writeProjectFile(files, path, content,
+  baseVersion?)`: with `baseVersion`, a `FileChangedError` (409, carrying the
+  current version) when the file on disk is no longer that version; without
+  it, it overwrites. Reading the current version and writing are two steps;
+  a write landing in between is not caught.
 
 **The project file list** (ADR-0014) is what all three use. When the root is
 inside a git work tree that doesn't ignore it: `git ls-files --cached

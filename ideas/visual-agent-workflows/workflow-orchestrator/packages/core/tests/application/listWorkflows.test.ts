@@ -13,16 +13,25 @@ describe("listWorkflows", () => {
     store.broken.set("broken", "broken.json is not valid JSON");
 
     expect(await listWorkflows({ store, registry })).toEqual([
-      { id: "ba-discovery", name: "BA discovery", phase: "discovery", problems: [] },
+      {
+        id: "ba-discovery",
+        name: "BA discovery",
+        phase: "discovery",
+        agents: ["business-analyst", "architect"],
+        skills: ["requirements-elicitation", "architecture-review"],
+        problems: [],
+      },
       {
         id: "bad-agent",
         name: "BA discovery",
+        agents: ["ghost", "architect"],
+        skills: ["requirements-elicitation", "architecture-review"],
         problems: [
           { severity: "error", stepId: "elicit", message: 'unknown agent "ghost"' },
           { severity: "warning", message: "no phase; the workflow is shown under Unsorted" },
         ],
       },
-      { id: "broken", name: "broken", problems: [{ severity: "error", message: "broken.json is not valid JSON" }] },
+      { id: "broken", name: "broken", agents: [], skills: [], problems: [{ severity: "error", message: "broken.json is not valid JSON" }] },
     ]);
   });
 });

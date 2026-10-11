@@ -13,7 +13,7 @@ code:
 depends_on: [prompts, project-registry]
 used_by: [engine, runs-and-events]
 adrs: [4, 5, 6, 7, 13, 14]
-specs: [2-schema-compile, 3-cursor-runtime, 4-server, 5.5-retry, 5.6-claude-runtime, 5.8-artefacts-anywhere]
+specs: [2-schema-compile, 3-cursor-runtime, 4-server, 5.5-retry, 5.6-claude-runtime, 5.8-artefacts-anywhere, 7-file-editor]
 updated: 2026-10-11
 ---
 
@@ -113,7 +113,9 @@ looks one up after a restart (`ProviderRun`, `"cut-off"` or `null`).
   scripted replies (events, status, summary, usage, `writes`, `placeholders`,
   `dies`, `holds`, `delayMs`, `startFails`); records requests; reattaches only
   to runs it started; `cutOff(id)` simulates a dead process. Used by every test
-  and by `--fake` / `dev:sample`.
+  and by `--fake` / `dev:sample`. Its placeholder files quote the skills the
+  step was told to follow and the reviewer feedback it was given, so a changed
+  skill is visible in what it writes.
 
 ## Tests
 

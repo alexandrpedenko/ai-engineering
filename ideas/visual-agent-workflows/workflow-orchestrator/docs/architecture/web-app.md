@@ -9,7 +9,7 @@ code:
 depends_on: [http-api]
 used_by: []
 adrs: [9, 10, 11, 14]
-specs: [5-shell-and-runs, 5.5-retry, 5.8-artefacts-anywhere, 6-workflow-editor]
+specs: [5-shell-and-runs, 5.5-retry, 5.8-artefacts-anywhere, 6-workflow-editor, 7-file-editor]
 updated: 2026-10-11
 ---
 
@@ -38,9 +38,10 @@ bootstrap/     providers (MUI theme, QueryClient, OrchestratorApi), BrowserRoute
 | path | page |
 | --- | --- |
 | `/` | → `/project` |
-| `/project` | `ProjectPage`: skills, agents, artefacts, warnings |
+| `/project` | `ProjectPage`: skills, agents, artefacts (each opens in the file editor), warnings |
 | `/workflows/:id` | `WorkflowPage`: steps, problems, start form, its runs, Edit |
 | `/workflows/:id/edit` | `WorkflowEditorPage`: the workflow editor (below) |
+| `/files?path=` | `FileEditorPage`: the file editor (below); loaded lazily with Monaco |
 | `/runs` | `RunsPage` |
 | `/runs/:runId` | `RunPage`: the live run |
 | other | `NotFoundPage` |
@@ -80,7 +81,8 @@ decision). Newer `step-finished` / `run-settled` events win over the cached
 details. `runHeadline` says whether the run is moving, waiting, finished,
 failed, rejected, interrupted or crashed. `RunPage` adds the live feed under
 the running step, the gate panel (the files in the run outcome's `shows`,
-read via `/api/files`, or "No files were changed before this gate."; Approve,
+read via `/api/files`, each with Edit to open it in the file editor, or "No
+files were changed before this gate."; Approve,
 Reject with feedback), Continue for interrupted runs, Retry on the failure banner, and
 **Cancel this step** under the running step.
 
@@ -120,8 +122,30 @@ draft is open. Closing the tab with a draft asks the browser to confirm. The
 route mounts the page with `key` = workflow id, so its own state starts fresh
 for each workflow.
 
+## The file editor
+
+`FileEditorPage` (`/files?path=`) loads one file with `useFile` (text and
+version, not refetched while open) and shows it in `CodeEditor`, a Monaco
+wrapper (language from `languageOf`, light or dark with the app, word wrap,
+⌘/Ctrl+S saves). Monaco is bundled, not fetched from a CDN:
+`bootstrap/monaco.ts` hands the installed `monaco-editor` and its Vite-built
+workers to the loader, and the route imports it lazily with the page, so the
+rest of the app doesn't load Monaco.
+
+`useFileDraft(path, loaded)` keeps unsaved text in `useFileDraftStore`, with
+the version the first edit started from. **Save** (`useSaveFile`) sends that
+version as `baseVersion`; on success the file's cache holds the saved text
+and version, the project is refetched, and the draft is dropped if nothing
+was typed meanwhile. A 409 shows `FileConflictAlert`: **Reload** drops the
+draft and loads the disk version; **Overwrite** saves without `baseVersion`.
+`FileFacts` says what the file is (`fileKind`: skill, agent, artefact or
+other), which workflows use it (`usedBy`, from the workflow list's `agents`
+and `skills`) and the registry's warnings for it. `useLeaveWarning` (shared
+with the workflow editor) asks before closing the tab with unsaved edits.
+
 ## Tests
 
 `web/tests/domain/*`, `api/*` (fake `fetch` and `EventSource`),
 `application/*` (hooks on `FakeOrchestratorApi`), `pages/*` (in a
-`MemoryRouter` via `renderPage`). jsdom; no network.
+`MemoryRouter` via `renderPage`). jsdom; no network. Monaco needs a real
+browser, so page tests replace `CodeEditor` with a textarea (`vi.mock`).

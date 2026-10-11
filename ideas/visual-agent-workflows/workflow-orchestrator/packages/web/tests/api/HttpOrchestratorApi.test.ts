@@ -35,12 +35,12 @@ describe("HttpOrchestratorApi reads", () => {
     const cases: [() => Promise<unknown>, string, unknown][] = [
       [() => api.project(), "/api/project", registry],
       [() => api.phases(), "/api/phases", { phases: [{ id: "d", name: "D", order: 1 }] }],
-      [() => api.workflows(), "/api/workflows", [{ id: "w", name: "W", problems: [] }]],
+      [() => api.workflows(), "/api/workflows", [{ id: "w", name: "W", agents: [], skills: [], problems: [] }]],
       [() => api.workflow("ba-discovery"), "/api/workflows/ba-discovery", { workflow, problems: [] }],
       [() => api.runs("ba-discovery"), "/api/runs?workflowId=ba-discovery", []],
       [() => api.runs(), "/api/runs", []],
       [() => api.run("run-1"), "/api/runs/run-1", waitingRun()],
-      [() => api.file("discovery/a b.md"), "/api/files?path=discovery%2Fa%20b.md", { path: "discovery/a b.md", content: "x" }],
+      [() => api.file("discovery/a b.md"), "/api/files?path=discovery%2Fa%20b.md", { path: "discovery/a b.md", content: "x", version: "v1" }],
     ];
     for (const [call, url, body] of cases) {
       const calls = respondWith(200, body);
@@ -170,5 +170,25 @@ describe("HttpOrchestratorApi workflow files", () => {
 
     await expect(created).rejects.toBeInstanceOf(ApiError);
     await expect(created).rejects.toMatchObject({ status: 409, message: 'a workflow "ba-discovery" already exists' });
+  });
+});
+
+describe("HttpOrchestratorApi.saveFile", () => {
+  it("puts the content with the base version, and returns the new version", async () => {
+    const calls = respondWith(200, { version: "v2" });
+
+    expect(await new HttpOrchestratorApi().saveFile("kb/a b.md", "text", "v1")).toEqual({ version: "v2" });
+    expect(calls).toEqual([
+      { url: "/api/files?path=kb%2Fa%20b.md", method: "PUT", body: JSON.stringify({ content: "text", baseVersion: "v1" }), headers: { "content-type": "application/json" } },
+    ]);
+  });
+
+  it("leaves the base version out to overwrite, and turns a 409 into an ApiError", async () => {
+    const calls = respondWith(200, { version: "v3" });
+    await new HttpOrchestratorApi().saveFile("kb/a.md", "text");
+    expect(calls[0]?.body).toBe(JSON.stringify({ content: "text" }));
+
+    respondWith(409, { error: '"kb/a.md" changed on disk since it was opened', version: "v9" });
+    await expect(new HttpOrchestratorApi().saveFile("kb/a.md", "text", "v1")).rejects.toMatchObject({ status: 409 });
   });
 });

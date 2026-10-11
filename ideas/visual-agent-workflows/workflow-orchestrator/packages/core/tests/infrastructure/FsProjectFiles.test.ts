@@ -223,18 +223,21 @@ describe("FsProjectFiles opening files", () => {
     expect(await new FsProjectFiles(configFor(root)).canOpen("secrets.json")).toBe(false);
   });
 
-  it("reads text with its size, and null for a missing file", async () => {
+  it("reads text with its size and version, and null for a missing file", async () => {
     const file = await files.readText("discovery/brief.md");
     expect(file?.content.startsWith("# Brief")).toBe(true);
     expect(file?.size).toBeGreaterThan(0);
+    expect(file?.version).toMatch(/^[0-9a-f]{40}$/);
     expect(await files.readText("discovery/none.md")).toBeNull();
   });
 
   it("writes text, creating folders", async () => {
     const root = await copyOfSampleProject();
     temps.push(root);
-    await new FsProjectFiles(configFor(root)).writeText("wiki/decisions/0001.md", "# Decision");
+    const files = new FsProjectFiles(configFor(root));
+    const { version } = await files.writeText("wiki/decisions/0001.md", "# Decision");
     expect(await readFile(join(root, "wiki/decisions/0001.md"), "utf8")).toBe("# Decision");
+    expect((await files.readText("wiki/decisions/0001.md"))?.version).toBe(version);
   });
 });
 

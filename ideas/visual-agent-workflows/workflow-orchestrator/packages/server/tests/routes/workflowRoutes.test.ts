@@ -15,7 +15,14 @@ const getWorkflow = async () => ((await (await server.app.request("/api/workflow
 describe("/api/workflows", () => {
   it("lists workflows with their problems", async () => {
     expect(await (await server.app.request("/api/workflows")).json()).toEqual([
-      { id: "ba-discovery", name: "BA discovery", phase: "discovery", problems: [] },
+      {
+        id: "ba-discovery",
+        name: "BA discovery",
+        phase: "discovery",
+        agents: ["business-analyst", "architect"],
+        skills: ["requirements-elicitation", "architecture-review"],
+        problems: [],
+      },
     ]);
   });
 

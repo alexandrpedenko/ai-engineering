@@ -60,6 +60,14 @@ describe("RunPage at a gate", () => {
     expect(await screen.findByText("No files were changed before this gate.")).toBeTruthy();
   });
 
+  it("opens a gate's file in the editor", async () => {
+    render();
+
+    await userEvent.click(await screen.findByRole("button", { name: "edit discovery/requirements.md" }));
+
+    expect(screen.getByTestId("location").textContent).toBe(`/files?path=${encodeURIComponent("discovery/requirements.md")}`);
+  });
+
   it("says when a gate's file doesn't exist", async () => {
     const api = new FakeOrchestratorApi();
     api.runsById["run-1"] = waitingRun();

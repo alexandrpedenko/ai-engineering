@@ -1,6 +1,6 @@
 # workflow-orchestrator — MVP spec
 
-**Status:** draft, in review (2026-10-11). Slices 0–6 built; slice 6 in review. Body frozen: changes go in Amendments.
+**Status:** draft, in review (2026-10-11). Slices 0–7 built; slice 7 in review. Body frozen: changes go in Amendments.
 
 A folder you drop into a project that already has Cursor skills, agents and
 artefacts. It reads them, lets you draw a workflow from them on a canvas
@@ -290,7 +290,7 @@ adds. Every slice ships server and web tests for what it touches and ends with
 | 4 | server | Hono routes above, SQLite checkpointer, JSONL event log per run, SSE | a run started over HTTP survives a server restart and resumes at its gate; the event log replays | done: [specs/4-server.md](specs/4-server.md) |
 | 5 | app shell + run views | the shell: sidebar of phases (ADR-0009) → workflows, project view (skills, agents, artefacts), runs list, run view with live events, gate panel showing the files with approve / reject. The canvas is no longer the whole page. | a full BA run done from the browser only; two phases with their workflows listed in order | done: [specs/5-shell-and-runs.md](specs/5-shell-and-runs.md) |
 | 6 | workflow editor | React Flow canvas for one workflow, palette (agent step, gate), inspector with agent/skill/phase pickers, validation shown on nodes, save; new workflow inside a phase | the BA workflow can be drawn from scratch and runs the same as the hand-written JSON | built, in review: [specs/6-workflow-editor.md](specs/6-workflow-editor.md) |
-| 7 | file editor | Monaco for skills, agents, artefacts; save through `/api/files` | edit a skill in the browser, re-run, the change is in the next prompt | — |
+| 7 | file editor | Monaco for skills, agents, artefacts; save through `/api/files` | edit a skill in the browser, re-run, the change is in the next prompt | built, in review: [specs/7-file-editor.md](specs/7-file-editor.md) |
 | 8 | delivery | a delivery workflow on the fixture (implement → tests check → review), git-diff summary in the gate | a reviewed requirement turns into a code change in the fixture with the diff shown at the gate | — |
 
 After the MVP, roughly in order: parallel steps on git worktrees, router
@@ -481,3 +481,64 @@ that isn't a workflow.
 Why: the slice 6 security review: a page on another site could create a
 workflow and start a run; DNS rebinding could read and write project files;
 a committed symlink reached files outside the project.
+
+**2026-10-11, after slice 6 — roadmap: sharing workflows across a team.**
+Spec said (Slices, "After the MVP, roughly in order"): parallel steps,
+router step, sub-workflows, phase gates, cloud runtime, Claude Agent SDK
+runtime, cost per run, workflow templates shared across projects.
+Now: one more item, early in that list: **workflows shared through git.**
+Workflow files already live in the host project and are committed with it
+(ADR-0001, ADR-0002); each person runs their own local orchestrator
+(ADR-0015). Before teams rely on that:
+- merge-friendly workflow files: a stable key order on save, and `layout`
+  changes that don't make a whole-file diff (or layout kept separately);
+- portable steps: model ids that work whichever runtime a person chose
+  (`settings.json` is per machine), or a clear problem when they don't;
+- a check after `git pull` that names skills and agents a workflow uses but
+  this checkout lacks (the validator reports them today, per workflow);
+- deciding whether run history is ever shared (today it stays in each
+  person's `.data/`).
+Why: the goal is for one BA or designer to commit a workflow and another to
+pull, run and change it. Agreed after the slice 6 review.
+
+**2026-10-11, after slice 6 — roadmap: choosing a model from the runtime's list.**
+Spec said (Slices, "After the MVP"): nothing about models; ADR-0013: a step's
+or agent's `model` is passed to the runtime as written, and `validate`
+doesn't check model ids.
+Now: one more roadmap item, **a model picker per runtime**. The editor's
+Model field offers the models the chosen runtime (Cursor or Claude) actually
+has, as ids with readable names, instead of free text. The list comes from
+the runtime itself where its SDK can list models, otherwise from a list kept
+with that runtime's adapter. The server's check warns about a model id the
+current runtime doesn't know, before a run starts. This refines ADR-0013 and
+needs an ADR update when it is built. It sits next to the "portable steps"
+point of the team-sharing item: a model valid for one runtime isn't for the
+other.
+Why: typing a display name ("Opus 5.5") into the Model field was only caught
+when the step ran ("There's an issue with the selected model … It may not
+exist or you may not have access to it"), as a failed step.
+
+**2026-10-11, after slice 6 — roadmap moves to roadmap.md.**
+Spec said (Slices): "After the MVP, roughly in order: …" as a paragraph in
+this file, and the two roadmap amendments above added items to it.
+Now: the after-MVP roadmap lives in [roadmap.md](roadmap.md), a living
+document edited in place. It holds that paragraph's items, the two items
+from the amendments above, what is parked, what is already done (the Claude
+runtime, slice 5.6), and known small debts. New roadmap ideas go there, not
+into this section.
+Why: roadmap items recorded as amendments get buried as later slices add
+their own entries; the roadmap is a plan, not a contract, so it doesn't need
+freezing.
+
+**2026-10-11, slice 7 built — file versions; workflow list names what it uses.**
+Spec said (Server API, ports): `GET/PUT /api/files` read and write
+`{ content }` (PUT → 204); `GET /api/workflows` → `{ id, name, phase,
+problems }`; `ProjectFiles.readText → { content, size }`, `writeText → void`.
+Now: `GET /api/files` adds `version`; `PUT` takes `{ content, baseVersion? }`
+and answers 200 `{ version }`, or **409** `{ error, version }` when
+`baseVersion` is given and the file changed on disk since. `GET
+/api/workflows` adds `agents` and `skills` (the names its steps use).
+`readText` adds `version`, `writeText` returns `{ version }`. Built with
+[specs/7-file-editor.md](specs/7-file-editor.md).
+Why: saving in the browser must not silently overwrite what an agent or the
+IDE wrote meanwhile; the editor shows which workflows use a skill or agent.

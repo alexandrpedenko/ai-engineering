@@ -19,7 +19,9 @@ export interface ProjectFiles {
   // an existing project file whose real location is inside the project, and
   // not a file that commonly holds credentials (.env, keys, .npmrc, …).
   canOpen(path: string): Promise<boolean>;
-  // null when the file doesn't exist.
-  readText(path: string): Promise<{ content: string; size: number } | null>;
-  writeText(path: string, content: string): Promise<void>;
+  // null when the file doesn't exist. `version` names the content (it changes
+  // whenever the content does); content is "" for a file over 1 MB.
+  readText(path: string): Promise<{ content: string; size: number; version: string } | null>;
+  // Returns the written content's version.
+  writeText(path: string, content: string): Promise<{ version: string }>;
 }

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { InvalidInputError, NotFoundError } from "../../src/application/errors";
+import { FileChangedError, InvalidInputError, NotFoundError } from "../../src/application/errors";
 import { readProjectFile, writeProjectFile } from "../../src/application/projectFile";
-import { FakeProjectFiles } from "../support/FakeProjectFiles";
+import { FakeProjectFiles, fakeVersion } from "../support/FakeProjectFiles";
 
 function files() {
   const f = new FakeProjectFiles();
@@ -12,7 +12,7 @@ function files() {
 
 describe("readProjectFile", () => {
   it("reads an editable file", async () => {
-    expect(await readProjectFile(files(), "discovery/brief.md")).toEqual({ path: "discovery/brief.md", content: "# Brief" });
+    expect(await readProjectFile(files(), "discovery/brief.md")).toEqual({ path: "discovery/brief.md", content: "# Brief", version: fakeVersion("# Brief") });
   });
 
   it("refuses a file that isn't editable, and reports a missing one", async () => {
@@ -30,10 +30,27 @@ describe("readProjectFile", () => {
 });
 
 describe("writeProjectFile", () => {
-  it("writes an editable file", async () => {
+  it("writes an editable file and returns its new version", async () => {
     const f = files();
-    await writeProjectFile(f, "discovery/brief.md", "new");
+    expect(await writeProjectFile(f, "discovery/brief.md", "new")).toEqual({ version: fakeVersion("new") });
     expect(f.texts.get("discovery/brief.md")).toBe("new");
+  });
+
+  it("writes when the file is still the version it was read at", async () => {
+    const f = files();
+    await writeProjectFile(f, "discovery/brief.md", "new", fakeVersion("# Brief"));
+    expect(f.texts.get("discovery/brief.md")).toBe("new");
+  });
+
+  it("refuses when the file changed since it was read, and leaves it alone", async () => {
+    const f = files();
+    f.texts.set("discovery/brief.md", "changed by an agent");
+
+    const write = writeProjectFile(f, "discovery/brief.md", "mine", fakeVersion("# Brief"));
+
+    await expect(write).rejects.toBeInstanceOf(FileChangedError);
+    await expect(write).rejects.toMatchObject({ version: fakeVersion("changed by an agent") });
+    expect(f.texts.get("discovery/brief.md")).toBe("changed by an agent");
   });
 
   it("refuses other paths and content over 1 MB", async () => {

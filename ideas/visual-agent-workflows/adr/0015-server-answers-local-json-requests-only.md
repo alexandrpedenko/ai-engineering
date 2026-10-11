@@ -1,6 +1,6 @@
 # ADR-0015 — The server answers only local, JSON requests
 
-**Status:** Proposed (2026-10-11). Found in the slice 6 security review.
+**Status:** Accepted (2026-10-11). Found in the slice 6 security review.
 
 ## Context
 
@@ -38,6 +38,10 @@ One middleware in front of every `/api` route refuses:
   with a body, and use `localhost` or `127.0.0.1` in the URL.
 - Serving the API under another host name (a tunnel, a container name)
   would need that name added. Not an MVP case.
+- Sharing workflows between people is unaffected: workflow files live in the
+  host project and travel through git (ADR-0001, ADR-0002). Each person pulls
+  and runs their own orchestrator on their own machine; nobody connects to
+  another person's server.
 
 ## Alternatives considered
 

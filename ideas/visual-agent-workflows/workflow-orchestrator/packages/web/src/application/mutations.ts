@@ -81,3 +81,21 @@ export function useDeleteWorkflow(id: string) {
     },
   });
 }
+
+// Saves a project file, sending the version it was loaded at unless told to
+// overwrite. On success the file's cache holds the saved text and version,
+// and the project's registry goes stale (a skill or agent may have changed).
+export function useSaveFile(path: string) {
+  const api = useOrchestratorApi();
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ content, baseVersion }: { content: string; baseVersion?: string }) => ({
+      content,
+      ...(await api.saveFile(path, content, baseVersion)),
+    }),
+    onSuccess: async ({ content, version }) => {
+      client.setQueryData(queryKeys.file(path), { path, content, version });
+      await client.invalidateQueries({ queryKey: queryKeys.project });
+    },
+  });
+}

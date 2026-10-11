@@ -35,6 +35,18 @@ export class ConflictError extends Error {
   }
 }
 
+// A file changed on disk since the caller read it, so saving would overwrite
+// that change. `version` is the file's version now.
+export class FileChangedError extends ConflictError {
+  readonly version: string;
+
+  constructor(path: string, version: string) {
+    super(`"${path}" changed on disk since it was opened`);
+    this.name = "FileChangedError";
+    this.version = version;
+  }
+}
+
 // The thing asked for doesn't exist: a workflow file, a run.
 export class NotFoundError extends Error {
   constructor(message: string) {

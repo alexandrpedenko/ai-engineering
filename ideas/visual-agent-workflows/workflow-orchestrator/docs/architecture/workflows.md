@@ -19,7 +19,7 @@ code:
 depends_on: [project-registry]
 used_by: [prompts, engine, runs-and-events, http-api, web-app]
 adrs: [2, 9]
-specs: [2-schema-compile, 3-cursor-runtime, 4-server, 6-workflow-editor]
+specs: [2-schema-compile, 3-cursor-runtime, 4-server, 6-workflow-editor, 7-file-editor]
 updated: 2026-10-11
 ---
 
@@ -71,7 +71,8 @@ A workflow with errors **can be saved** but not run (ADR-0002).
 file is listed with its error), `save` (pretty JSON, 2 spaces, final newline),
 `create` (the same, but a `ConflictError` instead of replacing an existing
 file, readable or not: written with the `wx` flag, so two creates can't both
-win), `remove`, `phases`, `savePhases`. Use cases: `listWorkflows` and
+win), `remove`, `phases`, `savePhases`. Use cases: `listWorkflows` (each with
+its problems, and the agent and skill names its steps use) and
 `readWorkflow` (with problems), `saveWorkflow` (body must parse and its id
 must match the URL; overwrites), `createWorkflow` (body must parse; saved with
 `store.create`),

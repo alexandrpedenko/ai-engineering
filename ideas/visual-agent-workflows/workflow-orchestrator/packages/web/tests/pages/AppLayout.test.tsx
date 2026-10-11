@@ -32,8 +32,8 @@ describe("AppLayout", () => {
   it("marks a workflow with errors, and shows Unsorted for one without a known phase", async () => {
     const api = new FakeOrchestratorApi();
     api.workflowList = [
-      { id: "ba-discovery", name: "BA discovery", phase: "discovery", problems: [{ severity: "error", message: "x" }] },
-      { id: "loose", name: "Loose", problems: [{ severity: "warning", message: "no phase" }] },
+      { id: "ba-discovery", name: "BA discovery", phase: "discovery", agents: [], skills: [], problems: [{ severity: "error", message: "x" }] },
+      { id: "loose", name: "Loose", agents: [], skills: [], problems: [{ severity: "warning", message: "no phase" }] },
     ];
     render(api);
 

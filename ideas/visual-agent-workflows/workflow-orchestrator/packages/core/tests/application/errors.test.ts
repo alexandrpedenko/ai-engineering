@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { ConflictError, InvalidConfigError, InvalidInputError, MissingCredentialsError, NotFoundError } from "../../src/application/errors";
+import { ConflictError, FileChangedError, InvalidConfigError, InvalidInputError, MissingCredentialsError, NotFoundError } from "../../src/application/errors";
 
 describe("InvalidConfigError", () => {
   it("carries the config path and names every bad key in its message", () => {
@@ -38,6 +38,14 @@ describe("ConflictError", () => {
     const error = new ConflictError("run is finished");
     expect(error).toBeInstanceOf(Error);
     expect(error.name).toBe("ConflictError");
+  });
+});
+
+describe("FileChangedError", () => {
+  it("is a conflict that names the file and carries its current version", () => {
+    const error = new FileChangedError("kb/a.md", "abc");
+    expect(error).toBeInstanceOf(ConflictError);
+    expect(error).toMatchObject({ name: "FileChangedError", version: "abc", message: '"kb/a.md" changed on disk since it was opened' });
   });
 });
 

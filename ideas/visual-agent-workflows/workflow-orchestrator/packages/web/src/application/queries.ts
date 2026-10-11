@@ -35,6 +35,13 @@ export function useRun(runId: string) {
   return useQuery({ queryKey: queryKeys.run(runId), queryFn: async () => await api.run(runId), retry: false });
 }
 
+// One project file, for editing. Not refetched while the editor is open: a
+// newer version on disk is found when saving.
+export function useFile(path: string) {
+  const api = useOrchestratorApi();
+  return useQuery({ queryKey: queryKeys.file(path), queryFn: async () => await api.file(path), retry: false, staleTime: Infinity });
+}
+
 // Several project files at once (a gate's files). Not cached for long: the
 // agent may rewrite them on the next attempt.
 export function useFiles(paths: string[]) {

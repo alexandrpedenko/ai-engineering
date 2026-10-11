@@ -1,6 +1,6 @@
 import { waitFor } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
-import { useFiles, usePhases, useProject, useRun, useRuns, useWorkflow, useWorkflows } from "../../src/application/queries";
+import { useFile, useFiles, usePhases, useProject, useRun, useRuns, useWorkflow, useWorkflows } from "../../src/application/queries";
 import { ApiError } from "../../src/domain/apiError";
 import { FakeOrchestratorApi } from "../support/FakeOrchestratorApi";
 import { renderHookWithProviders } from "../support/renderWithProviders";
@@ -48,5 +48,13 @@ describe("read hooks", () => {
     await waitFor(() => expect(result.current.every((q) => !q.isPending)).toBe(true));
     expect(result.current[0]?.data?.content).toBe("A");
     expect((result.current[1]?.error as ApiError).status).toBe(404);
+  });
+
+  it("useFile loads one file with its version", async () => {
+    const api = new FakeOrchestratorApi();
+    api.files["kb/a.md"] = "A";
+    const { result } = renderHookWithProviders(() => useFile("kb/a.md"), api);
+
+    await waitFor(() => expect(result.current.data).toEqual({ path: "kb/a.md", content: "A", version: "v:A" }));
   });
 });

@@ -1,3 +1,5 @@
+import { Typography } from "@mui/material";
+import { lazy, Suspense } from "react";
 import { Navigate, Route, Routes, useParams } from "react-router";
 import { AppLayout } from "../pages/AppLayout";
 import { NotFoundPage } from "../pages/NotFoundPage";
@@ -6,6 +8,12 @@ import { RunPage } from "../pages/RunPage";
 import { RunsPage } from "../pages/RunsPage";
 import { WorkflowEditorPage } from "../pages/WorkflowEditorPage";
 import { WorkflowPage } from "../pages/WorkflowPage";
+
+// The file editor with Monaco, loaded only when first opened.
+const FileEditorPage = lazy(async () => {
+  await import("./monaco");
+  return { default: (await import("../pages/FileEditorPage")).FileEditorPage };
+});
 
 // The editor, started afresh for each workflow id.
 function WorkflowEditorRoute() {
@@ -21,6 +29,14 @@ export function AppRoutes() {
         <Route path="project" element={<ProjectPage />} />
         <Route path="workflows/:id" element={<WorkflowPage />} />
         <Route path="workflows/:id/edit" element={<WorkflowEditorRoute />} />
+        <Route
+          path="files"
+          element={
+            <Suspense fallback={<Typography>Loading the editor…</Typography>}>
+              <FileEditorPage />
+            </Suspense>
+          }
+        />
         <Route path="runs" element={<RunsPage />} />
         <Route path="runs/:runId" element={<RunPage />} />
         <Route path="*" element={<NotFoundPage />} />

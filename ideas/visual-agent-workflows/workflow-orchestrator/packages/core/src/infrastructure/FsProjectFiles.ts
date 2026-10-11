@@ -45,6 +45,8 @@ async function git(cwd: string, args: string[]): Promise<string> {
   return stdout;
 }
 
+const sha1 = (bytes: Buffer) => createHash("sha1").update(bytes).digest("hex");
+
 async function isFile(path: string): Promise<boolean> {
   try {
     return (await stat(path)).isFile();
@@ -117,21 +119,24 @@ export class FsProjectFiles implements ProjectFiles {
     return await this.staysInside(normal);
   }
 
-  async readText(path: string): Promise<{ content: string; size: number } | null> {
+  async readText(path: string): Promise<{ content: string; size: number; version: string } | null> {
     try {
       const info = await stat(join(this.root, path));
       if (!info.isFile()) return null;
-      if (info.size > 1024 * 1024) return { content: "", size: info.size };
-      return { content: await readFile(join(this.root, path), "utf8"), size: info.size };
+      if (info.size > 1024 * 1024) return { content: "", size: info.size, version: `${info.size}:${info.mtimeMs}` };
+      const bytes = await readFile(join(this.root, path));
+      return { content: bytes.toString("utf8"), size: info.size, version: sha1(bytes) };
     } catch (error) {
       if ((error as NodeJS.ErrnoException).code === "ENOENT") return null;
       throw error;
     }
   }
 
-  async writeText(path: string, content: string): Promise<void> {
+  async writeText(path: string, content: string): Promise<{ version: string }> {
+    const bytes = Buffer.from(content, "utf8");
     await mkdir(dirname(join(this.root, path)), { recursive: true });
-    await writeFile(join(this.root, path), content);
+    await writeFile(join(this.root, path), bytes);
+    return { version: sha1(bytes) };
   }
 
   // Whether the file's real location (after following any symlinks on the
@@ -187,7 +192,7 @@ export class FsProjectFiles implements ProjectFiles {
   private async hash(path: string): Promise<string> {
     const info = await stat(join(this.root, path));
     if (info.size > HASH_LIMIT_BYTES) return `${info.size}:${info.mtimeMs}`;
-    return createHash("sha1").update(await readFile(join(this.root, path))).digest("hex");
+    return sha1(await readFile(join(this.root, path)));
   }
 
   private async markdownFilesIn(dir: string): Promise<string[]> {
