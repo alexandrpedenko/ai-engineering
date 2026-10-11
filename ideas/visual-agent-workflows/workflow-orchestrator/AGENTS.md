@@ -51,6 +51,8 @@ What goes where, by question:
   `@orch/core` with `import type` only.
 - No non-null assertions (`!`) except on the DOM root in `bootstrap/`.
 - Imports without file extensions (`moduleResolution: "bundler"`).
+- MUI 9 has no system props: layout and typography values (`alignItems`,
+  `justifyContent`, `fontWeight`, …) go in `sx`, not on the component.
 
 ## Async code
 

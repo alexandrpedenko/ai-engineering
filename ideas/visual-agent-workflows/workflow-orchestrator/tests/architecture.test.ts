@@ -42,7 +42,7 @@ const rules: Record<Layer, { layers: Layer[]; packages: string[] }> = {
   "web/components": { layers: ["web/domain", "web/components"], packages: [...uiLibs, coreTypes] },
   "web/pages": {
     layers: ["web/domain", "web/application", "web/components", "web/pages"],
-    packages: [...uiLibs, coreTypes],
+    packages: [...uiLibs, "react-router", coreTypes],
   },
   "web/bootstrap": {
     layers: ["web/domain", "web/application", "web/api", "web/components", "web/pages", "web/bootstrap"],

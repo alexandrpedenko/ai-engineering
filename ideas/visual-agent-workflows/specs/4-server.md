@@ -1,6 +1,6 @@
 # Slice 4 — the server
 
-**Status:** built (2026-10-11), in review.
+**Status:** done (2026-10-11).
 
 **Capability.** Everything the terminal command can do, over HTTP, so the
 web app (slice 5) can do it: see the project, read and save workflows and

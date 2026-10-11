@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildPrompt, resolveModel } from "../../src/domain/buildPrompt";
+import { buildPrompt, PROMPT_SECTIONS, promptSection, resolveModel } from "../../src/domain/buildPrompt";
 import type { AgentStep } from "../../src/domain/workflow";
 import { baWorkflow, registry } from "../support/workflows";
 
@@ -69,5 +69,25 @@ describe("resolveModel", () => {
   it("treats inherit and no model as the default", () => {
     expect(resolveModel(elicit, architect, fallback)).toEqual(fallback);
     expect(resolveModel(elicit, ba, fallback)).toEqual(fallback);
+  });
+});
+
+describe("promptSection", () => {
+  const message = buildPrompt({
+    step: elicit,
+    agent: ba,
+    skills: [],
+    inputs: {},
+    feedback: ["add checks"],
+    doNotTouch: [],
+  });
+
+  it("returns a section's lines without its heading", () => {
+    expect(promptSection(message, PROMPT_SECTIONS.write)).toEqual(["- discovery/requirements.md"]);
+    expect(promptSection(message, PROMPT_SECTIONS.feedback)).toEqual(["1. add checks"]);
+  });
+
+  it("returns nothing for a section the message doesn't have", () => {
+    expect(promptSection(message, PROMPT_SECTIONS.skills)).toEqual([]);
   });
 });

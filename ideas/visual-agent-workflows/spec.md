@@ -1,6 +1,6 @@
 # workflow-orchestrator — MVP spec
 
-**Status:** draft, in review (2026-10-11). Slices 0–4 built; slice 4 in review. Body frozen: changes go in Amendments.
+**Status:** draft, in review (2026-10-11). Slices 0–5 built; slice 5 in review. Body frozen: changes go in Amendments.
 
 A folder you drop into a project that already has Cursor skills, agents and
 artefacts. It reads them, lets you draw a workflow from them on a canvas
@@ -287,8 +287,8 @@ adds. Every slice ships server and web tests for what it touches and ends with
 | 1 | registry | config loading, `ProjectFiles` port + `FsProjectFiles`, `scanProject` use case, `fixtures/sample-project`, `npm run scan` CLI (in `server`) | scan of the fixture lists 2 skills, 2 agents, its artefacts; a broken frontmatter is a warning; tests pass | done: [specs/1-registry.md](specs/1-registry.md) |
 | 2 | schema + compile on a fake | domain `Workflow`/`Phase` schemas, `validate`, `buildPrompt`; `RunEngine` port + `LangGraphRunEngine`; `FakeAgentRuntime`; `MemorySaver` | a test runs agent → gate → agent: approve goes on; reject re-runs with feedback; `maxRevisions` stops the loop; no API key | done: [specs/2-schema-compile.md](specs/2-schema-compile.md) |
 | 3 | Cursor runtime | `CursorRuntime`, `outputs` (ADR-0007), run refs (ADR-0006), `npm run wf -- run <id>` CLI with a terminal gate prompt | the BA workflow runs on the fixture for real and writes `discovery/requirements.md`; killing the CLI mid-step and re-running reattaches instead of starting a second Cursor run | built, in review (real Cursor run pending): [specs/3-cursor-runtime.md](specs/3-cursor-runtime.md) |
-| 4 | server | Hono routes above, SQLite checkpointer, JSONL event log per run, SSE | a run started over HTTP survives a server restart and resumes at its gate; the event log replays | built, in review: [specs/4-server.md](specs/4-server.md) |
-| 5 | app shell + run views | the shell: sidebar of phases (ADR-0009) → workflows, project view (skills, agents, artefacts), runs list, run view with live events, gate panel showing the files with approve / reject. The canvas is no longer the whole page. | a full BA run done from the browser only; two phases with their workflows listed in order | — |
+| 4 | server | Hono routes above, SQLite checkpointer, JSONL event log per run, SSE | a run started over HTTP survives a server restart and resumes at its gate; the event log replays | done: [specs/4-server.md](specs/4-server.md) |
+| 5 | app shell + run views | the shell: sidebar of phases (ADR-0009) → workflows, project view (skills, agents, artefacts), runs list, run view with live events, gate panel showing the files with approve / reject. The canvas is no longer the whole page. | a full BA run done from the browser only; two phases with their workflows listed in order | built, in review: [specs/5-shell-and-runs.md](specs/5-shell-and-runs.md) |
 | 6 | workflow editor | React Flow canvas for one workflow, palette (agent step, gate), inspector with agent/skill/phase pickers, validation shown on nodes, save; new workflow inside a phase | the BA workflow can be drawn from scratch and runs the same as the hand-written JSON | — |
 | 7 | file editor | Monaco for skills, agents, artefacts; save through `/api/files` | edit a skill in the browser, re-run, the change is in the next prompt | — |
 | 8 | delivery | a delivery workflow on the fixture (implement → tests check → review), git-diff summary in the gate | a reviewed requirement turns into a code change in the fixture with the diff shown at the gate | — |
@@ -387,4 +387,11 @@ first; `ProjectFiles` adds `isEditable`, `readText`, `writeText`, and
 `/api/files` only touches skill, agent and artefact files, up to 1 MB.
 Why: the runs list needs a start time; "anywhere under the root" would let
 the UI edit source code and secrets.
+
+**2026-10-11, slice 5 — `react-router` joins the web app.**
+Spec said: written against the packages listed at the top; routing wasn't
+mentioned.
+Now: `react-router` 8.4.0 (declarative mode), allowed in `web/src/pages` and
+`web/src/bootstrap` only.
+Why: the run view needs real addresses (reload, back button, links to a run).
 

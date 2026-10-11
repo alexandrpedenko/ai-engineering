@@ -83,6 +83,19 @@ describe("FakeAgentRuntime", () => {
     expect(await waiting).toEqual({ status: "cancelled", summary: "", durationMs: 0 });
   });
 
+  it("writes a placeholder to each plain path the message says to write", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "orch-fake-"));
+    const runtime = new FakeAgentRuntime([{ placeholders: true }]);
+    const message = "# Task\nDo it.\n\n# You must write\n- discovery/req.md\n- wiki/**\n\n# Reviewer feedback on your previous attempt\n1. add checks\n";
+
+    await runtime.start({ ...request("run-1:elicit:2"), cwd: dir, message });
+
+    const text = await readFile(join(dir, "discovery/req.md"), "utf8");
+    expect(text).toContain("Placeholder written by the fake agent (run-1:elicit:2)");
+    expect(text).toContain("1. add checks");
+    await rm(dir, { recursive: true, force: true });
+  });
+
   it("writes the reply's files under cwd", async () => {
     const dir = await mkdtemp(join(tmpdir(), "orch-fake-"));
     const runtime = new FakeAgentRuntime([{ writes: { "discovery/out.md": "hello" } }]);

@@ -1,9 +1,10 @@
 import { CssBaseline, ThemeProvider } from "@mui/material";
 import { QueryClientProvider } from "@tanstack/react-query";
+import { BrowserRouter } from "react-router";
 import { HttpOrchestratorApi } from "../api/HttpOrchestratorApi";
 import { OrchestratorApiContext } from "../application/orchestratorApiContext";
-import { HomePage } from "../pages/HomePage";
 import { createQueryClient } from "./queryClient";
+import { AppRoutes } from "./routes";
 import { theme } from "./theme";
 
 const api = new HttpOrchestratorApi();
@@ -15,7 +16,9 @@ export function App() {
       <CssBaseline />
       <QueryClientProvider client={queryClient}>
         <OrchestratorApiContext value={api}>
-          <HomePage />
+          <BrowserRouter>
+            <AppRoutes />
+          </BrowserRouter>
         </OrchestratorApiContext>
       </QueryClientProvider>
     </ThemeProvider>

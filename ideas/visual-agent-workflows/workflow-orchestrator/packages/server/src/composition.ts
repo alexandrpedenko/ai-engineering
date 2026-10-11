@@ -95,7 +95,7 @@ async function wire(options: WiringOptions, callbacks: Callbacks) {
   });
   await mkdir(config.dataDir, { recursive: true });
 
-  const fakeRuntime = new FakeAgentRuntime([{ summary: "fake agent: nothing was changed" }]);
+  const fakeRuntime = new FakeAgentRuntime([{ summary: "fake agent: wrote placeholder files", placeholders: true }]);
   const runtime = (): AgentRuntime => {
     if (options.fake) return fakeRuntime;
     const apiKey = process.env.CURSOR_API_KEY;

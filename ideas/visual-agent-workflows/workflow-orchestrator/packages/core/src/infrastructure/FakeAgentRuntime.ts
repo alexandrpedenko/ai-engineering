@@ -1,6 +1,7 @@
 import { mkdir, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import type { AgentRunRequest, AgentRunResult, AgentRuntime, RunHandle } from "../application/AgentRuntime";
+import { PROMPT_SECTIONS, promptSection } from "../domain/buildPrompt";
 import type { StepEvent, Usage } from "../domain/runState";
 
 export type FakeReply = {
@@ -11,7 +12,24 @@ export type FakeReply = {
   writes?: Record<string, string>; // files written under cwd when the run starts
   dies?: boolean; // wait() throws the first time, like a process that stopped mid-run
   holds?: boolean; // wait() doesn't answer until the run is cancelled
+  placeholders?: boolean; // writes a short placeholder to each file the message says to write
 };
+
+// A placeholder for each plain path (not a glob) in the message's "You must
+// write" section, mentioning the attempt and any reviewer feedback.
+function placeholderWrites(request: AgentRunRequest): Record<string, string> {
+  const paths = promptSection(request.message, PROMPT_SECTIONS.write)
+    .map((line) => line.replace(/^- /, "").trim())
+    .filter((path) => path && !/[*?[\]{}]/.test(path));
+  const feedback = promptSection(request.message, PROMPT_SECTIONS.feedback);
+  const writes: Record<string, string> = {};
+  for (const path of paths) {
+    const lines = [`# ${path}`, "", `Placeholder written by the fake agent (${request.key}). A real agent would write this file.`];
+    if (feedback.length > 0) lines.push("", "## Reviewer feedback it was given", ...feedback);
+    writes[path] = `${lines.join("\n")}\n`;
+  }
+  return writes;
+}
 
 // An AgentRuntime that runs nothing: each start replays the next scripted
 // reply (the last one repeats), or asks a function for one. Every request is
@@ -30,7 +48,8 @@ export class FakeAgentRuntime implements AgentRuntime {
         ? this.replies(request, index)
         : (this.replies[Math.min(index, this.replies.length - 1)] ?? {});
 
-    for (const [path, content] of Object.entries(reply.writes ?? {})) {
+    const writes = { ...(reply.placeholders ? placeholderWrites(request) : {}), ...reply.writes };
+    for (const [path, content] of Object.entries(writes)) {
       await mkdir(dirname(join(request.cwd, path)), { recursive: true });
       await writeFile(join(request.cwd, path), content);
     }
