@@ -74,7 +74,10 @@ editor opens.
 
 ## The run view
 
-`stepTimeline(details, events)` → one row per step: `pending`, `running`
+`stepTimeline(details, events)` → one row per step, in the order the run
+takes them (`stepsInRunOrder`: from the start step along the edges, as the
+engine runs them; the order of `steps` in the file doesn't count), each
+`pending`, `running`
 (started, not finished, run moving), `done` / `failed` (latest record),
 `waiting` (the gate the run waits at), `approved` / `rejected` (a gate's last
 decision). Newer `step-finished` / `run-settled` events win over the cached
@@ -94,8 +97,10 @@ step, and `edit(change)`: every change is a pure function from
 `workflowEdits` (`addStep`, `removeStep`, `renameStep`, `connect`,
 `disconnect`, `moveStep`, `updateAgentStep`, `updateGate`, `updateWorkflow`,
 `addInput` / `updateInput` / `removeInput`), applied to the latest draft.
-Questions (`findStep`, `nextStep`, `agentStepsBefore`, `positionOf`, the id
-rules) are in `workflowGraph`. `toCanvas(workflow, problems, selectedId)`
+Questions (`findStep`, `nextStep`, `stepsInRunOrder`, `agentStepsBefore`,
+`positionOf`, the id rules) are in `workflowGraph`. The workflow page's step
+list, the run timeline and the editor's next-step picker all list steps with
+`stepsInRunOrder`. `toCanvas(workflow, problems, selectedId)`
 turns the draft into plain nodes and edges (next-step edges, and a dashed
 reject edge per gate); a step with no saved position is drawn in a row by its
 place in the file, and new steps go right of every drawn node.

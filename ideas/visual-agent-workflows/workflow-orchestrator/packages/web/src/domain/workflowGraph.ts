@@ -23,6 +23,22 @@ export function positionOf(workflow: Workflow, stepId: string): { x: number; y: 
   return { x: Math.max(index, 0) * NODE_SPACING, y: 0 };
 }
 
+// The steps in the order a run takes them: from the start step (the first
+// one no edge leads to) along the edges, the way the engine runs them. Steps
+// that path doesn't reach (an unfinished draft) follow, in file order. The
+// order of `steps` in the file doesn't matter to a run.
+export function stepsInRunOrder(workflow: Workflow): Step[] {
+  const leadTo = new Set(workflow.edges.map((edge) => edge.to));
+  const ordered: Step[] = [];
+  let current = workflow.steps.find((step) => !leadTo.has(step.id));
+  while (current && !ordered.includes(current)) {
+    ordered.push(current);
+    const next = nextStep(workflow, current.id);
+    current = next === null ? undefined : findStep(workflow, next);
+  }
+  return [...ordered, ...workflow.steps.filter((step) => !ordered.includes(step))];
+}
+
 // The step an edge leads to from `id`, or null when there is none.
 export function nextStep(workflow: Workflow, id: string): string | null {
   return workflow.edges.find((edge) => edge.from === id)?.to ?? null;

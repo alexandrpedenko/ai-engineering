@@ -291,7 +291,7 @@ adds. Every slice ships server and web tests for what it touches and ends with
 | 5 | app shell + run views | the shell: sidebar of phases (ADR-0009) → workflows, project view (skills, agents, artefacts), runs list, run view with live events, gate panel showing the files with approve / reject. The canvas is no longer the whole page. | a full BA run done from the browser only; two phases with their workflows listed in order | done: [specs/5-shell-and-runs.md](specs/5-shell-and-runs.md) |
 | 6 | workflow editor | React Flow canvas for one workflow, palette (agent step, gate), inspector with agent/skill/phase pickers, validation shown on nodes, save; new workflow inside a phase | the BA workflow can be drawn from scratch and runs the same as the hand-written JSON | built, in review: [specs/6-workflow-editor.md](specs/6-workflow-editor.md) |
 | 7 | file editor | Monaco for skills, agents, artefacts; save through `/api/files` | edit a skill in the browser, re-run, the change is in the next prompt | built, in review: [specs/7-file-editor.md](specs/7-file-editor.md) |
-| 8 | delivery | a delivery workflow on the fixture (implement → tests check → review), git-diff summary in the gate | a reviewed requirement turns into a code change in the fixture with the diff shown at the gate | — |
+| 8 | delivery | a delivery workflow on the fixture (implement → tests check → review), git-diff summary in the gate | a reviewed requirement turns into a code change in the fixture with the diff shown at the gate | spec drafted: [specs/8-changes-at-the-gate.md](specs/8-changes-at-the-gate.md) |
 
 After the MVP, roughly in order: parallel steps on git worktrees, router
 step, sub-workflows, phase gates (delivery waits for discovery), cloud
@@ -542,3 +542,18 @@ and answers 200 `{ version }`, or **409** `{ error, version }` when
 [specs/7-file-editor.md](specs/7-file-editor.md).
 Why: saving in the browser must not silently overwrite what an agent or the
 IDE wrote meanwhile; the editor shows which workflows use a skill or agent.
+
+**2026-10-11, slice 8 — changes at the gate (planned).**
+Spec said (Slices, row 8): "delivery: a delivery workflow on the fixture
+(implement → tests check → review), git-diff summary in the gate"; Goal 5: a
+delivery workflow checked by the files it changed.
+Now: slice 8 is [specs/8-changes-at-the-gate.md](specs/8-changes-at-the-gate.md):
+**every** gate shows a diff for each file the steps before it changed
+(artefacts and code alike), taken against a git tree recorded before the
+step ([ADR-0016](adr/0016-gate-diffs-from-a-git-tree.md), proposed). The
+delivery workflow stays as one check, as implement → review: agents can't
+run commands (Bash is refused), so the "tests check" step becomes a roadmap
+item (a command step). Status: spec drafted.
+Why: discovery steps revise existing artefacts and user stories update wiki
+pages; a reviewer needs to see what changed there as much as in code.
+

@@ -30,7 +30,7 @@ import {
   updateInput,
   updateWorkflow,
 } from "../domain/workflowEdits";
-import { agentStepsBefore, findStep, nextStep } from "../domain/workflowGraph";
+import { agentStepsBefore, findStep, nextStep, stepsInRunOrder } from "../domain/workflowGraph";
 
 const NO_PROBLEMS: Problem[] = [];
 
@@ -94,7 +94,7 @@ export function WorkflowEditorPage() {
     agents: project.data?.agents ?? [],
     skills: project.data?.skills ?? [],
     artefactPaths: (project.data?.artefacts ?? []).map((artefact) => artefact.path),
-    otherStepIds: workflow.steps.map((step) => step.id).filter((stepId) => stepId !== selected?.id),
+    otherStepIds: stepsInRunOrder(workflow).map((step) => step.id).filter((stepId) => stepId !== selected?.id),
     rejectTargets: selected ? agentStepsBefore(workflow, selected.id).map((step) => step.id) : [],
   };
   const add = (type: "agent" | "gate") => {

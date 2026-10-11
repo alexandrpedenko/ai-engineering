@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { agentStepsBefore, findStep, nextStep, positionOf, stepIdProblem, workflowIdProblem } from "../../src/domain/workflowGraph";
-import { workflow } from "../support/sampleData";
+import { agentStepsBefore, findStep, nextStep, positionOf, stepIdProblem, stepsInRunOrder, workflowIdProblem } from "../../src/domain/workflowGraph";
+import { shuffledWorkflow, workflow } from "../support/sampleData";
 
 describe("workflowGraph", () => {
   it("finds a step and the step after it", () => {
@@ -45,5 +45,18 @@ describe("workflowGraph", () => {
     const placed = { ...workflow, layout: { review: { x: 5, y: 6 } } };
     expect(positionOf(placed, "review")).toEqual({ x: 5, y: 6 });
     expect(positionOf(placed, "design")).toEqual({ x: 560, y: 0 });
+  });
+
+  it("lists steps in the order a run takes them, not the order of the file", () => {
+    expect(stepsInRunOrder(shuffledWorkflow).map((s) => s.id)).toEqual(["elicit", "design", "architect", "review"]);
+    expect(stepsInRunOrder(workflow).map((s) => s.id)).toEqual(["elicit", "review", "design"]);
+  });
+
+  it("puts steps the path doesn't reach after it, in file order, and stops on a loop", () => {
+    const loose = { ...shuffledWorkflow, edges: [{ from: "elicit", to: "design" }] };
+    expect(stepsInRunOrder(loose).map((s) => s.id)).toEqual(["elicit", "design", "architect", "review"]);
+
+    const loop = { ...workflow, edges: [...workflow.edges, { from: "design", to: "review" }] };
+    expect(stepsInRunOrder(loop).map((s) => s.id)).toEqual(["elicit", "review", "design"]);
   });
 });

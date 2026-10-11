@@ -1,10 +1,15 @@
 import { describe, expect, it } from "vitest";
 import { runHeadline, stepTimeline } from "../../src/domain/runView";
-import { logged, record, runDetails, runState, waitingRun } from "../support/sampleData";
+import { logged, record, runDetails, runState, shuffledWorkflow, waitingRun } from "../support/sampleData";
 
 const states = (rows: ReturnType<typeof stepTimeline>) => rows.map((r) => `${r.step.id}:${r.state}`);
 
 describe("stepTimeline", () => {
+  it("lists the steps in the order the run takes them", () => {
+    const rows = stepTimeline(runDetails(null, { workflow: shuffledWorkflow }), []);
+    expect(rows.map((r) => r.step.id)).toEqual(["elicit", "design", "architect", "review"]);
+  });
+
   it("shows every step pending before anything happened", () => {
     expect(states(stepTimeline(runDetails(null, { busy: true }), []))).toEqual(["elicit:pending", "review:pending", "design:pending"]);
   });

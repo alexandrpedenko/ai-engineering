@@ -57,14 +57,19 @@ paragraph in spec.md's Slices section (see spec.md, Amendments,
    conflicts are shown there or handed to an agent to resolve. A worktree per
    step would also allow a step that sees only its listed skills (ADR-0005,
    Alternatives).
-5. **Router step.** A step that picks the next step from a condition.
-6. **Sub-workflows.** A step that runs another workflow.
-7. **Cloud runtime with pull requests.**
-8. **Cost per run.** Tokens and money per step and per run.
-9. **Workflow templates shared across projects.** Likely needs named
+5. **Command step.** A step the orchestrator runs itself: a fixed command
+   from the workflow (e.g. `npm test`), its output and exit code recorded,
+   failing the step on a non-zero exit. Lets a delivery workflow check its
+   own work without giving agents a shell (the Claude runtime refuses Bash).
+   Origin: slice 8 dropped the "tests check" step for this reason.
+6. **Router step.** A step that picks the next step from a condition.
+7. **Sub-workflows.** A step that runs another workflow.
+8. **Cloud runtime with pull requests.**
+9. **Cost per run.** Tokens and money per step and per run.
+10. **Workflow templates shared across projects.** Likely needs named
    locations in workflows (`{{paths.kb}}/glossary.md`) mapped once per
    project (ADR-0014, Alternatives).
-10. **Phase gates.** Delivery waits until discovery is approved.
+11. **Phase gates.** Delivery waits until discovery is approved.
 
 ## Parked
 

@@ -1,4 +1,5 @@
 import type { GateDecision, LoggedEvent, RunOutcome, RunState, Step, StepRecord, Workflow } from "@orch/core";
+import { stepsInRunOrder } from "./workflowGraph";
 
 // A run as the server describes it (GET /api/runs/:runId).
 export type RunDetails = {
@@ -50,7 +51,7 @@ function current(details: RunDetails, events: LoggedEvent[]) {
   return { outcome, crashed, moving };
 }
 
-// One row per step in workflow order, from the run's state and its events.
+// One row per step in the order the run takes them, from the run's state and its events.
 export function stepTimeline(details: RunDetails, events: LoggedEvent[]): StepView[] {
   const { outcome, moving } = current(details, events);
   const state: Partial<RunState> = outcome?.state ?? {};
@@ -65,7 +66,7 @@ export function stepTimeline(details: RunDetails, events: LoggedEvent[]): StepVi
   }
   if (!moving) running.clear();
 
-  return details.workflow.steps.map((step) => {
+  return stepsInRunOrder(details.workflow).map((step) => {
     const record = records.get(step.id);
     const decisions = state.decisions?.[step.id] ?? [];
     const finished = record?.cursorRunIds.length ?? 0;

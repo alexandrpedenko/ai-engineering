@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest";
 import { WorkflowPage } from "../../src/pages/WorkflowPage";
 import { FakeOrchestratorApi } from "../support/FakeOrchestratorApi";
 import { renderPage } from "../support/renderWithProviders";
-import { workflow } from "../support/sampleData";
+import { shuffledWorkflow, workflow } from "../support/sampleData";
 
 const render = (api = new FakeOrchestratorApi(), id = "ba-discovery") =>
   renderPage(<WorkflowPage />, { path: "/workflows/:id", at: `/workflows/${id}`, api });
@@ -16,6 +16,17 @@ describe("WorkflowPage", () => {
     expect(screen.getByText("phase: Discovery")).toBeTruthy();
     expect(screen.getByText("1. Write requirements")).toBeTruthy();
     expect(screen.getByText("3. Sketch the design")).toBeTruthy();
+  });
+
+  it("numbers the steps in the order a run takes them", async () => {
+    const api = new FakeOrchestratorApi();
+    api.workflowsById.shuffled = { workflow: shuffledWorkflow, problems: [] };
+    render(api, "shuffled");
+
+    expect(await screen.findByText("1. Create PRD")).toBeTruthy();
+    expect(screen.getByText("2. Design")).toBeTruthy();
+    expect(screen.getByText("3. Architect")).toBeTruthy();
+    expect(screen.getByText("4. Review")).toBeTruthy();
   });
 
   it("goes to the editor", async () => {

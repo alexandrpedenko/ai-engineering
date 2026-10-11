@@ -66,3 +66,23 @@ export const waitingRun = () =>
 
 // Numbered events, starting at `from`.
 export const logged = (events: LogEvent[], from = 1): LoggedEvent[] => events.map((event, i) => ({ seq: from + i, at: "", event }));
+
+// A workflow whose file lists its steps in another order than they run: the
+// steps were added in the editor as elicit, architect, review, design, then
+// connected elicit → design → architect → review.
+export const shuffledWorkflow: Workflow = Workflow.parse({
+  schema: 1,
+  id: "shuffled",
+  name: "Shuffled",
+  steps: [
+    { id: "elicit", type: "agent", label: "Create PRD", agent: "business-analyst", instructions: "x" },
+    { id: "architect", type: "agent", label: "Architect", agent: "architect", instructions: "y" },
+    { id: "review", type: "gate", label: "Review", onReject: "architect" },
+    { id: "design", type: "agent", label: "Design", agent: "architect", instructions: "z" },
+  ],
+  edges: [
+    { from: "elicit", to: "design" },
+    { from: "design", to: "architect" },
+    { from: "architect", to: "review" },
+  ],
+});

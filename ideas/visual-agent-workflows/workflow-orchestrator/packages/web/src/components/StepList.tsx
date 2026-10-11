@@ -1,11 +1,12 @@
 import { Chip, List, ListItem, ListItemText, Stack } from "@mui/material";
 import type { Workflow } from "@orch/core";
+import { stepsInRunOrder } from "../domain/workflowGraph";
 
-// A workflow's steps in order, read-only.
+// A workflow's steps in the order a run takes them, read-only.
 export function StepList({ workflow }: { workflow: Workflow }) {
   return (
     <List aria-label="steps">
-      {workflow.steps.map((step, i) => (
+      {stepsInRunOrder(workflow).map((step, i) => (
         <ListItem key={step.id} divider>
           <ListItemText
             primary={`${i + 1}. ${step.label}`}

@@ -254,3 +254,16 @@ Now:
 - `EditorToolbar` component; `useDraftIds` hook for the sidebar.
 Why: correctness, security, architecture and style review of the staged
 slice; each item is a finding that was confirmed in the code.
+
+**2026-10-11, after slice 7 — steps listed in run order, not file order.**
+Spec said: nothing about the order steps are listed in; the editor appends
+each new step to the end of `steps`.
+Now: the workflow page's step list, the run timeline and the editor's
+next-step picker list steps with `stepsInRunOrder` (from the start step along
+the edges; unreached steps after, in file order). The file's `steps` order is
+unchanged and still doesn't affect a run.
+Why: a workflow drawn as BA → Design → Architect → Gate, with Design added
+last, was listed (and numbered) BA, Architect, Gate, Design, so the run view
+seemed to jump from BA to the last step. The engine always ran it in edge
+order; only the lists were wrong.
+
