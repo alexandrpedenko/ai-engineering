@@ -1,6 +1,6 @@
 # Book 1 — state, nodes, edges
 
-**Status:** in progress — slice 1 of 5 built
+**Status:** done
 **Decides:** ADR-0001 (installable packages), ADR-0002 (rules are plain code),
 ADR-0005 (ISO dates only), ADR-0006 (tests never call a model)
 **Written against:** `langgraph` 1.2.11, `langchain-core` 1.6.4, `rich` 15.0.0,
@@ -216,3 +216,31 @@ museums) and `NO_DATES` (the same without start and end).
 Models (book 2). `hotelbot` imports beyond the packaging check (book 3).
 Checkpointers and threads (book 5) — each CLI line is a separate run. Streaming
 (book 7). `Command` (book 4). Graph context / `context_schema` (book 2).
+
+## Amendments
+
+### A1 — 2026-10-10 · slice 1 · the lock file was re-resolved
+
+**Said.** Written against `langchain-core` 1.6.4, as installed 2026-10-04.
+**Now.** Adding slice 1's Pipfile entries made Pipenv re-resolve the whole
+lock. `langgraph` 1.2.11, `rich` and `prompt_toolkit` are unchanged;
+`langchain-core` is 1.6.6 and `langsmith` 0.14.4 (was 0.14.0). Packages
+nothing here imports also moved: the opentelemetry packages 1.44 → 1.45,
+`huggingface-hub` 1.32 → 1.33, `uvicorn` 0.53 → 0.54, `uvloop` 0.22 → 0.23,
+and `oauthlib` 3.3.1 → 4.0.0 (a major version, pulled in by `chromadb`
+through `kubernetes` and `requests-oauthlib`).
+**Why.** Pipenv re-locks every package when one is added. Project 1's
+notebooks were re-run against the new lock on 2026-10-10 without problems.
+
+### A2 — 2026-10-11 · slice 5 · the renderer gets `notice`; commands get a `Shell`
+
+**Said.** `Renderer` has `welcome`, `reply` and `error`; a command is called
+as `commands[name](shell, args)`, with `shell` not defined further.
+**Now.** `Renderer` also has `notice(text: str) -> None`, for text that isn't
+a planner reply: `/help`'s list, `/example`'s JSON, "there's no /name".
+`shell` is a `Shell` dataclass in `app/shell.py` holding `graph`, `renderer`,
+`commands`, `make_ctx`, `thread_id` and `running`, with `stop()`; `/quit`
+calls `stop()`. `run_shell`'s signature is unchanged.
+**Why.** `/help` and `/example` have to print something, and printing
+directly would bypass the renderer. Later books add commands and renderer
+methods to these; nothing that was there changes.
