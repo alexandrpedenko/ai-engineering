@@ -1,6 +1,6 @@
 # workflow-orchestrator — MVP spec
 
-**Status:** draft, in review (2026-10-11). Slices 0–2 built; slice 2 in review. Body frozen: changes go in Amendments.
+**Status:** draft, in review (2026-10-11). Slices 0–3 built; slice 3 in review. Body frozen: changes go in Amendments.
 
 A folder you drop into a project that already has Cursor skills, agents and
 artefacts. It reads them, lets you draw a workflow from them on a canvas
@@ -285,8 +285,8 @@ adds. Every slice ships server and web tests for what it touches and ends with
 | --- | --- | --- | --- | --- |
 | 0 | workspace | npm workspaces, deps, tsconfig, smoke script, `/api/health`, empty canvas page; coding rules (`AGENTS.md`), layered folders, architecture + guard tests, TanStack Query, vitest node + jsdom projects with first route/hook/page tests | `npm run smoke`, `npm run check`, `npm run dev` work | done |
 | 1 | registry | config loading, `ProjectFiles` port + `FsProjectFiles`, `scanProject` use case, `fixtures/sample-project`, `npm run scan` CLI (in `server`) | scan of the fixture lists 2 skills, 2 agents, its artefacts; a broken frontmatter is a warning; tests pass | done: [specs/1-registry.md](specs/1-registry.md) |
-| 2 | schema + compile on a fake | domain `Workflow`/`Phase` schemas, `validate`, `buildPrompt`; `RunEngine` port + `LangGraphRunEngine`; `FakeAgentRuntime`; `MemorySaver` | a test runs agent → gate → agent: approve goes on; reject re-runs with feedback; `maxRevisions` stops the loop; no API key | built, in review: [specs/2-schema-compile.md](specs/2-schema-compile.md) |
-| 3 | Cursor runtime | `CursorRuntime`, `outputs` (ADR-0007), run refs (ADR-0006), `npm run wf -- run <id>` CLI with a terminal gate prompt | the BA workflow runs on the fixture for real and writes `discovery/requirements.md`; killing the CLI mid-step and re-running reattaches instead of starting a second Cursor run | — |
+| 2 | schema + compile on a fake | domain `Workflow`/`Phase` schemas, `validate`, `buildPrompt`; `RunEngine` port + `LangGraphRunEngine`; `FakeAgentRuntime`; `MemorySaver` | a test runs agent → gate → agent: approve goes on; reject re-runs with feedback; `maxRevisions` stops the loop; no API key | done: [specs/2-schema-compile.md](specs/2-schema-compile.md) |
+| 3 | Cursor runtime | `CursorRuntime`, `outputs` (ADR-0007), run refs (ADR-0006), `npm run wf -- run <id>` CLI with a terminal gate prompt | the BA workflow runs on the fixture for real and writes `discovery/requirements.md`; killing the CLI mid-step and re-running reattaches instead of starting a second Cursor run | built, in review (real Cursor run pending): [specs/3-cursor-runtime.md](specs/3-cursor-runtime.md) |
 | 4 | server | Hono routes above, SQLite checkpointer, JSONL event log per run, SSE | a run started over HTTP survives a server restart and resumes at its gate; the event log replays | — |
 | 5 | app shell + run views | the shell: sidebar of phases (ADR-0009) → workflows, project view (skills, agents, artefacts), runs list, run view with live events, gate panel showing the files with approve / reject. The canvas is no longer the whole page. | a full BA run done from the browser only; two phases with their workflows listed in order | — |
 | 6 | workflow editor | React Flow canvas for one workflow, palette (agent step, gate), inspector with agent/skill/phase pickers, validation shown on nodes, save; new workflow inside a phase | the BA workflow can be drawn from scratch and runs the same as the hand-written JSON | — |
@@ -337,3 +337,32 @@ first) and `stoppedAt: string | null` (the gate that ended the run at
 Why: the edge after a gate routes on the gate's answer, so the answer has to
 be in state; and a run ended by `maxRevisions` must be told apart from a
 finished one after the fact.
+
+**2026-10-11, slice 3 — two pieces move from slice 4 to slice 3** (agreed in
+review before the build).
+Spec said: slice 4 adds the SQLite checkpointer; reading workflows from disk
+was implied by slice 4's `/api/workflows`.
+Now: slice 3 adds the SQLite checkpointer (`<dataDir>/checkpoints.sqlite`) and
+the read half of a `WorkflowStore` port (`get(id)`, `phases()`). Slice 4 keeps
+the HTTP routes, SSE, the event log, and listing / saving / deleting workflows.
+Why: slice 3's terminal command has to survive being stopped and started
+again, which needs the run state on disk.
+
+**2026-10-11, slice 3 — `RunOutcome` gains `interrupted`; `RunEngine` gains `continue`.**
+Spec said: the `RunOutcome` statuses were waiting, finished, failed, rejected.
+Now: also `{ status: "interrupted"; stepId; state }` for a run whose process
+stopped inside a step, and `engine.continue(runId, workflow)` re-enters that
+step, which then reattaches to its agent run (ADR-0006).
+Why: slice 2's open end (amendment 3 in its spec); without it a crash left a
+run with no outcome.
+
+**2026-10-11, slice 3 — `ProjectFiles.snapshot` and the `RunFiles` port.**
+Spec said: `ProjectFiles` reads skills, agents and artefacts; run refs and the
+run's workflow snapshot were described in ADR-0003 / ADR-0006 without a port.
+Now: `ProjectFiles.snapshot(patterns) → { hashes, matches }` for the file check
+(ADR-0007), and `RunFiles { saveRun, loadRun, getRef, putRef }` under
+`<dataDir>/runs/<runId>/`. `resumeRun` and `continueRun` take a run id and load
+the workflow from the run's snapshot instead of taking it as an argument.
+Why: needed for ADR-0006 and ADR-0007; the run must continue against the
+workflow it started with (ADR-0003).
+

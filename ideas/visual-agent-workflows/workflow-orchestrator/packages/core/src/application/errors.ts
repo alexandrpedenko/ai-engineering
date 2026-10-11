@@ -34,3 +34,22 @@ export class ConflictError extends Error {
     this.name = "ConflictError";
   }
 }
+
+// The thing asked for doesn't exist: a workflow file, a run.
+export class NotFoundError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "NotFoundError";
+  }
+}
+
+// A credential the chosen runtime needs is not set. Names the variable, never its value.
+export class MissingCredentialsError extends Error {
+  readonly variable: string;
+
+  constructor(variable: string) {
+    super(`${variable} is not set`);
+    this.name = "MissingCredentialsError";
+    this.variable = variable;
+  }
+}

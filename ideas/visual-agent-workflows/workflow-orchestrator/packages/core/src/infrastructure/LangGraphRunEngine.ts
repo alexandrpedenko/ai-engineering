@@ -88,6 +88,16 @@ export class LangGraphRunEngine implements RunEngine {
     return await this.settle(graph, runId);
   }
 
+  async continue(runId: string, workflow: Workflow): Promise<RunOutcome> {
+    const graph = this.compile(workflow);
+    const current = await this.read(graph, runId);
+    if (current?.status !== "interrupted") {
+      throw new ConflictError(`run "${runId}" is ${current ? current.status : "unknown"}, not interrupted`);
+    }
+    await graph.invoke(null as unknown as Partial<RunState>, configFor(runId));
+    return await this.settle(graph, runId);
+  }
+
   async outcome(runId: string, workflow: Workflow): Promise<RunOutcome | null> {
     return await this.read(this.compile(workflow), runId);
   }
@@ -148,7 +158,8 @@ export class LangGraphRunEngine implements RunEngine {
     const failed = Object.entries(state.steps).find(([, record]) => record.status === "failed");
     if (failed) return { status: "failed", stepId: failed[0], state };
     if (state.stoppedAt) return { status: "rejected", gateId: state.stoppedAt, state };
-    if (snapshot.next.length > 0) throw new Error(`run "${runId}" stopped inside "${snapshot.next.join(", ")}"`);
+    const [inside] = snapshot.next;
+    if (inside) return { status: "interrupted", stepId: inside, state };
     return { status: "finished", state };
   }
 }

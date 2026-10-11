@@ -39,11 +39,11 @@ async function isFolder(path: string): Promise<boolean> {
 
 // Reads <orchestratorDir>/orchestrator.config.json (all defaults if it is
 // missing) and makes its folders absolute. Relative paths resolve against
-// orchestratorDir, not the current directory. `overrides.projectRoot` wins
-// over the file. Does not read environment variables.
+// orchestratorDir, not the current directory. `overrides` win over the file.
+// Does not read environment variables.
 export async function loadConfig(
   orchestratorDir: string,
-  overrides: { projectRoot?: string } = {},
+  overrides: { projectRoot?: string; dataDir?: string } = {},
 ): Promise<ResolvedConfig> {
   const configPath = join(orchestratorDir, CONFIG_FILE);
   const parsed = OrchestratorConfig.safeParse(await readRaw(configPath));
@@ -54,5 +54,5 @@ export async function loadConfig(
     throw new InvalidConfigError(configPath, [{ key: "projectRoot", message: `${projectRoot} is not a folder` }]);
   }
 
-  return { ...parsed.data, orchestratorDir, projectRoot, dataDir: resolve(orchestratorDir, parsed.data.dataDir) };
+  return { ...parsed.data, orchestratorDir, projectRoot, dataDir: resolve(orchestratorDir, overrides.dataDir ?? parsed.data.dataDir) };
 }

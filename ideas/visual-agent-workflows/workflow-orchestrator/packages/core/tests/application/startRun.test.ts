@@ -1,28 +1,16 @@
 import { describe, expect, it } from "vitest";
 import { InvalidInputError } from "../../src/application/errors";
-import type { RunEngine, RunOutcome } from "../../src/application/RunEngine";
 import { startRun } from "../../src/application/startRun";
 import { DEFAULT_PHASES } from "../../src/domain/phase";
-import type { Workflow } from "../../src/domain/workflow";
+import { FakeRunEngine } from "../support/FakeRunEngine";
+import { MemoryRunFiles } from "../support/MemoryRunFiles";
 import { baWorkflow, registry } from "../support/workflows";
 
-// A RunEngine that records what it was asked to start.
-function fakeEngine() {
-  const started: { runId: string; workflow: Workflow; inputs: Record<string, string> }[] = [];
-  const engine: RunEngine = {
-    start: async (runId, workflow, inputs) => {
-      started.push({ runId, workflow, inputs });
-      return { status: "finished", state: {} } as unknown as RunOutcome;
-    },
-    resume: async () => {
-      throw new Error("not used");
-    },
-    outcome: async () => null,
-  };
-  return { engine, started };
+function setup() {
+  const engine = new FakeRunEngine();
+  const runFiles = new MemoryRunFiles();
+  return { engine, runFiles, deps: { engine, runFiles, registry, phases: DEFAULT_PHASES, newId: () => "run-42" } };
 }
-
-const deps = (engine: RunEngine) => ({ engine, registry, phases: DEFAULT_PHASES, newId: () => "run-42" });
 
 async function problemsOf(promise: Promise<unknown>) {
   try {
@@ -35,32 +23,32 @@ async function problemsOf(promise: Promise<unknown>) {
 }
 
 describe("startRun", () => {
-  it("starts a valid workflow under a new run id", async () => {
-    const { engine, started } = fakeEngine();
+  it("saves the workflow and inputs, then starts it under a new run id", async () => {
+    const { deps, engine, runFiles } = setup();
 
-    const result = await startRun(deps(engine), baWorkflow(), { focus: "pricing" });
+    const result = await startRun(deps, baWorkflow(), { focus: "pricing" });
 
     expect(result.runId).toBe("run-42");
-    expect(started).toEqual([{ runId: "run-42", workflow: baWorkflow(), inputs: { focus: "pricing" } }]);
+    expect(runFiles.runs.get("run-42")).toEqual({ workflow: baWorkflow(), inputs: { focus: "pricing" } });
+    expect(engine.calls).toEqual([{ method: "start", runId: "run-42", workflowId: "ba-discovery", arg: { focus: "pricing" } }]);
   });
 
   it("refuses a workflow with errors and lists only the errors", async () => {
-    const { engine, started } = fakeEngine();
+    const { deps, engine, runFiles } = setup();
     const broken = baWorkflow((w) => {
       Object.assign(w.steps[0]!, { agent: "ghost" });
       delete (w as { phase?: string }).phase;
     });
 
-    expect(await problemsOf(startRun(deps(engine), broken, {}))).toEqual(['unknown agent "ghost"']);
-    expect(started).toEqual([]);
+    expect(await problemsOf(startRun(deps, broken, {}))).toEqual(['unknown agent "ghost"']);
+    expect(engine.calls).toEqual([]);
+    expect(runFiles.runs.size).toBe(0);
   });
 
   it("refuses a missing required input", async () => {
-    const { engine } = fakeEngine();
+    const { deps } = setup();
     const workflow = baWorkflow((w) => Object.assign(w.inputs[0]!, { required: true }));
 
-    expect(await problemsOf(startRun(deps(engine), workflow, { focus: "  " }))).toEqual([
-      'input "focus" (What to focus on) is required',
-    ]);
+    expect(await problemsOf(startRun(deps, workflow, { focus: "  " }))).toEqual(['input "focus" (What to focus on) is required']);
   });
 });

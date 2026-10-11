@@ -2,31 +2,25 @@ import { MemorySaver } from "@langchain/langgraph";
 import { describe, expect, it } from "vitest";
 import { ConflictError } from "../../src/application/errors";
 import { runAgentStep } from "../../src/application/runAgentStep";
-import type { RunEvent } from "../../src/domain/runState";
 import { FakeAgentRuntime, type FakeReply } from "../../src/infrastructure/FakeAgentRuntime";
 import { LangGraphRunEngine } from "../../src/infrastructure/LangGraphRunEngine";
-import { baWorkflow, registry } from "../support/workflows";
+import { agentDeps } from "../support/agentDeps";
+import type { MemoryRunFiles } from "../support/MemoryRunFiles";
+import { baWorkflow } from "../support/workflows";
 
 // An engine on a fake agent and an in-memory checkpointer. Pass the same
-// checkpointer to a second engine to simulate a server restart.
-function setup(replies: FakeReply[] = [{}], checkpointer = new MemorySaver()) {
-  const runtime = new FakeAgentRuntime(replies);
-  const events: RunEvent[] = [];
-  const deps = {
-    runtime,
-    registry,
-    cwd: "/host",
-    defaultModel: { id: "composer-2.5" },
-    doNotTouch: ["workflow-orchestrator/"],
-    onEvent: (_: string, event: RunEvent) => events.push(event),
-  };
+// checkpointer and run files to a second engine to simulate a server restart.
+function setup(replies: FakeReply[] = [{}], shared?: { checkpointer: MemorySaver; runFiles: MemoryRunFiles; runtime?: FakeAgentRuntime }) {
+  const runtime = shared?.runtime ?? new FakeAgentRuntime(replies);
+  const { deps, events, runFiles } = agentDeps(runtime, shared ? { runFiles: shared.runFiles } : {});
+  const checkpointer = shared?.checkpointer ?? new MemorySaver();
   const engine = new LangGraphRunEngine({
     checkpointer,
     agentStep: async (runId, step, state) => await runAgentStep(deps, runId, step, state),
     onEvent: deps.onEvent,
   });
   const stepsRun = () => runtime.requests.map((r) => r.key.split(":")[1]);
-  return { engine, runtime, events, checkpointer, stepsRun };
+  return { engine, runtime, events, checkpointer, runFiles: runFiles as MemoryRunFiles, stepsRun };
 }
 
 const inputs = { focus: "pricing" };
@@ -107,7 +101,7 @@ describe("LangGraphRunEngine", () => {
     const first = setup();
     await first.engine.start("run-1", baWorkflow(), inputs);
 
-    const second = setup([{}], first.checkpointer);
+    const second = setup([{}], { checkpointer: first.checkpointer, runFiles: first.runFiles });
     expect(await second.engine.outcome("run-1", baWorkflow())).toMatchObject({ status: "waiting", gateId: "review" });
     const outcome = await second.engine.resume("run-1", baWorkflow(), { decision: "approve" });
 
@@ -123,6 +117,33 @@ describe("LangGraphRunEngine", () => {
     await expect(engine.resume("run-1", baWorkflow(), { decision: "approve" })).rejects.toBeInstanceOf(ConflictError);
     await expect(engine.start("run-1", baWorkflow(), inputs)).rejects.toBeInstanceOf(ConflictError);
     await expect(engine.resume("nope", baWorkflow(), { decision: "approve" })).rejects.toBeInstanceOf(ConflictError);
+  });
+
+  it("reports a run whose process stopped inside a step as interrupted", async () => {
+    const { engine } = setup([{ dies: true }]);
+
+    await expect(engine.start("run-1", baWorkflow(), inputs)).rejects.toThrow("fake process stopped");
+
+    expect(await engine.outcome("run-1", baWorkflow())).toMatchObject({ status: "interrupted", stepId: "elicit" });
+  });
+
+  it("continues an interrupted run by reattaching, so the agent runs only once", async () => {
+    const first = setup([{ dies: true, summary: "requirements written" }]);
+    await expect(first.engine.start("run-1", baWorkflow(), inputs)).rejects.toThrow();
+
+    const second = setup([{}], { checkpointer: first.checkpointer, runFiles: first.runFiles, runtime: first.runtime });
+    const outcome = await second.engine.continue("run-1", baWorkflow());
+
+    expect(outcome).toMatchObject({ status: "waiting", gateId: "review" });
+    expect(outcome.state.steps.elicit).toMatchObject({ status: "done", summary: "requirements written", cursorRunIds: ["fake-run-1"] });
+    expect(first.runtime.requests).toHaveLength(1);
+  });
+
+  it("refuses to continue a run that isn't interrupted", async () => {
+    const { engine } = setup();
+    await engine.start("run-1", baWorkflow(), inputs);
+
+    await expect(engine.continue("run-1", baWorkflow())).rejects.toBeInstanceOf(ConflictError);
   });
 
   it("knows no outcome for a run that doesn't exist", async () => {

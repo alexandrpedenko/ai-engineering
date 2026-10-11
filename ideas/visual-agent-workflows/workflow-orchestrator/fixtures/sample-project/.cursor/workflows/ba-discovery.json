@@ -1,0 +1,46 @@
+{
+  "schema": 1,
+  "id": "ba-discovery",
+  "name": "BA discovery",
+  "phase": "discovery",
+  "inputs": [{ "id": "focus", "label": "What to focus on", "type": "text", "required": false }],
+  "steps": [
+    {
+      "id": "elicit",
+      "type": "agent",
+      "label": "Write requirements",
+      "agent": "business-analyst",
+      "skills": ["requirements-elicitation"],
+      "instructions": "Read the brief and write the requirements for the room booking app. Pay particular attention to: {{inputs.focus}}",
+      "reads": ["discovery/brief.md"],
+      "writes": ["discovery/requirements.md"]
+    },
+    {
+      "id": "review",
+      "type": "gate",
+      "label": "Review requirements",
+      "shows": ["discovery/requirements.md"],
+      "onReject": "elicit",
+      "maxRevisions": 3
+    },
+    {
+      "id": "design",
+      "type": "agent",
+      "label": "Sketch the design",
+      "agent": "architect",
+      "skills": ["architecture-review"],
+      "instructions": "Propose the simplest design that meets the requirements: the parts, what each is for, and how a booking flows through them. Then review it against the requirements.",
+      "reads": ["discovery/brief.md", "discovery/requirements.md"],
+      "writes": ["discovery/design.md"]
+    }
+  ],
+  "edges": [
+    { "from": "elicit", "to": "review" },
+    { "from": "review", "to": "design" }
+  ],
+  "layout": {
+    "elicit": { "x": 0, "y": 0 },
+    "review": { "x": 280, "y": 0 },
+    "design": { "x": 560, "y": 0 }
+  }
+}

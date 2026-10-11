@@ -1,4 +1,5 @@
 import { z } from "zod";
+import type { FileChange } from "./outputs";
 
 // What an agent reports while it works. Only the parts that stay stable
 // across agent SDK versions: no tool arguments or results.
@@ -14,7 +15,7 @@ export type Usage = { inputTokens: number; outputTokens: number };
 export type StepRecord = {
   status: "done" | "failed";
   cursorRunIds: string[]; // one per attempt, oldest first
-  writes: { path: string; change: "created" | "modified" | "deleted" }[];
+  writes: FileChange[];
   missing: string[]; // declared writes that did not happen
   summary: string; // the agent's final message
   usage?: Usage;

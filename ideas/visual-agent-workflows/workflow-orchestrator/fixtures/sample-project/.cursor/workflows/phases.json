@@ -1,0 +1,6 @@
+{
+  "phases": [
+    { "id": "discovery", "name": "Discovery", "description": "Understand the problem before building.", "order": 1 },
+    { "id": "delivery", "name": "Delivery", "order": 2 }
+  ]
+}

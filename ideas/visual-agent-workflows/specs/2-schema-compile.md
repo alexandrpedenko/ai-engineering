@@ -1,6 +1,6 @@
 # Slice 2 — workflow schema and the engine on a fake runtime
 
-**Status:** built (2026-10-11), 2a and 2b together; in review.
+**Status:** done (2026-10-11).
 
 **Capability.** A workflow file is read, checked against the project, and
 run: each agent step becomes a message to an agent, each gate pauses until a

@@ -13,6 +13,7 @@
   "scripts": {
     "dev": "concurrently -n server,web -c blue,magenta \"npm run dev -w @orch/server\" \"npm run dev -w @orch/web\"",
     "scan": "npm run scan -w @orch/server --",
+    "wf": "npm run wf -w @orch/server --",
     "smoke": "npm run smoke -w @orch/core",
     "typecheck": "tsc -p tsconfig.json && npm run typecheck --workspaces",
     "test": "vitest run",

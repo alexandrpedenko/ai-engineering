@@ -59,6 +59,11 @@ describe("loadConfig", () => {
     expect(config.projectRoot).toBe(join(host, "other"));
   });
 
+  it("lets overrides.dataDir win over the file", async () => {
+    const config = await loadConfig(orchestrator, { dataDir: "/tmp/elsewhere" });
+    expect(config.dataDir).toBe("/tmp/elsewhere");
+  });
+
   it("rejects invalid JSON", async () => {
     await writeConfig("{ nope");
     expect(await problemsOf(loadConfig(orchestrator))).toMatchObject([{ key: "(file)" }]);

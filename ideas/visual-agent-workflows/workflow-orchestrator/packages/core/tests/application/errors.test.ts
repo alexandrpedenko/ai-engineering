@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { ConflictError, InvalidConfigError, InvalidInputError } from "../../src/application/errors";
+import { ConflictError, InvalidConfigError, InvalidInputError, MissingCredentialsError, NotFoundError } from "../../src/application/errors";
 
 describe("InvalidConfigError", () => {
   it("carries the config path and names every bad key in its message", () => {
@@ -38,5 +38,19 @@ describe("ConflictError", () => {
     const error = new ConflictError("run is finished");
     expect(error).toBeInstanceOf(Error);
     expect(error.name).toBe("ConflictError");
+  });
+});
+
+describe("NotFoundError", () => {
+  it("is a named error", () => {
+    expect(new NotFoundError("no run").name).toBe("NotFoundError");
+  });
+});
+
+describe("MissingCredentialsError", () => {
+  it("names the variable", () => {
+    const error = new MissingCredentialsError("CURSOR_API_KEY");
+    expect(error.message).toBe("CURSOR_API_KEY is not set");
+    expect(error.variable).toBe("CURSOR_API_KEY");
   });
 });

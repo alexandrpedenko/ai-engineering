@@ -6,13 +6,16 @@ export type RunOutcome =
   | { status: "waiting"; gateId: string; shows: string[]; state: RunState }
   | { status: "finished"; state: RunState }
   | { status: "failed"; stepId: string; state: RunState }
-  | { status: "rejected"; gateId: string; state: RunState }; // a gate hit maxRevisions
+  | { status: "rejected"; gateId: string; state: RunState } // a gate hit maxRevisions
+  | { status: "interrupted"; stepId: string; state: RunState }; // its process stopped inside a step
 
 // Runs workflows: from the start to the first gate or the end, and from a
 // gate's decision onwards.
 export interface RunEngine {
   start(runId: string, workflow: Workflow, inputs: Record<string, string>): Promise<RunOutcome>;
   resume(runId: string, workflow: Workflow, decision: GateDecision): Promise<RunOutcome>;
+  // Re-enters the step an interrupted run stopped inside.
+  continue(runId: string, workflow: Workflow): Promise<RunOutcome>;
   // Where a run stands now; null when there is no run with this id.
   outcome(runId: string, workflow: Workflow): Promise<RunOutcome | null>;
 }

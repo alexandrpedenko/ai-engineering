@@ -1,8 +1,10 @@
+import { createHash } from "node:crypto";
 import { readdir, readFile, stat } from "node:fs/promises";
 import { isAbsolute, join, relative } from "node:path";
 import { glob } from "tinyglobby";
 import type { ProjectFiles } from "../application/ProjectFiles";
 import type { ResolvedConfig } from "../domain/config";
+import type { Snapshot } from "../domain/outputs";
 import type { Artefact, MarkdownDoc, UnreadableDoc } from "../domain/registry";
 import { parseMarkdown } from "./frontmatter";
 
@@ -37,18 +39,35 @@ export class FsProjectFiles implements ProjectFiles {
   }
 
   async artefacts(): Promise<Artefact[]> {
-    const ignore = ["**/node_modules/**", "**/.git/**"];
-    const orchestrator = relative(this.root, this.config.orchestratorDir);
-    if (orchestrator && !orchestrator.startsWith("..") && !isAbsolute(orchestrator)) {
-      ignore.push(`${orchestrator.split("\\").join("/")}/**`);
-    }
-    const paths = await glob(this.config.artefactGlobs, { cwd: this.root, onlyFiles: true, dot: false, ignore });
+    const paths = await this.match(this.config.artefactGlobs);
     const artefacts: Artefact[] = [];
     for (const path of paths.sort()) {
       const info = await stat(join(this.root, path));
       artefacts.push({ path, size: info.size, mtimeMs: info.mtimeMs });
     }
     return artefacts;
+  }
+
+  async snapshot(patterns: string[]): Promise<Snapshot> {
+    const matches: Record<string, string[]> = {};
+    for (const pattern of patterns) matches[pattern] = (await this.match([pattern])).sort();
+    const hashes: Record<string, string> = {};
+    for (const path of [...new Set(Object.values(matches).flat())].sort()) {
+      const content = await readFile(join(this.root, path));
+      hashes[path] = createHash("sha1").update(content).digest("hex");
+    }
+    return { hashes, matches };
+  }
+
+  // Files under the root matching the patterns, never node_modules, .git or
+  // the orchestrator folder.
+  private async match(patterns: string[]): Promise<string[]> {
+    const ignore = ["**/node_modules/**", "**/.git/**"];
+    const orchestrator = relative(this.root, this.config.orchestratorDir);
+    if (orchestrator && !orchestrator.startsWith("..") && !isAbsolute(orchestrator)) {
+      ignore.push(`${orchestrator.split("\\").join("/")}/**`);
+    }
+    return await glob(patterns, { cwd: this.root, onlyFiles: true, dot: false, ignore });
   }
 
   private async markdownFilesIn(dir: string): Promise<string[]> {

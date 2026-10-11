@@ -1,5 +1,20 @@
-import { describe, expect, it } from "vitest";
-import { createProjectServices } from "../src/composition";
+import { cp, mkdtemp, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { afterEach, describe, expect, it } from "vitest";
+import { createProjectServices, createRunServices, orchestratorDir } from "../src/composition";
+
+const temps: string[] = [];
+afterEach(async () => {
+  await Promise.all(temps.splice(0).map(async (dir) => await rm(dir, { recursive: true, force: true })));
+});
+
+async function tempCopyOfSample() {
+  const dir = await mkdtemp(join(tmpdir(), "orch-composition-"));
+  temps.push(dir);
+  await cp(join(orchestratorDir, "fixtures/sample-project"), join(dir, "host"), { recursive: true });
+  return { projectRoot: join(dir, "host"), dataDir: join(dir, "data") };
+}
 
 describe("createProjectServices", () => {
   it("scans the sample project on the real file system", async () => {
@@ -13,5 +28,27 @@ describe("createProjectServices", () => {
     expect(registry.agents[0]?.model).toBe("inherit");
     expect(registry.artefacts.map((a) => a.path)).toEqual(["discovery/brief.md", "wiki/README.md"]);
     expect(registry.warnings).toEqual([]);
+  });
+});
+
+describe("createRunServices", () => {
+  it("runs the sample workflow on the fake agent, and a second instance (a new process) finishes it", async () => {
+    const paths = await tempCopyOfSample();
+
+    const first = await createRunServices({ ...paths, fake: true });
+    const { runId, outcome } = await first.start("ba-discovery", { focus: "pricing" });
+    expect(outcome).toMatchObject({ status: "waiting", gateId: "review" });
+
+    const second = await createRunServices({ ...paths, fake: true });
+    expect(await second.outcome(runId)).toMatchObject({ status: "waiting", gateId: "review" });
+    const done = await second.resume(runId, { decision: "approve" });
+
+    expect(done.status).toBe("finished");
+    expect(Object.keys(done.state.steps)).toEqual(["elicit", "design"]);
+  });
+
+  it("refuses an unknown workflow", async () => {
+    const services = await createRunServices({ ...(await tempCopyOfSample()), fake: true });
+    await expect(services.start("nope", {})).rejects.toThrow(/no workflow "nope"/);
   });
 });

@@ -38,6 +38,36 @@ describe("FsProjectFiles on the sample project", () => {
   });
 });
 
+describe("FsProjectFiles.snapshot", () => {
+  it("hashes the matching files and records what each pattern matched", async () => {
+    const root = await copyOfSampleProject();
+    temps.push(root);
+    const files = new FsProjectFiles(configFor(root));
+
+    const before = await files.snapshot(["discovery/**", "discovery/requirements.md"]);
+    await writeFile(join(root, "discovery/brief.md"), "changed");
+    const after = await files.snapshot(["discovery/**"]);
+
+    expect(before.matches).toEqual({ "discovery/**": ["discovery/brief.md"], "discovery/requirements.md": [] });
+    expect(Object.keys(before.hashes)).toEqual(["discovery/brief.md"]);
+    expect(before.hashes["discovery/brief.md"]).toMatch(/^[0-9a-f]{40}$/);
+    expect(after.hashes["discovery/brief.md"]).not.toBe(before.hashes["discovery/brief.md"]);
+  });
+
+  it("leaves out node_modules and the orchestrator folder", async () => {
+    const root = await copyOfSampleProject();
+    temps.push(root);
+    await mkdir(join(root, "docs/node_modules"), { recursive: true });
+    await writeFile(join(root, "docs/node_modules/x.md"), "x");
+    await mkdir(join(root, "workflow-orchestrator"), { recursive: true });
+    await writeFile(join(root, "workflow-orchestrator/notes.md"), "x");
+    const files = new FsProjectFiles(configFor(root, { orchestratorDir: join(root, "workflow-orchestrator") }));
+
+    expect(Object.keys((await files.snapshot(["**/*.md"])).hashes)).not.toContain("workflow-orchestrator/notes.md");
+    expect(Object.keys((await files.snapshot(["**/*.md"])).hashes)).not.toContain("docs/node_modules/x.md");
+  });
+});
+
 describe("FsProjectFiles on a changed copy", () => {
   it("reports a broken SKILL.md as unreadable", async () => {
     const root = await copyOfSampleProject();
