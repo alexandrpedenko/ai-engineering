@@ -1,6 +1,6 @@
 # workflow-orchestrator — MVP spec
 
-**Status:** draft, in review (2026-10-11). Slices 0–5 built; slice 5 in review. Body frozen: changes go in Amendments.
+**Status:** draft, in review (2026-10-11). Slices 0–5.5 built; slice 5.5 in review. Body frozen: changes go in Amendments.
 
 A folder you drop into a project that already has Cursor skills, agents and
 artefacts. It reads them, lets you draw a workflow from them on a canvas
@@ -288,7 +288,7 @@ adds. Every slice ships server and web tests for what it touches and ends with
 | 2 | schema + compile on a fake | domain `Workflow`/`Phase` schemas, `validate`, `buildPrompt`; `RunEngine` port + `LangGraphRunEngine`; `FakeAgentRuntime`; `MemorySaver` | a test runs agent → gate → agent: approve goes on; reject re-runs with feedback; `maxRevisions` stops the loop; no API key | done: [specs/2-schema-compile.md](specs/2-schema-compile.md) |
 | 3 | Cursor runtime | `CursorRuntime`, `outputs` (ADR-0007), run refs (ADR-0006), `npm run wf -- run <id>` CLI with a terminal gate prompt | the BA workflow runs on the fixture for real and writes `discovery/requirements.md`; killing the CLI mid-step and re-running reattaches instead of starting a second Cursor run | built, in review (real Cursor run pending): [specs/3-cursor-runtime.md](specs/3-cursor-runtime.md) |
 | 4 | server | Hono routes above, SQLite checkpointer, JSONL event log per run, SSE | a run started over HTTP survives a server restart and resumes at its gate; the event log replays | done: [specs/4-server.md](specs/4-server.md) |
-| 5 | app shell + run views | the shell: sidebar of phases (ADR-0009) → workflows, project view (skills, agents, artefacts), runs list, run view with live events, gate panel showing the files with approve / reject. The canvas is no longer the whole page. | a full BA run done from the browser only; two phases with their workflows listed in order | built, in review: [specs/5-shell-and-runs.md](specs/5-shell-and-runs.md) |
+| 5 | app shell + run views | the shell: sidebar of phases (ADR-0009) → workflows, project view (skills, agents, artefacts), runs list, run view with live events, gate panel showing the files with approve / reject. The canvas is no longer the whole page. | a full BA run done from the browser only; two phases with their workflows listed in order | done: [specs/5-shell-and-runs.md](specs/5-shell-and-runs.md) |
 | 6 | workflow editor | React Flow canvas for one workflow, palette (agent step, gate), inspector with agent/skill/phase pickers, validation shown on nodes, save; new workflow inside a phase | the BA workflow can be drawn from scratch and runs the same as the hand-written JSON | — |
 | 7 | file editor | Monaco for skills, agents, artefacts; save through `/api/files` | edit a skill in the browser, re-run, the change is in the next prompt | — |
 | 8 | delivery | a delivery workflow on the fixture (implement → tests check → review), git-diff summary in the gate | a reviewed requirement turns into a code change in the fixture with the diff shown at the gate | — |
@@ -402,4 +402,11 @@ agent step as a new attempt and carry on (engine, supervisor, route, CLI,
 Retry button). Status: spec drafted.
 Why: without it a failed step (rate limit, cancel, a stopped process) means
 starting the whole run again. Agreed in the slice 5 review.
+
+**2026-10-11, slice 5.5 built — `RunEngine.retry` and the retry route.**
+Spec said: `RunEngine { start, resume, continue, outcome }`; no retry route.
+Now: `RunEngine.retry(runId, workflow)` re-runs a failed run's failed step as
+a new attempt (LangGraph `Command({ goto })`); `POST /api/runs/:runId/retry`
+→ 202; `npm run wf -- retry <runId>`. Slice 5.5 is built and in review.
+Why: [specs/5.5-retry.md](specs/5.5-retry.md).
 

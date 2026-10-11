@@ -68,17 +68,19 @@ describe("HttpOrchestratorApi actions", () => {
     expect(calls[0]).toMatchObject({ url: "/api/workflows/ba-discovery/runs", method: "POST", body: '{"inputs":{"focus":"x"}}' });
   });
 
-  it("posts resume, continue and cancel", async () => {
+  it("posts resume, continue, retry and cancel", async () => {
     const calls = respondWith(202);
     const api = new HttpOrchestratorApi();
 
     await api.resume("run-1", { decision: "reject", feedback: "more" });
     await api.continueRun("run-1");
+    await api.retry("run-1");
     await api.cancel("run-1");
 
     expect(calls.map((c) => `${c.method} ${c.url} ${c.body ?? ""}`)).toEqual([
       'POST /api/runs/run-1/resume {"decision":"reject","feedback":"more"}',
       "POST /api/runs/run-1/continue ",
+      "POST /api/runs/run-1/retry ",
       "POST /api/runs/run-1/cancel ",
     ]);
   });

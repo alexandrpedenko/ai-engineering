@@ -38,25 +38,27 @@ describe("GET /api/runs/:runId/events", () => {
     expect(response.headers.get("content-type")).toMatch(/text\/event-stream/);
     expect(await readEvents(response)).toEqual([
       ["1", "step-started"],
-      ["2", "step-finished"],
-      ["3", "gate-waiting"],
-      ["4", "run-settled"],
+      ["2", "agent-event"],
+      ["3", "agent-event"],
+      ["4", "step-finished"],
+      ["5", "gate-waiting"],
+      ["6", "run-settled"],
     ]);
   });
 
   it("skips what the client already has, by ?after= or Last-Event-ID", async () => {
     const runId = await startToGate(server);
 
-    const byQuery = await readEvents(await server.app.request(`/api/runs/${runId}/events?after=2`));
-    const byHeader = await readEvents(await server.app.request(`/api/runs/${runId}/events`, { headers: { "Last-Event-ID": "2" } }));
+    const byQuery = await readEvents(await server.app.request(`/api/runs/${runId}/events?after=4`));
+    const byHeader = await readEvents(await server.app.request(`/api/runs/${runId}/events`, { headers: { "Last-Event-ID": "4" } }));
 
-    expect(byQuery.map(([id]) => id)).toEqual(["3", "4"]);
+    expect(byQuery.map(([id]) => id)).toEqual(["5", "6"]);
     expect(byHeader).toEqual(byQuery);
   });
 
   it("passes on live events as the run moves", async () => {
     const runId = await startToGate(server);
-    const response = await server.app.request(`/api/runs/${runId}/events?after=4`);
+    const response = await server.app.request(`/api/runs/${runId}/events?after=6`);
 
     await server.app.request(`/api/runs/${runId}/resume`, {
       method: "POST",
@@ -64,7 +66,13 @@ describe("GET /api/runs/:runId/events", () => {
       body: JSON.stringify({ decision: "approve" }),
     });
 
-    expect((await readEvents(response)).map(([, type]) => type)).toEqual(["step-started", "step-finished", "run-settled"]);
+    expect((await readEvents(response)).map(([, type]) => type)).toEqual([
+      "step-started",
+      "agent-event",
+      "agent-event",
+      "step-finished",
+      "run-settled",
+    ]);
   });
 
   it("answers 404 for an unknown run", async () => {

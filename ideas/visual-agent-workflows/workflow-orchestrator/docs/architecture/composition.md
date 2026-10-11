@@ -29,7 +29,7 @@ what the CLI and the server share:
 - config (`loadConfig`, after loading `workflow-orchestrator/.env` if present)
 - `FsProjectFiles`, a `scan()` of the registry, `FsWorkflowStore`, `FsRunFiles`
 - the agent runtime, chosen **when a step runs**: `FakeAgentRuntime` with
-  placeholder writes when `fake`, else `CursorAgentRuntime` with
+  placeholder writes, two sample events and `ORCH_FAKE_DELAY_MS` when `fake`, else `CursorAgentRuntime` with
   `CURSOR_API_KEY` (missing → `MissingCredentialsError`)
 - `LangGraphRunEngine` on a `SqliteSaver` at `<dataDir>/checkpoints.sqlite`
   (tests may pass another checkpointer), with an `agentStep` that re-scans the
@@ -60,6 +60,7 @@ routes and the web's types may use); `core/src/infrastructure/index.ts` is
 | `CURSOR_API_KEY` | needed to run real agents (env or `workflow-orchestrator/.env`) |
 | `ORCH_PROJECT_ROOT` | the project, relative to the orchestrator folder (overrides the config) |
 | `ORCH_FAKE=1` | the server runs on the fake agent |
+| `ORCH_FAKE_DELAY_MS` | how long each fake agent run takes (`dev:sample` uses 8000), so runs can be watched and cancelled |
 | `ORCH_PORT` | the server's port (4317) |
 
 ## On disk

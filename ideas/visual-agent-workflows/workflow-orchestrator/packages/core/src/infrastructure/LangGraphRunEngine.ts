@@ -98,6 +98,16 @@ export class LangGraphRunEngine implements RunEngine {
     return await this.settle(graph, runId);
   }
 
+  async retry(runId: string, workflow: Workflow): Promise<RunOutcome> {
+    const graph = this.compile(workflow);
+    const current = await this.read(graph, runId);
+    if (current?.status !== "failed") {
+      throw new ConflictError(`run "${runId}" is ${current ? current.status : "unknown"}, not failed`);
+    }
+    await graph.invoke(new Command({ goto: current.stepId }), configFor(runId));
+    return await this.settle(graph, runId);
+  }
+
   async outcome(runId: string, workflow: Workflow): Promise<RunOutcome | null> {
     return await this.read(this.compile(workflow), runId);
   }
@@ -155,11 +165,13 @@ export class LangGraphRunEngine implements RunEngine {
     const pause = snapshot.tasks.flatMap((task) => task.interrupts).at(0)?.value as GatePause | undefined;
     if (pause) return { status: "waiting", gateId: pause.gateId, shows: pause.shows, state };
 
+    // Checked before failures: a retried step keeps its failed record until the
+    // new attempt finishes, so a crash during a retry must still read as interrupted.
+    const [inside] = snapshot.next;
+    if (inside) return { status: "interrupted", stepId: inside, state };
     const failed = Object.entries(state.steps).find(([, record]) => record.status === "failed");
     if (failed) return { status: "failed", stepId: failed[0], state };
     if (state.stoppedAt) return { status: "rejected", gateId: state.stoppedAt, state };
-    const [inside] = snapshot.next;
-    if (inside) return { status: "interrupted", stepId: inside, state };
     return { status: "finished", state };
   }
 }

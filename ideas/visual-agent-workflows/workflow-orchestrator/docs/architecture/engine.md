@@ -9,7 +9,7 @@ code:
 depends_on: [workflows, agent-steps]
 used_by: [runs-and-events, cli, composition]
 adrs: [3, 6]
-specs: [2-schema-compile, 3-cursor-runtime]
+specs: [2-schema-compile, 3-cursor-runtime, 5.5-retry]
 updated: 2026-10-11
 ---
 
@@ -25,6 +25,7 @@ interface RunEngine {
   start(runId, workflow, inputs): Promise<RunOutcome>     // runs until it stops moving
   resume(runId, workflow, decision): Promise<RunOutcome>  // a gate's answer
   continue(runId, workflow): Promise<RunOutcome>          // re-enter an interrupted step
+  retry(runId, workflow): Promise<RunOutcome>             // run a failed step again
   outcome(runId, workflow): Promise<RunOutcome | null>    // null: no such run
 }
 RunOutcome = waiting { gateId, shows } | finished | failed { stepId }
@@ -49,14 +50,20 @@ LangGraph-specific is saved in workflow files. The run id is LangGraph's
   after it: approve → next step; reject → `onReject` with the feedback
   appended for that step and `revisions + 1`; reject when `revisions` already
   equals `maxRevisions` → end with `stoppedAt = gate`.
-- **Outcome** is read from LangGraph's state: a pending interrupt → `waiting`;
-  a failed step → `failed`; `stoppedAt` → `rejected`; a pending node with no
-  interrupt (the process stopped inside it) → `interrupted`; else `finished`.
+- **Outcome** is read from LangGraph's state, in this order: a pending
+  interrupt → `waiting`; a pending node with no interrupt (the process stopped
+  inside it) → `interrupted`; a failed step → `failed`; `stoppedAt` →
+  `rejected`; else `finished`. `interrupted` comes before `failed` because a
+  retried step keeps its failed record until the new attempt finishes.
 - `continue` re-invokes the graph from its checkpoint; the interrupted step
   runs again and **reattaches** to its agent run instead of starting another
   ([agent-steps](agent-steps.md)).
+- `retry` (only for `failed`) invokes the graph with
+  `Command({ goto: failedStepId })`: the step runs again as the next attempt
+  (its own run ref, idempotency key and file check) and the run follows the
+  edges from there. Inputs and reviewer feedback are unchanged.
 - Wrong state → `ConflictError` (resume a run that isn't waiting, continue one
-  that isn't interrupted, start an id that exists).
+  that isn't interrupted, retry one that isn't failed, start an id that exists).
 - Node names are run-time step ids, so the builder is typed
   `StateGraph<…, string>` through one cast in `compile`.
 

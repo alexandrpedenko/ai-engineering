@@ -24,6 +24,11 @@ export class FakeRunEngine implements RunEngine {
     return this.answer;
   }
 
+  async retry(runId: string, workflow: Workflow) {
+    this.calls.push({ method: "retry", runId, workflowId: workflow.id });
+    return this.answer;
+  }
+
   async outcome(runId: string, workflow: Workflow) {
     this.calls.push({ method: "outcome", runId, workflowId: workflow.id });
     return this.outcomeOf;

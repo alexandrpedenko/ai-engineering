@@ -73,6 +73,10 @@ export class HttpOrchestratorApi implements OrchestratorApi {
     await this.send("POST", `/api/runs/${encodeURIComponent(runId)}/continue`);
   }
 
+  async retry(runId: string): Promise<void> {
+    await this.send("POST", `/api/runs/${encodeURIComponent(runId)}/retry`);
+  }
+
   async cancel(runId: string): Promise<void> {
     await this.send("POST", `/api/runs/${encodeURIComponent(runId)}/cancel`);
   }

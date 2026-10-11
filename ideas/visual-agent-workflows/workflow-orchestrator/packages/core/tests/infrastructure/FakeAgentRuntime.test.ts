@@ -83,6 +83,19 @@ describe("FakeAgentRuntime", () => {
     expect(await waiting).toEqual({ status: "cancelled", summary: "", durationMs: 0 });
   });
 
+  it("takes delayMs to answer, and a cancel ends the wait early", async () => {
+    const runtime = new FakeAgentRuntime([{ delayMs: 30 }]);
+    const started = Date.now();
+    expect((await (await runtime.start(request("a"))).wait()).status).toBe("finished");
+    expect(Date.now() - started).toBeGreaterThanOrEqual(25);
+
+    const slow = new FakeAgentRuntime([{ delayMs: 60_000 }]);
+    const handle = await slow.start(request("b"));
+    const waiting = handle.wait();
+    await handle.cancel();
+    expect((await waiting).status).toBe("cancelled");
+  });
+
   it("writes a placeholder to each plain path the message says to write", async () => {
     const dir = await mkdtemp(join(tmpdir(), "orch-fake-"));
     const runtime = new FakeAgentRuntime([{ placeholders: true }]);

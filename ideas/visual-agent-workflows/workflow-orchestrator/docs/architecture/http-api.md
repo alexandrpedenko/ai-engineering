@@ -7,7 +7,7 @@ code:
 depends_on: [runs-and-events, workflows, project-registry]
 used_by: [web-app]
 adrs: [10]
-specs: [4-server]
+specs: [4-server, 5.5-retry]
 updated: 2026-10-11
 ---
 
@@ -30,7 +30,7 @@ case or the supervisor, return the result. They get their dependencies as
 | POST | `/api/workflows/:id/runs` | `{ inputs }` → **202** `{ runId }` |
 | GET | `/api/runs?workflowId=` | `[{ runId, workflowId, startedAt, status, busy }]` |
 | GET | `/api/runs/:runId` | `{ runId, workflow, inputs, startedAt, busy, outcome }` |
-| POST | `/api/runs/:runId/resume` · `/continue` · `/cancel` | **202** |
+| POST | `/api/runs/:runId/resume` · `/continue` · `/retry` · `/cancel` | **202** |
 | GET | `/api/runs/:runId/events?after=` | SSE |
 
 **Starting and moving a run answer 202 at once**; what happens next arrives as

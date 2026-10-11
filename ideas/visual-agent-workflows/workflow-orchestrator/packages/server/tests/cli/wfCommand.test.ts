@@ -28,6 +28,10 @@ function setup(options: { answers?: string[]; afterResume?: RunOutcome[]; curren
       calls.push(`continue ${runId}`);
       return waiting;
     },
+    retry: async (runId) => {
+      calls.push(`retry ${runId}`);
+      return waiting;
+    },
     outcome: async (runId) => {
       calls.push(`outcome ${runId}`);
       return options.current ?? waiting;
@@ -115,6 +119,20 @@ describe("runWfCommand continue and status", () => {
     expect(await runWfCommand(["status", "run-1"], deps)).toBe(0);
     expect(output()).toBe("finished  run-1\n  elicit      done  attempts: 2\n");
     expect(servicesOptions()).toEqual({ fake: true });
+  });
+});
+
+describe("runWfCommand retry", () => {
+  it("retries the failed step, then asks at the gate", async () => {
+    const { deps, calls } = setup({ answers: ["y"] });
+
+    expect(await runWfCommand(["retry", "run-1", "--fake"], deps)).toBe(0);
+    expect(calls).toEqual(["retry run-1", "resume run-1 approve"]);
+  });
+
+  it("needs a run id", async () => {
+    const { deps } = setup();
+    expect(await runWfCommand(["retry"], deps)).toBe(2);
   });
 });
 

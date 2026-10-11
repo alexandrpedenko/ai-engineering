@@ -8,7 +8,7 @@ code:
 depends_on: [project-registry, runs-and-events, engine]
 used_by: []
 adrs: [10]
-specs: [1-registry, 3-cursor-runtime]
+specs: [1-registry, 3-cursor-runtime, 5.5-retry]
 updated: 2026-10-11
 ---
 
@@ -21,6 +21,7 @@ updated: 2026-10-11
 | `npm run scan -- [--project p] [--json]` | prints the registry | 0; 1 bad config; 2 bad arguments |
 | `npm run wf -- run <workflowId> [--input k=v]… [--project p] [--fake]` | starts a run, prints events, asks at each gate | 0 finished or stopped at a gate; 1 failed / rejected / invalid; 2 bad arguments; 3 no `CURSOR_API_KEY` |
 | `npm run wf -- continue <runId> […]` | an interrupted run re-enters its step; a waiting run asks at its gate | same |
+| `npm run wf -- retry <runId> […]` | a failed run's failed step runs again, then asks at gates | same |
 | `npm run wf -- status <runId>` | the outcome and each step's attempts (never needs a key) | 0; 1 unknown |
 
 At a gate: `y` approves, other text rejects with that text as feedback, an

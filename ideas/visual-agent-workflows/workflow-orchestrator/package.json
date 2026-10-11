@@ -12,7 +12,7 @@
   ],
   "scripts": {
     "dev": "concurrently -n server,web -c blue,magenta \"npm run dev -w @orch/server\" \"npm run dev -w @orch/web\"",
-    "dev:sample": "node scripts/prepare-sample.mjs && ORCH_PROJECT_ROOT=.data/sample-project ORCH_FAKE=1 npm run dev",
+    "dev:sample": "node scripts/prepare-sample.mjs && ORCH_PROJECT_ROOT=.data/sample-project ORCH_FAKE=1 ORCH_FAKE_DELAY_MS=8000 npm run dev",
     "scan": "npm run scan -w @orch/server --",
     "wf": "npm run wf -w @orch/server --",
     "smoke": "npm run smoke -w @orch/core",

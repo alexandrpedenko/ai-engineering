@@ -56,7 +56,7 @@ describe("RunPage at a gate", () => {
 });
 
 describe("RunPage while running", () => {
-  it("shows the agent's live feed under the running step, and a Cancel button", async () => {
+  it("shows the agent's live feed and a Cancel button under the running step", async () => {
     const api = render(runDetails(null, { busy: true }));
     await screen.findByText("BA discovery");
 
@@ -65,10 +65,17 @@ describe("RunPage while running", () => {
       api.emit("run-1", 2, { type: "agent-event", stepId: "elicit", event: { kind: "text", text: "Reading the brief" } });
     });
 
-    expect(within(screen.getByLabelText("step elicit")).getByText("running")).toBeTruthy();
-    expect(screen.getByText(/Reading the brief/)).toBeTruthy();
-    await userEvent.click(screen.getByRole("button", { name: "Cancel" }));
+    const step = screen.getByLabelText("step elicit");
+    expect(within(step).getByText("running")).toBeTruthy();
+    expect(within(step).getByText(/Reading the brief/)).toBeTruthy();
+    await userEvent.click(within(step).getByRole("button", { name: "Cancel this step" }));
     expect(api.calls).toContain("cancel run-1");
+  });
+
+  it("shows no Cancel button when nothing is running", async () => {
+    render();
+    await screen.findByText("BA discovery");
+    expect(screen.queryByRole("button", { name: "Cancel this step" })).toBeNull();
   });
 
   it("moves to finished when the run settles", async () => {
@@ -90,9 +97,19 @@ describe("RunPage outcomes", () => {
     expect(api.calls).toContain("continue run-1");
   });
 
-  it("shows why a run failed", async () => {
-    render(runDetails({ status: "failed", stepId: "elicit", state: runState({ steps: { elicit: record({ status: "failed", summary: "rate limited" }) } }) }));
+  it("shows why a run failed, and retries it", async () => {
+    const api = render(runDetails({ status: "failed", stepId: "elicit", state: runState({ steps: { elicit: record({ status: "failed", summary: "rate limited" }) } }) }));
     expect(await screen.findByText("Failed at elicit: rate limited")).toBeTruthy();
+
+    await userEvent.click(screen.getByRole("button", { name: "Retry" }));
+
+    expect(api.calls).toContain("retry run-1");
+  });
+
+  it("offers Retry only for a failed run", async () => {
+    render();
+    await screen.findByText("BA discovery");
+    expect(screen.queryByRole("button", { name: "Retry" })).toBeNull();
   });
 
   it("says so for an unknown run", async () => {

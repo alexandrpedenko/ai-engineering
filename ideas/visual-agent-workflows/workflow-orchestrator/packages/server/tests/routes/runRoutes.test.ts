@@ -35,6 +35,24 @@ describe("/api/runs", () => {
     expect((await server.app.request("/api/runs/run-nope/resume", jsonBody("POST", { decision: "approve" }))).status).toBe(404);
   });
 
+  it("retries a failed run with 202, and refuses one that isn't failed", async () => {
+    const runId = await startToGate(server);
+    expect((await server.app.request(`/api/runs/${runId}/retry`, { method: "POST" })).status).toBe(409);
+    expect((await server.app.request("/api/runs/run-nope/retry", { method: "POST" })).status).toBe(404);
+
+    // Make design fail by cancelling it as soon as its agent call starts.
+    expect((await server.app.request(`/api/runs/${runId}/resume`, jsonBody("POST", { decision: "approve" }))).status).toBe(202);
+    await server.app.request(`/api/runs/${runId}/cancel`, { method: "POST" });
+    await server.services.supervisor.settled(runId);
+    expect(await (await server.app.request(`/api/runs/${runId}`)).json()).toMatchObject({ outcome: { status: "failed", stepId: "design" } });
+
+    expect((await server.app.request(`/api/runs/${runId}/retry`, { method: "POST" })).status).toBe(202);
+    await server.services.supervisor.settled(runId);
+    expect(await (await server.app.request(`/api/runs/${runId}`)).json()).toMatchObject({
+      outcome: { status: "finished", state: { steps: { design: { status: "done", cursorRunIds: [expect.any(String), expect.any(String)] } } } },
+    });
+  });
+
   it("keeps a waiting run across a server restart", async () => {
     const runId = await startToGate(server);
 

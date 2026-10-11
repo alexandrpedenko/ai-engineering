@@ -16,6 +16,8 @@ export interface RunEngine {
   resume(runId: string, workflow: Workflow, decision: GateDecision): Promise<RunOutcome>;
   // Re-enters the step an interrupted run stopped inside.
   continue(runId: string, workflow: Workflow): Promise<RunOutcome>;
+  // Runs the failed step of a failed run again, as a new attempt, and goes on from there.
+  retry(runId: string, workflow: Workflow): Promise<RunOutcome>;
   // Where a run stands now; null when there is no run with this id.
   outcome(runId: string, workflow: Workflow): Promise<RunOutcome | null>;
 }

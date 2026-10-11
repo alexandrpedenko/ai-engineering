@@ -146,6 +146,45 @@ describe("LangGraphRunEngine", () => {
     await expect(engine.continue("run-1", baWorkflow())).rejects.toBeInstanceOf(ConflictError);
   });
 
+  it("retries a failed step as a new attempt and goes on from there", async () => {
+    const { engine, stepsRun } = setup([{ status: "error", summary: "rate limited" }, {}]);
+    await engine.start("run-1", baWorkflow(), inputs);
+
+    const outcome = await engine.retry("run-1", baWorkflow());
+
+    expect(outcome).toMatchObject({ status: "waiting", gateId: "review" });
+    expect(stepsRun()).toEqual(["elicit", "elicit"]);
+    expect(outcome.state.steps.elicit).toMatchObject({ status: "done", cursorRunIds: ["fake-run-1", "fake-run-2"] });
+  });
+
+  it("retries a step that failed after the gate, keeping the steps before it", async () => {
+    const { engine, stepsRun, runtime } = setup([{}, { status: "error" }, {}]);
+    await engine.start("run-1", baWorkflow(), inputs);
+    expect(await engine.resume("run-1", baWorkflow(), { decision: "approve" })).toMatchObject({ status: "failed", stepId: "design" });
+
+    const outcome = await engine.retry("run-1", baWorkflow());
+
+    expect(outcome.status).toBe("finished");
+    expect(stepsRun()).toEqual(["elicit", "design", "design"]);
+    expect(runtime.requests[2]?.key).toBe("run-1:design:2");
+  });
+
+  it("refuses to retry a run that isn't failed", async () => {
+    const { engine } = setup();
+    await expect(engine.retry("nope", baWorkflow())).rejects.toBeInstanceOf(ConflictError);
+    await engine.start("run-1", baWorkflow(), inputs);
+    await expect(engine.retry("run-1", baWorkflow())).rejects.toThrow(/is waiting, not failed/);
+  });
+
+  it("reports a crash during a retry as interrupted, not failed", async () => {
+    const { engine } = setup([{ status: "error" }, { dies: true }]);
+    await engine.start("run-1", baWorkflow(), inputs);
+
+    await expect(engine.retry("run-1", baWorkflow())).rejects.toThrow("fake process stopped");
+
+    expect(await engine.outcome("run-1", baWorkflow())).toMatchObject({ status: "interrupted", stepId: "elicit" });
+  });
+
   it("knows no outcome for a run that doesn't exist", async () => {
     expect(await setup().engine.outcome("nope", baWorkflow())).toBeNull();
   });

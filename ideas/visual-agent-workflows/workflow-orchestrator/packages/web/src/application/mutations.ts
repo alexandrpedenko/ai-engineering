@@ -37,6 +37,11 @@ export function useContinueRun(runId: string) {
   return useRunAction(runId, async (id) => await api.continueRun(id));
 }
 
+export function useRetryRun(runId: string) {
+  const api = useOrchestratorApi();
+  return useRunAction(runId, async (id) => await api.retry(id));
+}
+
 export function useCancelRun(runId: string) {
   const api = useOrchestratorApi();
   return useRunAction(runId, async (id) => await api.cancel(id));

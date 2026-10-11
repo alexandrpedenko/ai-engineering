@@ -7,6 +7,7 @@ code:
   - packages/core/src/application/startRun.ts
   - packages/core/src/application/resumeRun.ts
   - packages/core/src/application/continueRun.ts
+  - packages/core/src/application/retryRun.ts
   - packages/core/src/application/loadRunWorkflow.ts
   - packages/core/src/application/runOutcome.ts
   - packages/core/src/application/listRuns.ts
@@ -18,7 +19,7 @@ code:
 depends_on: [engine, agent-steps, workflows]
 used_by: [http-api, cli, composition]
 adrs: [3, 6]
-specs: [3-cursor-runtime, 4-server]
+specs: [3-cursor-runtime, 4-server, 5.5-retry]
 updated: 2026-10-11
 ---
 
@@ -35,7 +36,8 @@ how is it stopped?
    (ADR-0003).
 2. The engine runs it until it stops moving ([engine](engine.md)).
 3. **`resumeRun`** (a gate decision, checked with `GateDecision`),
-   **`continueRun`** (an interrupted run), **`runOutcome`**: each loads the
+   **`continueRun`** (an interrupted run), **`retryRun`** (a failed run: its
+   failed step again, as a new attempt), **`runOutcome`**: each loads the
    run's own workflow (`loadRunWorkflow`; unknown run → `NotFoundError`).
 
 The **CLI** calls these directly: each call returns when the run stops moving
@@ -45,7 +47,7 @@ The **CLI** calls these directly: each call returns when the run stops moving
 
 Runs move **in the background** so HTTP answers at once:
 
-- `start`, `resume`, `continue` check everything that can fail fast (unknown
+- `start`, `resume`, `continue`, `retry` check everything that can fail fast (unknown
   workflow, invalid workflow, missing input or API key, bad decision, wrong
   status) and throw before returning; then the operation runs in the
   background.
@@ -69,6 +71,11 @@ Runs move **in the background** so HTTP answers at once:
 
 `EventLog` (port) / `FsEventLog`: `.data/runs/<runId>/events.jsonl`, one
 `{ seq, at, event }` per line.
+
+**While a run moves, its engine outcome reads `interrupted`**: to LangGraph a
+step in progress looks the same as one whose process died. Only the
+supervisor knows the difference, so clients look at `busy` first (the web app
+does; see `runHeadline` in [web-app](web-app.md)).
 
 ## Listing
 

@@ -15,6 +15,7 @@ export interface OrchestratorApi {
   startRun(workflowId: string, inputs: Record<string, string>): Promise<{ runId: string }>;
   resume(runId: string, decision: GateDecision): Promise<void>;
   continueRun(runId: string): Promise<void>;
+  retry(runId: string): Promise<void>;
   cancel(runId: string): Promise<void>;
   // Calls onEvent for every event of the run after `after`, then for live
   // ones, until the returned function is called.

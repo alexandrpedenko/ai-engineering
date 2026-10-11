@@ -82,6 +82,12 @@ export class RunSupervisor {
     await this.launch(runId, async () => await this.deps.engine.continue(runId, workflow));
   }
 
+  // Runs the failed step of a failed run again as a new attempt.
+  async retry(runId: string): Promise<void> {
+    const workflow = await this.expect(runId, "failed");
+    await this.launch(runId, async () => await this.deps.engine.retry(runId, workflow));
+  }
+
   // Cancels the agent run of the step in progress. A run that is moving but
   // hasn't reached its agent call yet is cancelled as soon as it does.
   async cancel(runId: string): Promise<void> {

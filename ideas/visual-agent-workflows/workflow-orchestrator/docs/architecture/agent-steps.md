@@ -79,7 +79,7 @@ StepEvent = text | thinking | tool { callId, name, status } | status
   that started them). The API key is removed from any error message. The two
   SDK calls are injectable for tests.
 - **`FakeAgentRuntime`**: scripted replies (events, status, summary, usage,
-  `writes`, `placeholders`, `dies`, `holds`); records requests; reattaches
+  `writes`, `placeholders`, `dies`, `holds`, `delayMs`); records requests; reattaches
   only to runs it started; `cutOff(id)` simulates a dead process. Used by every
   test and by `--fake` / `dev:sample`.
 

@@ -49,7 +49,7 @@ export function formatOutcome(runId: string, outcome: RunOutcome): string {
     case "interrupted":
       return `interrupted inside ${outcome.stepId}. Continue with: ${carryOn}\n`;
     case "failed":
-      return `failed at ${outcome.stepId}  ${runId}\n`;
+      return `failed at ${outcome.stepId}  ${runId}. Retry with: npm run wf -- retry ${runId}\n`;
     case "rejected":
       return `rejected at ${outcome.gateId}: no revisions left  ${runId}\n`;
   }

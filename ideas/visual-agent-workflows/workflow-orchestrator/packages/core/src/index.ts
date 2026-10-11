@@ -32,5 +32,6 @@ export type { WorkflowStore } from "./application/WorkflowStore";
 export type { RunEngine, RunOutcome } from "./application/RunEngine";
 export { runAgentStep, type AgentStepDeps } from "./application/runAgentStep";
 export { resumeRun } from "./application/resumeRun";
+export { retryRun } from "./application/retryRun";
 export { scanProject } from "./application/scanProject";
 export { startRun, type StartRunDeps } from "./application/startRun";

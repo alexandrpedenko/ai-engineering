@@ -15,6 +15,7 @@ export type WfServices = {
   start(workflowId: string, inputs: Record<string, string>): Promise<{ runId: string; outcome: RunOutcome }>;
   resume(runId: string, decision: GateDecision): Promise<RunOutcome>;
   continue(runId: string): Promise<RunOutcome>;
+  retry(runId: string): Promise<RunOutcome>;
   outcome(runId: string): Promise<RunOutcome>;
 };
 
@@ -28,6 +29,7 @@ export type WfDeps = {
 export const wfUsage = `usage:
   npm run wf -- run <workflowId> [--input key=value]... [--project <path>] [--fake]
   npm run wf -- continue <runId> [--project <path>] [--fake]
+  npm run wf -- retry <runId> [--project <path>] [--fake]       runs a failed step again
   npm run wf -- status <runId> [--project <path>]
 
   --project <path>  host project (relative to the orchestrator folder); overrides ORCH_PROJECT_ROOT
@@ -40,7 +42,7 @@ type Parsed = { command: string; target: string; inputs: Record<string, string>;
 
 function parse(argv: string[]): Parsed | string {
   const [command, target, ...rest] = argv;
-  if (!command || !["run", "continue", "status"].includes(command)) return `unknown command: ${command ?? "(none)"}`;
+  if (!command || !["run", "continue", "retry", "status"].includes(command)) return `unknown command: ${command ?? "(none)"}`;
   if (!target || target.startsWith("--")) return `${command} needs a ${command === "run" ? "workflow id" : "run id"}`;
 
   const parsed: Parsed = { command, target, inputs: {}, fake: false };
@@ -111,6 +113,8 @@ export async function runWfCommand(argv: string[], deps: WfDeps): Promise<number
     let outcome: RunOutcome;
     if (parsed.command === "run") {
       ({ runId, outcome } = await services.start(parsed.target, parsed.inputs));
+    } else if (parsed.command === "retry") {
+      outcome = await services.retry(runId);
     } else {
       outcome = await services.outcome(runId);
       if (outcome.status === "interrupted") outcome = await services.continue(runId);

@@ -1,6 +1,6 @@
 # Slice 5 — the app shell and run views
 
-**Status:** built (2026-10-11), 5a and 5b together; in review. Not yet clicked through in a real browser.
+**Status:** done (2026-10-11).
 
 **Capability.** Do a whole BA run from the browser: find the workflow under
 its phase, start it, watch each step happen live, read the files at the gate,

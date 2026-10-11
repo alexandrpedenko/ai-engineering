@@ -73,6 +73,9 @@ export class FakeOrchestratorApi implements OrchestratorApi {
   async continueRun(runId: string) {
     this.calls.push(`continue ${runId}`);
   }
+  async retry(runId: string) {
+    this.calls.push(`retry ${runId}`);
+  }
   async cancel(runId: string) {
     this.calls.push(`cancel ${runId}`);
   }

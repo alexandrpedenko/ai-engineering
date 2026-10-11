@@ -18,6 +18,10 @@ export function runRoutes(services: ServerServices) {
       await services.supervisor.continue(c.req.param("runId"));
       return c.body(null, 202);
     })
+    .post("/runs/:runId/retry", async (c) => {
+      await services.supervisor.retry(c.req.param("runId"));
+      return c.body(null, 202);
+    })
     .post("/runs/:runId/cancel", async (c) => {
       await services.supervisor.cancel(c.req.param("runId"));
       return c.body(null, 202);

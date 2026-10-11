@@ -58,7 +58,9 @@ describe("formatOutcome", () => {
     expect(formatOutcome("run-1", outcome({ status: "interrupted", stepId: "design" }))).toBe(
       "interrupted inside design. Continue with: npm run wf -- continue run-1\n",
     );
-    expect(formatOutcome("run-1", outcome({ status: "failed", stepId: "elicit" }))).toBe("failed at elicit  run-1\n");
+    expect(formatOutcome("run-1", outcome({ status: "failed", stepId: "elicit" }))).toBe(
+      "failed at elicit  run-1. Retry with: npm run wf -- retry run-1\n",
+    );
     expect(formatOutcome("run-1", outcome({ status: "rejected", gateId: "review" }))).toBe("rejected at review: no revisions left  run-1\n");
   });
 });

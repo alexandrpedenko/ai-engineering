@@ -10,6 +10,7 @@ import {
   NotFoundError,
   type RunEvent,
   resumeRun,
+  retryRun,
   type RunHandle,
   runAgentStep,
   runOutcome,
@@ -95,7 +96,17 @@ async function wire(options: WiringOptions, callbacks: Callbacks) {
   });
   await mkdir(config.dataDir, { recursive: true });
 
-  const fakeRuntime = new FakeAgentRuntime([{ summary: "fake agent: wrote placeholder files", placeholders: true }]);
+  const fakeRuntime = new FakeAgentRuntime([
+    {
+      summary: "fake agent: wrote placeholder files",
+      placeholders: true,
+      delayMs: Number(process.env.ORCH_FAKE_DELAY_MS ?? 0),
+      events: [
+        { kind: "text", text: "Reading the files for this step" },
+        { kind: "tool", callId: "fake-edit", name: "edit", status: "running" },
+      ],
+    },
+  ]);
   const runtime = (): AgentRuntime => {
     if (options.fake) return fakeRuntime;
     const apiKey = process.env.CURSOR_API_KEY;
@@ -156,6 +167,7 @@ export async function createRunServices(options: RunServicesOptions) {
     },
     resume: async (runId: string, decision: GateDecision) => await resumeRun(runDeps, runId, decision),
     continue: async (runId: string) => await continueRun(runDeps, runId),
+    retry: async (runId: string) => await retryRun(runDeps, runId),
     outcome: async (runId: string) => await runOutcome(runDeps, runId),
   };
 }

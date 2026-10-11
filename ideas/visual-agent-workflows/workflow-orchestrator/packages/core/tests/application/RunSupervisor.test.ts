@@ -148,6 +148,33 @@ describe("RunSupervisor", () => {
     expect(seen.length).toBe(count);
   });
 
+  it("retries a cancelled step in the background as attempt 2", async () => {
+    const { supervisor, eventLog } = setup([{ holds: true }, {}]);
+    const { runId } = await supervisor.start("ba-discovery", {});
+    await supervisor.cancel(runId);
+    await supervisor.settled(runId);
+
+    await supervisor.retry(runId);
+    await supervisor.settled(runId);
+
+    const events = (await eventLog.read(runId)).map((e) => e.event);
+    expect(events).toContainEqual({ type: "step-started", stepId: "elicit", attempt: 2 });
+    expect(events.at(-1)).toMatchObject({ type: "run-settled", outcome: { status: "waiting" } });
+  });
+
+  it("refuses to retry a run that is moving or isn't failed", async () => {
+    const holding = setup([{ holds: true }]);
+    const { runId } = await holding.supervisor.start("ba-discovery", {});
+    await expect(holding.supervisor.retry(runId)).rejects.toThrow(/busy/);
+    await holding.supervisor.cancel(runId);
+    await holding.supervisor.settled(runId);
+
+    const waiting = setup();
+    const second = await waiting.supervisor.start("ba-discovery", {});
+    await waiting.supervisor.settled(second.runId);
+    await expect(waiting.supervisor.retry(second.runId)).rejects.toThrow(/is waiting, not failed/);
+  });
+
   it("watch refuses an unknown run", async () => {
     await expect(setup().supervisor.watch("nope", 0, () => {})).rejects.toBeInstanceOf(NotFoundError);
   });

@@ -13,6 +13,7 @@ export type FakeReply = {
   dies?: boolean; // wait() throws the first time, like a process that stopped mid-run
   holds?: boolean; // wait() doesn't answer until the run is cancelled
   placeholders?: boolean; // writes a short placeholder to each file the message says to write
+  delayMs?: number; // wait() takes this long (cancel ends it early), so a run can be watched
 };
 
 // A placeholder for each plain path (not a glob) in the message's "You must
@@ -65,7 +66,8 @@ export class FakeAgentRuntime implements AgentRuntime {
     let dies = reply.dies ?? false;
     let release: () => void = () => {};
     let cancelled = false;
-    const held = reply.holds ? new Promise<void>((resolve) => (release = resolve)) : null;
+    const held = reply.holds || reply.delayMs ? new Promise<void>((resolve) => (release = resolve)) : null;
+    const timer = reply.delayMs && !reply.holds ? setTimeout(() => release(), reply.delayMs) : null;
     const cancelledResult: AgentRunResult = { status: "cancelled", summary: "", durationMs: 0 };
 
     return {
@@ -83,6 +85,7 @@ export class FakeAgentRuntime implements AgentRuntime {
       },
       cancel: async () => {
         cancelled = true;
+        if (timer) clearTimeout(timer);
         release();
       },
     };
