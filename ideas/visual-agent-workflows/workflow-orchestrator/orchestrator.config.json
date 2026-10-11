@@ -1,0 +1,9 @@
+{
+  "projectRoot": "..",
+  "workflowsDir": ".cursor/workflows",
+  "skillDirs": [".cursor/skills", ".agents/skills"],
+  "agentDirs": [".cursor/agents"],
+  "artefactGlobs": ["discovery/**", "wiki/**", "delivery/**", "docs/**"],
+  "defaultModel": { "id": "composer-2.5" },
+  "dataDir": ".data"
+}

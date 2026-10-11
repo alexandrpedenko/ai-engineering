@@ -1,0 +1,14 @@
+{
+  "name": "@orch/server",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/main.ts",
+    "typecheck": "tsc -p tsconfig.json"
+  },
+  "dependencies": {
+    "@hono/node-server": "2.1.4",
+    "@langchain/langgraph-checkpoint-sqlite": "1.0.4",
+    "hono": "4.13.13"
+  }
+}
