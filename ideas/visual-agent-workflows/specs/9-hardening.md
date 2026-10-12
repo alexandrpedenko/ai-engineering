@@ -289,3 +289,14 @@ Plan said: a version in health and a CHANGELOG.
 Now: `package.json` has `"version": "0.9.0"`, served by `/api/health`;
 `CHANGELOG.md` starts at 0.8.0.
 Why: slice 8 was the last MVP slice; 1.0 is for after review.
+
+**2026-10-12, after the build — F6: the dev proxy must keep the Host header.**
+Amendment above said: "Vite's proxy keeps the browser's Host header … no Vite
+port is configured anywhere."
+Now: that was wrong. Vite's shorthand proxy sets `changeOrigin: true`, so in
+`npm run dev` the server saw `Host: 127.0.0.1:4317` with
+`Origin: http://localhost:5173`, and every action from the dev UI was
+refused ("requests from other sites are refused"). `vite.config.ts` now sets
+`changeOrigin: false`; `tests/viteProxy.test.ts` checks it. `npm start` was
+not affected (one port).
+Why: found by hand in the dev UI; no test went through the Vite proxy.
