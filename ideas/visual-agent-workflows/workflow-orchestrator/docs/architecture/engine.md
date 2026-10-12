@@ -9,7 +9,7 @@ code:
   - packages/core/src/domain/gateFiles.ts
 depends_on: [workflows, agent-steps]
 used_by: [runs-and-events, cli, composition, gate-changes]
-adrs: [3, 6, 14]
+adrs: [3, 6, 14, 20]
 specs: [2-schema-compile, 3-cursor-runtime, 5.5-retry, 5.8-artefacts-anywhere]
 updated: 2026-10-12
 ---
@@ -41,7 +41,13 @@ LangGraph-specific is saved in workflow files. The run id is LangGraph's
 
 - **State** (`RunState`): `workflowId`, `inputs`, `steps` (latest
   `StepRecord` per step), `feedback` (per agent step, appended), `decisions`
-  (per gate, appended), `revisions` (per gate), `stoppedAt`.
+  (per gate, appended), `revisions` (per gate), `stoppedAt`. Every part is a
+  zod schema in `domain/runState.ts`, and state read back from a checkpoint is
+  parsed with it (missing keys default; `cursorRunIds` becomes `agentRunIds`;
+  a gate's interrupt value is parsed too), ADR-0020.
+- `resume` / `continue` / `retry` check the run's status first (one
+  `expectStatus`, `ConflictError` "run X is <status>, not <wanted>");
+  `deleteRun` deletes the run's checkpoint thread.
 - **Agent step** → a node that calls `agentStep(runId, step, state)`
   ([agent-steps](agent-steps.md)) and stores the record. Edge after it:
   `failed` → end; else the next step.

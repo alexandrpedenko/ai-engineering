@@ -17,13 +17,16 @@ export interface ProjectFiles {
   // declared pattern matched.
   snapshot(declared: string[]): Promise<Snapshot>;
   // Stores the project's files as they are now (the same files as snapshot)
-  // as a git tree and returns its id, without touching the person's index,
-  // stash, branches or HEAD. null when the project isn't in a git work tree.
-  recordTree(): Promise<string | null>;
+  // as a git tree, kept under the ref refs/orchestrator/<name>, and returns
+  // its id, without touching the person's index, stash, branches or HEAD.
+  // null when the project isn't in a git work tree.
+  recordTree(name: string): Promise<string | null>;
   // Each path's diff from `baseTree` (a recordTree id) to the file on disk
   // now, in the order given. With no base tree, every path has no diff
-  // (reason "no git").
+  // (reason "no git"); a base tree git no longer has gives reason "no base".
   diff(baseTree: string | null, paths: string[]): Promise<FileDiff[]>;
+  // Deletes the refs recordTree kept under refs/orchestrator/<prefix>/.
+  forgetTrees(prefix: string): Promise<void>;
   // Whether a person may read and edit this file through the orchestrator:
   // an existing project file whose real location is inside the project, and
   // not a file that commonly holds credentials (.env, keys, .npmrc, …).

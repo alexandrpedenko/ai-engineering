@@ -4,6 +4,7 @@ import type { z } from "zod";
 import { InvalidConfigError } from "../application/errors";
 import { OrchestratorConfig, type ResolvedConfig, RuntimeKind } from "../domain/config";
 import { LocalSettings, type SettingSource } from "../domain/settings";
+import { isErrno } from "./isErrno";
 
 const CONFIG_FILE = "orchestrator.config.json";
 const SETTINGS_FILE = "settings.json";
@@ -21,7 +22,7 @@ async function readRaw(configPath: string): Promise<unknown> {
   try {
     text = await readFile(configPath, "utf8");
   } catch (error) {
-    if ((error as NodeJS.ErrnoException).code === "ENOENT") return {};
+    if (isErrno(error, "ENOENT")) return {};
     throw error;
   }
   try {
@@ -71,7 +72,10 @@ export async function loadConfig(
     }
     runtime = kind.data;
   }
-  const models = { ...parsed.data.models, ...settings.models };
+  const models = {
+    cursor: settings.models?.cursor ?? parsed.data.models.cursor,
+    claude: settings.models?.claude ?? parsed.data.models.claude,
+  };
   const sources = {
     projectRoot: sourceOf(overrides.projectRoot, settings.projectRoot, "projectRoot"),
     runtime: sourceOf(overrides.runtime, settings.runtime, "runtime"),

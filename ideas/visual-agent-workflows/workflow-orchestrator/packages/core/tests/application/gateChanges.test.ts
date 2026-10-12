@@ -10,7 +10,7 @@ import { baWorkflow } from "../support/workflows";
 
 const record = (baseTree: string, writes: StepRecord["writes"]): StepRecord => ({
   status: "done",
-  cursorRunIds: ["r1"],
+  agentRunIds: ["r1"],
   writes,
   missing: [],
   summary: "",
@@ -44,7 +44,7 @@ describe("gateChanges", () => {
   });
 
   it("diffs against the latest attempt's tree after a reject", async () => {
-    const latest = { ...record("tree-2", [{ path: "discovery/requirements.md", change: "modified" }]), cursorRunIds: ["r1", "r2"] };
+    const latest = { ...record("tree-2", [{ path: "discovery/requirements.md", change: "modified" }]), agentRunIds: ["r1", "r2"] };
     const { deps, projectFiles } = await setup(waiting({ elicit: latest }));
 
     await gateChanges(deps, "run-1", "review");

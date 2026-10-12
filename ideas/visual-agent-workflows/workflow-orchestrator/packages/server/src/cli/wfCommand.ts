@@ -4,11 +4,13 @@ import {
   InvalidInputError,
   MissingCredentialsError,
   NotFoundError,
+  RunCrashedError,
   type FileChanges,
   type GateDecision,
   type RunEvent,
   type RunOutcome,
 } from "@orch/core";
+import { formatConfigError } from "./formatConfigError";
 import { formatGate, formatOutcome, formatRunEvent } from "./formatRunEvent";
 
 // What the command needs from a set of run services (see composition.ts).
@@ -20,7 +22,11 @@ export type WfServices = {
   retry(runId: string): Promise<RunOutcome>;
   outcome(runId: string): Promise<RunOutcome>;
   gateChanges(runId: string, gateId: string): Promise<FileChanges>;
+  delete(runId: string): Promise<void>;
 };
+
+// What `npm run wf` exits with.
+export const EXIT = { ok: 0, failed: 1, badArguments: 2, noCredentials: 3 } as const;
 
 export type WfDeps = {
   services(options: { projectRoot?: string; fake: boolean }, onEvent: (runId: string, event: RunEvent) => void): Promise<WfServices>;
@@ -34,9 +40,11 @@ export const wfUsage = `usage:
   npm run wf -- continue <runId> [--project <path>] [--fake]
   npm run wf -- retry <runId> [--project <path>] [--fake]       runs a failed step again
   npm run wf -- status <runId> [--project <path>]
+  npm run wf -- delete <runId> [--project <path>]     forgets a run that isn't moving
+  npm run wf -- --help
 
   --project <path>  host project (relative to the orchestrator folder); overrides ORCH_PROJECT_ROOT
-  --fake            run on a fake agent: no API key, no cost, no file changes
+  --fake            run on a fake agent: no API key, no cost, placeholder files only
 `;
 
 const GATE_QUESTION = "  approve (y), or type feedback to reject; empty line stops for now › ";
@@ -45,7 +53,7 @@ type Parsed = { command: string; target: string; inputs: Record<string, string>;
 
 function parse(argv: string[]): Parsed | string {
   const [command, target, ...rest] = argv;
-  if (!command || !["run", "continue", "retry", "status"].includes(command)) return `unknown command: ${command ?? "(none)"}`;
+  if (!command || !["run", "continue", "retry", "status", "delete"].includes(command)) return `unknown command: ${command ?? "(none)"}`;
   if (!target || target.startsWith("--")) return `${command} needs a ${command === "run" ? "workflow id" : "run id"}`;
 
   const parsed: Parsed = { command, target, inputs: {}, fake: false };
@@ -65,7 +73,7 @@ function parse(argv: string[]): Parsed | string {
   return parsed;
 }
 
-const exitCodeOf = (outcome: RunOutcome) => (outcome.status === "failed" || outcome.status === "rejected" ? 1 : 0);
+const exitCodeOf = (outcome: RunOutcome) => (outcome.status === "failed" || outcome.status === "rejected" ? EXIT.failed : EXIT.ok);
 
 // Shows each gate's changes and asks, until the run finishes, fails, or the person stops.
 async function throughGates(services: WfServices, runId: string, first: RunOutcome, deps: WfDeps): Promise<RunOutcome> {
@@ -80,14 +88,19 @@ async function throughGates(services: WfServices, runId: string, first: RunOutco
   return outcome;
 }
 
-// `npm run wf`: runs a workflow in the terminal, asking at each gate.
-// Exit codes: 0 finished or stopped at a gate, 1 failed / rejected / not found /
-// invalid, 2 bad arguments, 3 missing CURSOR_API_KEY.
+// `npm run wf`: runs a workflow in the terminal, asking at each gate. Exit
+// codes (EXIT): 0 finished, stopped at a gate, or deleted; 1 failed / rejected
+// / crashed / not found / invalid / busy; 2 bad arguments; 3 the runtime's API
+// key is not set.
 export async function runWfCommand(argv: string[], deps: WfDeps): Promise<number> {
+  if (argv.includes("--help") || argv.includes("-h")) {
+    deps.write(wfUsage);
+    return EXIT.ok;
+  }
   const parsed = parse(argv);
   if (typeof parsed === "string") {
     deps.write(`${parsed}\n\n${wfUsage}`);
-    return 2;
+    return EXIT.badArguments;
   }
 
   const projectRoot = parsed.project ?? deps.env.ORCH_PROJECT_ROOT;
@@ -100,18 +113,24 @@ export async function runWfCommand(argv: string[], deps: WfDeps): Promise<number
     deps.write(formatRunEvent(event));
   };
   try {
-    // status runs no agent, so it never needs an API key.
-    const fake = parsed.fake || parsed.command === "status";
+    // status and delete run no agent, so they never need an API key.
+    const fake = parsed.fake || parsed.command === "status" || parsed.command === "delete";
     const services = await deps.services({ ...(projectRoot ? { projectRoot } : {}), fake }, onEvent);
-    if (parsed.command !== "status") deps.write(`${services.setup}\n`);
+    if (parsed.command !== "status" && parsed.command !== "delete") deps.write(`${services.setup}\n`);
+
+    if (parsed.command === "delete") {
+      await services.delete(parsed.target);
+      deps.write(`deleted ${parsed.target}\n`);
+      return EXIT.ok;
+    }
 
     if (parsed.command === "status") {
       const outcome = await services.outcome(parsed.target);
       deps.write(formatOutcome(parsed.target, outcome));
       for (const [stepId, record] of Object.entries(outcome.state.steps)) {
-        deps.write(`  ${stepId.padEnd(12)}${record.status}  attempts: ${record.cursorRunIds.length}\n`);
+        deps.write(`  ${stepId.padEnd(12)}${record.status}  attempts: ${record.agentRunIds.length}\n`);
       }
-      return 0;
+      return EXIT.ok;
     }
 
     let runId = parsed.target;
@@ -131,19 +150,19 @@ export async function runWfCommand(argv: string[], deps: WfDeps): Promise<number
   } catch (error) {
     if (error instanceof MissingCredentialsError) {
       deps.write(`${error.variable} is not set. Put it in workflow-orchestrator/.env, or use --fake.\n`);
-      return 3;
-    }
-    if (error instanceof InvalidInputError) {
-      deps.write(`${error.message}\n`);
-      return 1;
+      return EXIT.noCredentials;
     }
     if (error instanceof InvalidConfigError) {
-      deps.write(`Invalid config in ${error.configPath}\n${error.problems.map((p) => `  ${p.key}: ${p.message}`).join("\n")}\n`);
-      return 1;
+      deps.write(formatConfigError(error));
+      return EXIT.failed;
     }
-    if (error instanceof NotFoundError || error instanceof ConflictError) {
+    if (error instanceof RunCrashedError) {
+      deps.write(`the run stopped with an error: ${error.message}\nContinue with: npm run wf -- continue ${error.runId}\n`);
+      return EXIT.failed;
+    }
+    if (error instanceof InvalidInputError || error instanceof NotFoundError || error instanceof ConflictError) {
       deps.write(`${error.message}\n`);
-      return 1;
+      return EXIT.failed;
     }
     throw error;
   }

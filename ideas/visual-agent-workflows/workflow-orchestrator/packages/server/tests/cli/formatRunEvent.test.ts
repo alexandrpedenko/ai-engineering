@@ -4,7 +4,7 @@ import { formatGate, formatOutcome, formatRunEvent } from "../../src/cli/formatR
 
 const record = (over: Partial<StepRecord> = {}): StepRecord => ({
   status: "done",
-  cursorRunIds: ["r1"],
+  agentRunIds: ["r1"],
   writes: [{ path: "discovery/requirements.md", change: "created" }],
   missing: [],
   summary: "Wrote it",

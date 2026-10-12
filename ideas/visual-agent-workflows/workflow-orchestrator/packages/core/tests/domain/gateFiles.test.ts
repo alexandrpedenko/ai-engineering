@@ -6,7 +6,7 @@ import { baWorkflow } from "../support/workflows";
 
 const record = (writes: StepRecord["writes"], baseTree?: string): StepRecord => ({
   status: "done",
-  cursorRunIds: ["r1"],
+  agentRunIds: ["r1"],
   writes,
   missing: [],
   summary: "",

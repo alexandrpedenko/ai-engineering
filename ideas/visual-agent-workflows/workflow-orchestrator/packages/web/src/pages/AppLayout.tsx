@@ -4,11 +4,12 @@ import { Outlet, useLocation, useNavigate } from "react-router";
 import { useCreateWorkflow } from "../application/mutations";
 import { usePhases, useProject, useRuns, useWorkflows } from "../application/queries";
 import { useServerStatus } from "../application/useServerStatus";
-import { useDraftIds } from "../application/useWorkflowDraftStore";
+import { useDraftIds } from "../application/useDraftIds";
 import { AppSidebar } from "../components/AppSidebar";
+import { ErrorBoundary } from "../components/ErrorBoundary";
 import { NewWorkflowDialog } from "../components/NewWorkflowDialog";
 import { ServerStatusChip } from "../components/ServerStatusChip";
-import { type PhaseGroup, groupWorkflowsByPhase } from "../domain/grouping";
+import { type PhaseGroup, groupWorkflowsByPhase } from "../domain/groupWorkflowsByPhase";
 import { newWorkflow } from "../domain/workflowEdits";
 
 // The frame around every page: app bar, sidebar of phases and workflows, the
@@ -59,7 +60,9 @@ export function AppLayout() {
         </Box>
         <Divider orientation="vertical" flexItem />
         <Box component="main" sx={{ flexGrow: 1, overflow: "auto", p: 3 }}>
-          <Outlet />
+          <ErrorBoundary key={location.pathname}>
+            <Outlet />
+          </ErrorBoundary>
         </Box>
       </Box>
       {newIn && (

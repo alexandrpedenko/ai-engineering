@@ -12,6 +12,7 @@ export type FakeReply = {
   writes?: Record<string, string>; // files written under cwd when the run starts
   dies?: boolean; // wait() throws the first time, like a process that stopped mid-run
   holds?: boolean; // wait() doesn't answer until the run is cancelled
+  streams?: boolean; // events() goes on until the run ends, like a real agent's stream
   placeholders?: boolean; // writes a short placeholder to each file the message says to write
   delayMs?: number; // wait() takes this long (cancel ends it early), so a run can be watched
   startFails?: string; // start() throws an error with this message, like a refused API key
@@ -89,6 +90,7 @@ export class FakeAgentRuntime implements AgentRuntime {
       id,
       events: async function* () {
         for (const event of reply.events ?? []) yield event;
+        if (reply.streams && held) await held;
       },
       wait: async () => {
         if (dies) {

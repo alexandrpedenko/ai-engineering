@@ -8,6 +8,16 @@ import * as schemas from "./responseSchemas";
 // Every event type the server sends on a run's stream.
 const LOG_EVENT_TYPES = ["step-started", "agent-event", "step-finished", "gate-waiting", "run-settled", "run-crashed"];
 
+// JSON text as a value, or undefined when it isn't JSON (an HTML error page
+// from a proxy, a cut-off message).
+function parseJson(text: string): unknown {
+  try {
+    return JSON.parse(text) as unknown;
+  } catch {
+    return undefined;
+  }
+}
+
 // The part of the browser's EventSource this client uses (tests pass a fake).
 export type EventSourceLike = {
   addEventListener(type: string, listener: (message: MessageEvent<string>) => void): void;
@@ -107,12 +117,19 @@ export class HttpOrchestratorApi implements OrchestratorApi {
     await this.send("POST", `/api/runs/${encodeURIComponent(runId)}/cancel`);
   }
 
+  async deleteRun(runId: string): Promise<void> {
+    await this.send("DELETE", `/api/runs/${encodeURIComponent(runId)}`);
+  }
+
+  // A message that isn't an event this client understands is skipped.
   watchRun(runId: string, after: number, onEvent: (event: LoggedEvent) => void): () => void {
     const source = this.openEventSource(`${this.baseUrl}/api/runs/${encodeURIComponent(runId)}/events?after=${after}`);
     for (const type of LOG_EVENT_TYPES) {
       source.addEventListener(type, (message) => {
-        const event = schemas.LogEventData.parse(JSON.parse(message.data)) as unknown as LogEvent;
-        onEvent({ seq: Number(message.lastEventId), at: "", event });
+        const seq = Number(message.lastEventId);
+        const event = schemas.LogEventData.safeParse(parseJson(message.data));
+        if (!event.success || !Number.isInteger(seq) || seq <= 0) return;
+        onEvent({ seq, at: "", event: event.data as LogEvent });
       });
     }
     return () => source.close();
@@ -124,15 +141,15 @@ export class HttpOrchestratorApi implements OrchestratorApi {
 
   // Sends a request; returns the parsed JSON body (undefined when empty).
   // A non-2xx answer throws ApiError with the server's message and problems.
+  // Every request but a GET says it is JSON, body or not (the server refuses
+  // anything else, which keeps other sites' pages out).
   private async send(method: string, path: string, body?: unknown): Promise<unknown> {
     const init: RequestInit = { method };
-    if (body !== undefined) {
-      init.headers = { "content-type": "application/json" };
-      init.body = JSON.stringify(body);
-    }
+    if (method !== "GET") init.headers = { "content-type": "application/json" };
+    if (body !== undefined) init.body = JSON.stringify(body);
     const response = await fetch(`${this.baseUrl}${path}`, init);
     const text = await response.text();
-    const json: unknown = text ? JSON.parse(text) : undefined;
+    const json = text ? parseJson(text) : undefined;
     if (!response.ok) {
       const error = schemas.ErrorBody.safeParse(json);
       throw new ApiError(response.status, error.success ? error.data.error : response.statusText, error.success ? (error.data.problems ?? []) : []);

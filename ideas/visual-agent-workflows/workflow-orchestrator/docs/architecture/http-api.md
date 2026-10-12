@@ -7,7 +7,7 @@ code:
 depends_on: [runs-and-events, workflows, project-registry, gate-changes]
 used_by: [web-app]
 adrs: [10, 15]
-specs: [4-server, 5.5-retry, 6-workflow-editor, 7-file-editor, 8-changes-at-the-gate]
+specs: [4-server, 5.5-retry, 6-workflow-editor, 7-file-editor, 8-changes-at-the-gate, 9-hardening]
 updated: 2026-10-12
 ---
 
@@ -21,7 +21,7 @@ case or the supervisor, return the result. They get their dependencies as
 
 | method | path | answer |
 | --- | --- | --- |
-| GET | `/api/health` | `{ ok, node, runtime }` (`cursor`, `claude` or `fake`) |
+| GET | `/api/health` | `{ ok, node, runtime, version, git, dataDirWritable, credentials }` (`runtime`: `cursor`, `claude` or `fake`) |
 | GET | `/api/project` | the registry |
 | GET / PUT | `/api/files?path=` | `{ path, content, version }` / `{ content, baseVersion? }` → `{ version }`; **409** `{ error, version }` when `baseVersion` is given and the file changed since (existing project files inside the project, not credential files; see `canOpen` in [project-registry](project-registry.md)) |
 | GET / PUT | `/api/phases` | `{ phases }` / → 204 |
@@ -34,21 +34,26 @@ case or the supervisor, return the result. They get their dependencies as
 | GET | `/api/runs/:runId` | `{ runId, workflow, inputs, startedAt, busy, outcome }` |
 | GET | `/api/runs/:runId/gates/:gateId/changes` | `{ files: [{ path, change, added, removed, diff, reason? }] }` ([gate-changes](gate-changes.md)); **404** for an unknown run or gate |
 | POST | `/api/runs/:runId/resume` · `/continue` · `/retry` · `/cancel` | **202** |
+| DELETE | `/api/runs/:runId` | **204**; **409** while it moves (here or in another process); **404** unknown |
 | GET | `/api/runs/:runId/events?after=` | SSE |
 
 **Only local, JSON requests get through** (`localOnly`, ADR-0015): a host
-name other than `localhost` / `127.0.0.1` / `[::1]` or a non-local `Origin`
-→ 403; a body that isn't `application/json` → 415. This keeps other sites'
-pages (and DNS rebinding) away from a server that has no login.
+name other than `localhost` / `127.0.0.1` / `[::1]` → 403; an `Origin` that
+isn't this server's own (a local host name and the port the request came to;
+pages on other local ports are refused) → 403; any request but GET / HEAD
+that doesn't say `application/json`, body or not → 415. Bodies over 2 MB →
+413. This keeps other sites' pages, other local servers' pages and DNS
+rebinding away from a server that has no login.
 
 **Starting and moving a run answer 202 at once**; what happens next arrives as
 events.
 
 ## The event stream
 
-`GET /api/runs/:runId/events`: every logged event after `?after=<seq>` (or
-the `Last-Event-ID` header the browser sends when it reconnects), then live
-events, until the client disconnects. Each message: `id` = seq, `event` =
+`GET /api/runs/:runId/events`: every logged event after the `Last-Event-ID`
+header the browser sends when it reconnects (else `?after=<seq>`), then live
+events, until the client disconnects. A comment line (`: ping`) goes out
+after 20 s without events, so proxies keep the stream open. Each message: `id` = seq, `event` =
 type (`step-started`, `agent-event`, `step-finished`, `gate-waiting`,
 `run-settled`, `run-crashed`), `data` = the event as JSON. An unknown run is
 a 404 before the stream opens.

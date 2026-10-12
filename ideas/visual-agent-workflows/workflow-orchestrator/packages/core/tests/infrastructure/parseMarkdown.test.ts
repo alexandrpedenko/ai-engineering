@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parseMarkdown } from "../../src/infrastructure/frontmatter";
+import { parseMarkdown } from "../../src/infrastructure/parseMarkdown";
 
 describe("parseMarkdown", () => {
   it("returns an empty frontmatter when there is none", () => {

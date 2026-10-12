@@ -3,7 +3,10 @@ import { z } from "zod";
 // The shapes the UI relies on in each server answer. Loose: fields the UI
 // doesn't read pass through unchecked (the server's own schemas made them).
 
-const Problem = z.object({ severity: z.enum(["error", "warning"]), stepId: z.string().optional(), message: z.string() });
+// A key the server leaves out is left out here too (not set to undefined).
+const Problem = z
+  .object({ severity: z.enum(["error", "warning"]), stepId: z.string().optional(), message: z.string() })
+  .transform(({ stepId, ...problem }) => (stepId === undefined ? problem : { ...problem, stepId }));
 const Named = z.object({ name: z.string(), path: z.string(), description: z.string() }).loose();
 
 export const Health = z.object({ ok: z.boolean(), runtime: z.string().optional() });
@@ -53,8 +56,8 @@ export const GateChanges = z.object({
       added: z.number(),
       removed: z.number(),
       diff: z.string().nullable(),
-      reason: z.enum(["binary", "too large", "no git", "secret"]).optional(),
-    }),
+      reason: z.enum(["binary", "too large", "no git", "no base", "secret"]).optional(),
+    }).transform(({ reason, ...file }) => (reason === undefined ? file : { ...file, reason })),
   ),
 });
 export const FileContent = z.object({ path: z.string(), content: z.string(), version: z.string() });

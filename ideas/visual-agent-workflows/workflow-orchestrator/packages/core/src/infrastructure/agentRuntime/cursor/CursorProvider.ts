@@ -20,9 +20,14 @@ function isNotFound(error: unknown): boolean {
   return status === 404 || (typeof code === "string" && /not.?found/i.test(code)) || /not.?found/i.test(error.message);
 }
 
+// The only built-in tools a Cursor agent step gets: no shell, MCP, web or
+// subagents (ADR-0017).
+export const CURSOR_TOOLS = ["read", "edit", "delete", "grep", "glob", "ls"];
+
 // Cursor's local agents: the agent works in the project with the project's own
-// .cursor settings (rules, skills, subagents, MCP). Local runs live inside this
-// process, so one found again after a restart that was still running was cut off.
+// .cursor settings (rules, skills), with the tools in CURSOR_TOOLS. Local runs
+// live inside this process, so one found again after a restart that was still
+// running was cut off.
 export class CursorProvider implements AgentProvider {
   readonly name = "cursor" as const;
   private readonly apiKey: string;
@@ -38,8 +43,15 @@ export class CursorProvider implements AgentProvider {
       apiKey: this.apiKey,
       model: request.model,
       local: { cwd: request.cwd, settingSources: ["project"] },
+      tools: CURSOR_TOOLS,
     });
-    const run = await agent.send(request.message, { idempotencyKey: request.key });
+    let run: Run;
+    try {
+      run = await agent.send(request.message, { idempotencyKey: request.key });
+    } catch (error) {
+      agent.close();
+      throw error;
+    }
     return {
       id: run.id,
       events: async function* () {

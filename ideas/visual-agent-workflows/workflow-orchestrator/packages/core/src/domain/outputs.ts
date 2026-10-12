@@ -1,8 +1,11 @@
+import { z } from "zod";
+
 // Files and their content hashes at one moment, plus which paths each
 // pattern matched (the adapter does the globbing; this module never does).
 export type Snapshot = { hashes: Record<string, string>; matches: Record<string, string[]> };
 
-export type FileChange = { path: string; change: "created" | "modified" | "deleted" };
+export const FileChange = z.object({ path: z.string(), change: z.enum(["created", "modified", "deleted"]) });
+export type FileChange = z.infer<typeof FileChange>;
 
 // What changed between two snapshots, and which declared patterns saw no
 // change at all. Looks only at the files the snapshots cover.

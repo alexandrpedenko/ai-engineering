@@ -1,5 +1,6 @@
 import { Table, TableBody, TableCell, TableHead, TableRow, Typography } from "@mui/material";
 import type { RunSummary } from "@orch/core";
+import { formatDateTime } from "../domain/formatDateTime";
 import { RunStatusChip } from "./RunStatusChip";
 
 type Props = { runs: RunSummary[]; showWorkflow?: boolean; onOpen: (runId: string) => void };
@@ -25,7 +26,7 @@ export function RunsTable({ runs, showWorkflow = true, onOpen }: Props) {
             <TableCell>
               <RunStatusChip status={run.busy ? "moving" : run.status} />
             </TableCell>
-            <TableCell>{run.startedAt ? new Date(run.startedAt).toLocaleString() : "—"}</TableCell>
+            <TableCell>{formatDateTime(run.startedAt)}</TableCell>
           </TableRow>
         ))}
       </TableBody>

@@ -65,3 +65,15 @@ export class MissingCredentialsError extends Error {
     this.variable = variable;
   }
 }
+
+// A run stopped with an error instead of settling: the engine or an agent
+// step threw. The run is left interrupted and can be continued.
+export class RunCrashedError extends Error {
+  readonly runId: string;
+
+  constructor(runId: string, message: string) {
+    super(message);
+    this.name = "RunCrashedError";
+    this.runId = runId;
+  }
+}

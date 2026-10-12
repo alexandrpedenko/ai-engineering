@@ -13,7 +13,9 @@ code:
   - packages/core/src/application/scanProject.ts
   - packages/core/src/application/projectFile.ts
   - packages/core/src/infrastructure/loadConfig.ts
-  - packages/core/src/infrastructure/frontmatter.ts
+  - packages/core/src/infrastructure/parseMarkdown.ts
+  - packages/core/src/infrastructure/secretFiles.ts
+  - packages/core/src/infrastructure/isErrno.ts
   - packages/core/src/infrastructure/FsProjectFiles.ts
 depends_on: []
 used_by: [workflows, prompts, agent-steps, gate-changes, http-api, cli, composition]
@@ -85,16 +87,21 @@ frontmatter into a skill or agent (`toSkill`, `toAgentDef`) is domain.
 
 - `snapshot(declared)`: a hash of every project file (files over 5 MB:
   `size:mtimeMs`), and which files each declared pattern matched, for the file
-  check ([agent-steps](agent-steps.md)).
-- `recordTree()` / `diff(baseTree, paths)`: the project's files as a git
-  tree before a step, and each file's diff against it at a gate, through
-  temporary index files ([gate-changes](gate-changes.md)).
+  check ([agent-steps](agent-steps.md)). A file that vanishes or can't be read
+  while it is walked (gone, a symlink loop, no permission) is left out.
+- `recordTree(name)` / `diff(baseTree, paths)` / `forgetTrees(prefix)`: the
+  project's files as a git tree before a step (kept under
+  `refs/orchestrator/<name>`), each file's diff against it at a gate, and
+  deleting a run's refs ([gate-changes](gate-changes.md)).
 - `canOpen(path)`: a normalised relative path that is in the project file
   list, whose real location (after symlinks) is inside the project root, and
-  that isn't a file that commonly holds credentials (`.env`, `.env.*`,
-  `.envrc`, `.npmrc`, `.pypirc`, `.netrc`, `*.pem`, `*.key`, `*.p12`, `*.pfx`,
-  `id_rsa*` and other SSH keys, anything under `.ssh/`, `.aws/`, `.gnupg/`).
-  Only existing files.
+  where neither the path nor the real location is a credential file
+  (`secretFiles.ts`, matched ignoring case: `.env`, `.env.*`, `.envrc`,
+  `.npmrc`, `.pypirc`, `.netrc`, `.git-credentials`, `.pgpass`, `.htpasswd`,
+  `.vault-token`, `*.pem`, `*.key`, `*.p12`, `*.pfx`, `*.keystore`, `*.jks`,
+  `*.tfvars`, `*.tfstate`, `credentials.json`, `service-account*.json`,
+  `id_rsa*` and other SSH keys, anything under `.ssh/`, `.aws/`, `.gnupg/`,
+  `.kube/`, `.docker/config.json`). Only existing files.
 - `readText` / `writeText`, used through `readProjectFile` /
   `writeProjectFile`, which refuse paths `canOpen` refuses and files over 1 MB.
   Both give the file's **version** (the SHA-1 of its bytes), which changes

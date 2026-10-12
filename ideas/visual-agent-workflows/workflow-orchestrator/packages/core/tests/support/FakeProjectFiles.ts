@@ -38,9 +38,12 @@ export class FakeProjectFiles implements ProjectFiles {
     return this.editable.has(path);
   }
 
+  // Like the real one: a file over 1 MB comes back without its content.
   async readText(path: string) {
     const content = this.texts.get(path);
-    return content === undefined ? null : { content, size: new TextEncoder().encode(content).length, version: fakeVersion(content) };
+    if (content === undefined) return null;
+    const size = new TextEncoder().encode(content).length;
+    return size > 1024 * 1024 ? { content: "", size, version: `${size}:0` } : { content, size, version: fakeVersion(content) };
   }
 
   async writeText(path: string, content: string) {
@@ -49,16 +52,25 @@ export class FakeProjectFiles implements ProjectFiles {
   }
 
   trees: (string | null)[] = [];
+  treeNames: string[] = [];
+  forgotten: string[] = [];
   diffs = new Map<string, FileDiff>();
   diffCalls: { baseTree: string | null; paths: string[] }[] = [];
 
-  async recordTree() {
+  async recordTree(name: string) {
+    this.treeNames.push(name);
     return this.trees.shift() ?? null;
   }
 
+  // Like the real one: no base tree means no diff, reason "no git".
   async diff(baseTree: string | null, paths: string[]) {
     this.diffCalls.push({ baseTree, paths });
+    if (baseTree === null) return paths.map((path) => ({ path, added: 0, removed: 0, diff: null, reason: "no git" as const }));
     return paths.map((path) => this.diffs.get(path) ?? { path, added: 0, removed: 0, diff: "" });
+  }
+
+  async forgetTrees(prefix: string) {
+    this.forgotten.push(prefix);
   }
 
   async snapshot(declared: string[]): Promise<Snapshot> {

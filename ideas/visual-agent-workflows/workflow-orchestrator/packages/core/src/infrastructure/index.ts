@@ -5,10 +5,13 @@ export { CREDENTIALS, createAgentProvider } from "./agentRuntime/createAgentProv
 export { CursorProvider, type CursorSdk } from "./agentRuntime/cursor/CursorProvider";
 export { INTERRUPTED_SUMMARY, ProviderAgentRuntime } from "./agentRuntime/ProviderAgentRuntime";
 export { FakeAgentRuntime, type FakeReply } from "./FakeAgentRuntime";
-export { parseMarkdown } from "./frontmatter";
+export { parseMarkdown } from "./parseMarkdown";
 export { FsProjectFiles } from "./FsProjectFiles";
 export { FsRunFiles } from "./FsRunFiles";
+export { FsRunLease } from "./FsRunLease";
 export { FsWorkflowStore } from "./FsWorkflowStore";
 export { LangGraphRunEngine, type AgentStepRunner, type LangGraphRunEngineOptions } from "./LangGraphRunEngine";
 export { loadConfig } from "./loadConfig";
 export { FsEventLog } from "./FsEventLog";
+export { isErrno } from "./isErrno";
+export { writeJsonAtomic } from "./writeJsonAtomic";

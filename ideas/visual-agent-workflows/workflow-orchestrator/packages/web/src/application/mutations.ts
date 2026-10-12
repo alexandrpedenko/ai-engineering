@@ -11,25 +11,22 @@ export function useStartRun(workflowId: string) {
   const client = useQueryClient();
   return useMutation({
     mutationFn: async (inputs: Record<string, string>) => await api.startRun(workflowId, inputs),
-    onSuccess: async () => await client.invalidateQueries({ queryKey: queryKeys.runsAll }),
+    onSuccess: async () => await client.invalidateQueries({ queryKey: queryKeys.runLists }),
   });
 }
 
-function useRunAction(runId: string, send: (runId: string) => Promise<void>) {
+// One action on a run; the run is refetched once it is accepted.
+function useRunAction<T = void>(runId: string, send: (runId: string, value: T) => Promise<void>) {
   const client = useQueryClient();
   return useMutation({
-    mutationFn: async () => await send(runId),
+    mutationFn: async (value: T) => await send(runId, value),
     onSuccess: async () => await client.invalidateQueries({ queryKey: queryKeys.run(runId) }),
   });
 }
 
 export function useResumeRun(runId: string) {
   const api = useOrchestratorApi();
-  const client = useQueryClient();
-  return useMutation({
-    mutationFn: async (decision: GateDecision) => await api.resume(runId, decision),
-    onSuccess: async () => await client.invalidateQueries({ queryKey: queryKeys.run(runId) }),
-  });
+  return useRunAction<GateDecision>(runId, async (id, decision) => await api.resume(id, decision));
 }
 
 export function useContinueRun(runId: string) {
@@ -45,6 +42,19 @@ export function useRetryRun(runId: string) {
 export function useCancelRun(runId: string) {
   const api = useOrchestratorApi();
   return useRunAction(runId, async (id) => await api.cancel(id));
+}
+
+// Deletes a run that isn't moving. Its own query is dropped and the run lists go stale.
+export function useDeleteRun(runId: string) {
+  const api = useOrchestratorApi();
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: async () => await api.deleteRun(runId),
+    onSuccess: async () => {
+      client.removeQueries({ queryKey: queryKeys.run(runId), exact: true });
+      await client.invalidateQueries({ queryKey: queryKeys.runLists });
+    },
+  });
 }
 
 // Creates a workflow file. The workflow list and every workflow query go stale.

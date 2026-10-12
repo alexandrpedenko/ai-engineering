@@ -7,8 +7,9 @@ export const INTERRUPTED_SUMMARY = "the agent run was interrupted (its process s
 // The AgentRuntime for any provider (ADR-0013). Keeps the API key out of error
 // messages, remembers the runs it started so it can reattach to them in the
 // same process, and reports a run that was cut off with its process as an
-// interrupted error rather than starting it again (ADR-0006). What differs
-// between agent SDKs lives in the AgentProvider.
+// interrupted error rather than starting it again (ADR-0006); a run is
+// forgotten once its result has been read. What differs between agent SDKs lives in
+// the AgentProvider.
 export class ProviderAgentRuntime implements AgentRuntime {
   private readonly started = new Map<string, ProviderRun>();
 
@@ -40,7 +41,11 @@ export class ProviderAgentRuntime implements AgentRuntime {
     return {
       id: run.id,
       events: () => run.events(),
-      wait: async () => await this.guard(async () => await run.result()),
+      wait: async () => {
+        const result = await this.guard(async () => await run.result());
+        this.started.delete(run.id);
+        return result;
+      },
       cancel: async () => await this.guard(async () => await run.cancel()),
     };
   }

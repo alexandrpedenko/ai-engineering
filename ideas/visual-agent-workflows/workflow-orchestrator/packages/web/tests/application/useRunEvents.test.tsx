@@ -64,4 +64,18 @@ describe("useRunEvents", () => {
     unmount();
     expect(api.calls).toContain("stop run-1");
   });
+
+  it("drops a replayed older event before it changes the cache", () => {
+    const { api, client, wrapper } = setup();
+    client.setQueryData<RunDetails>(queryKeys.run("run-1"), waitingRun());
+    renderHook(() => useRunEvents("run-1"), { wrapper });
+    const finished = { status: "finished" as const, state: runState() };
+
+    act(() => {
+      api.emit("run-1", 5, { type: "run-settled", outcome: finished });
+      api.emit("run-1", 3, { type: "run-settled", outcome: { status: "waiting", gateId: "review", shows: [], state: runState() } });
+    });
+
+    expect(client.getQueryData<RunDetails>(queryKeys.run("run-1"))?.outcome).toEqual(finished);
+  });
 });

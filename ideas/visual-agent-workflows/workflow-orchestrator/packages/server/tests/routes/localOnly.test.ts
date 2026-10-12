@@ -7,11 +7,21 @@ const send = (url: string, init: RequestInit = {}) => app.request(url, init);
 const json = { "content-type": "application/json" };
 
 describe("localOnly", () => {
-  it("lets through requests to a local host name, with no origin or a local one", async () => {
+  it("lets through requests to a local host name, with no origin or this server's own", async () => {
     expect((await send("http://localhost/x")).status).toBe(200);
-    expect((await send("http://127.0.0.1:4317/x", { headers: { origin: "http://localhost:5173" } })).status).toBe(200);
-    expect((await send("http://[::1]:4317/x", { method: "POST", headers: { ...json, origin: "http://127.0.0.1:5173" }, body: "{}" })).status).toBe(200);
-    expect((await send("http://localhost/x", { method: "POST" })).status).toBe(200);
+    expect((await send("http://127.0.0.1:4317/x", { headers: { origin: "http://localhost:4317" } })).status).toBe(200);
+    expect((await send("http://localhost:5173/x", { headers: { origin: "http://localhost:5173" } })).status).toBe(200);
+    expect((await send("http://[::1]:4317/x", { method: "POST", headers: { ...json, origin: "http://127.0.0.1:4317" }, body: "{}" })).status).toBe(200);
+    expect((await send("http://localhost/x", { method: "POST", headers: json })).status).toBe(200);
+  });
+
+  it("refuses a page served by another local server", async () => {
+    expect((await send("http://localhost:4317/x", { headers: { origin: "http://localhost:3000" } })).status).toBe(403);
+  });
+
+  it("refuses an action that doesn't say it is JSON, even with no body", async () => {
+    expect((await send("http://localhost/x", { method: "POST" })).status).toBe(415);
+    expect((await send("http://localhost/x", { method: "DELETE" })).status).toBe(415);
   });
 
   it("refuses a request addressed to another host name (DNS rebinding)", async () => {

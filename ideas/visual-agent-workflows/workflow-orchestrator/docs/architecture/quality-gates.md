@@ -10,11 +10,12 @@ code:
   - package.json
   - fixtures/**
   - packages/core/scripts/**
+  - .oxlintrc.json
 depends_on: []
 used_by: []
 adrs: [10, 11, 12]
 specs: []
-updated: 2026-10-11
+updated: 2026-10-12
 ---
 
 # Quality gates
@@ -22,12 +23,14 @@ updated: 2026-10-11
 **What it answers:** what has to pass before a change is done, and what
 each check protects.
 
-`npm run check` = `tsc` over every package, then every test (ADR-0012). A
-slice is handed over only with it passing.
+`npm run check` = `tsc` over every package, then `oxlint`, then every test
+(ADR-0012). A slice is handed over only with it passing.
 
 | check | file | protects |
 | --- | --- | --- |
-| type check | `tsconfig*.json` | strict TypeScript 7 across all packages |
+| type check | `tsconfig*.json` | strict TypeScript 7 across all packages, plus `noUnusedLocals`, `noUnusedParameters`, `noFallthroughCasesInSwitch`, `noImplicitOverride`, `noImplicitReturns`, `exactOptionalPropertyTypes` |
+| lint | `.oxlintrc.json` (`npm run lint`) | oxlint (typescript-eslint doesn't support TypeScript 7): correctness rules, React hooks, a11y, no `console` outside the server's entry files, no default exports, no import cycles, no `!` outside tests and the DOM root; warnings don't fail |
+| contract | `tests/contract.test.ts` | every server answer the web app reads parses with the web's response schemas |
 | layer rules | `tests/architecture.test.ts` | every source file is in a known layer; imports only point inward; each layer uses only its allowed packages (ADR-0010) |
 | guards | `tests/guards.test.ts` | no `.then` / `.catch` / `.finally` chains; every file with behaviour in the tested folders has a mirrored test file |
 | docs | `tests/docs.test.ts` | every source file is described by an architecture doc; every path a doc names exists; frontmatter areas exist |
@@ -42,11 +45,12 @@ slice is handed over only with it passing.
   store, project files, a fake run engine, a fake `OrchestratorApi`, sample
   data, temp copies of `fixtures/sample-project`.
 
-Tests never read a developer's `settings.json`: `vitest.config.ts` sets
-`ORCH_SETTINGS_FILE` to a file that doesn't exist.
+Tests never read a developer's `settings.json` or `.env`: `vitest.config.ts`
+sets `ORCH_SETTINGS_FILE` and `ORCH_ENV_FILE` to files that don't exist, so no
+test can reach a real model with a developer's key.
 
-`fixtures/sample-project` is a small host project (two skills, two agents, a
-brief, a wiki page, the BA workflow). Tests never edit it; they copy it.
+`fixtures/sample-project` is a small host project (three skills, three
+agents, a brief, a wiki page, the BA and delivery workflows). Tests never edit it; they copy it.
 
 `npm run smoke` (`packages/core/scripts/smoke.ts`) checks the SDK and
 LangGraph load, with no key.

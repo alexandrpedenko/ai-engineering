@@ -68,4 +68,33 @@ describe("ProviderAgentRuntime", () => {
     provider.findAnswer = providerRun("old", { status: "finished", summary: "from before", durationMs: 2 });
     expect((await (await runtime.attach("old", "/host"))?.wait())?.summary).toBe("from before");
   });
+
+  it("forgets a run once its result has been read", async () => {
+    const provider = new FakeProvider();
+    const runtime = new ProviderAgentRuntime(provider, KEY);
+    const handle = await runtime.start(request);
+    provider.findAnswer = "cut-off";
+
+    await handle.wait();
+
+    expect(await (await runtime.attach(handle.id, "/host"))?.wait()).toMatchObject({ summary: INTERRUPTED_SUMMARY });
+  });
+
+  it("removes the key from errors while waiting and cancelling", async () => {
+    const provider = new FakeProvider();
+    provider.open = async () => ({
+      id: "run-x",
+      events: async function* () {},
+      result: async () => {
+        throw new Error(`denied for ${KEY}`);
+      },
+      cancel: async () => {
+        throw new Error(`no cancel for ${KEY}`);
+      },
+    });
+    const handle = await new ProviderAgentRuntime(provider, KEY).start(request);
+
+    await expect(handle.wait()).rejects.toThrow("denied for [redacted]");
+    await expect(handle.cancel()).rejects.toThrow("no cancel for [redacted]");
+  });
 });

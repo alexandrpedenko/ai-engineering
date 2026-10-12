@@ -31,7 +31,7 @@ export const workflow: Workflow = Workflow.parse({
 
 export const record = (over: Partial<StepRecord> = {}): StepRecord => ({
   status: "done",
-  cursorRunIds: ["a1"],
+  agentRunIds: ["a1"],
   writes: [{ path: "discovery/requirements.md", change: "created" }],
   missing: [],
   summary: "Wrote it",

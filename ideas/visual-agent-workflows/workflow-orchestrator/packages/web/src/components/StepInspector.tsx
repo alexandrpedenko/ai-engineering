@@ -1,7 +1,7 @@
 import { Accordion, AccordionDetails, AccordionSummary, Autocomplete, Button, Chip, MenuItem, Stack, TextField, Typography } from "@mui/material";
 import type { AgentStep, GateStep, Step } from "@orch/core";
 import { useState } from "react";
-import type { AgentStepFields, GateFields as GateFieldValues } from "../domain/workflowEdits";
+import type { AgentStepFields, GateStepFields } from "../domain/workflowEdits";
 
 export type Named = { name: string; description: string };
 
@@ -16,7 +16,7 @@ export type InspectorOptions = {
 export type InspectorActions = {
   rename: (to: string) => string | null; // the reason it was refused, or null
   changeAgentStep: (patch: Partial<AgentStepFields>) => void;
-  changeGate: (patch: Partial<GateFieldValues>) => void;
+  changeGate: (patch: Partial<GateStepFields>) => void;
   setNext: (to: string | null) => void;
   remove: () => void;
 };

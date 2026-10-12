@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parseUnifiedDiff } from "../../src/domain/parseUnifiedDiff";
+import { firstLines, parseUnifiedDiff } from "../../src/domain/parseUnifiedDiff";
 
 describe("parseUnifiedDiff", () => {
   it("numbers kept, removed and added lines on both sides", () => {
@@ -41,5 +41,17 @@ describe("parseUnifiedDiff", () => {
 
   it("gives no hunks for an empty diff", () => {
     expect(parseUnifiedDiff("")).toEqual([]);
+  });
+});
+
+describe("firstLines", () => {
+  it("keeps the first lines across hunks and counts the rest", () => {
+    const hunks = parseUnifiedDiff("@@ -1,2 +1,2 @@\n-a\n+b\n@@ -9,3 +9,3 @@\n x\n-y\n+z\n");
+
+    const cut = firstLines(hunks, 3);
+
+    expect(cut.hunks.map((h) => h.lines.length)).toEqual([2, 1]);
+    expect(cut.hidden).toBe(2);
+    expect(firstLines(hunks, 100)).toEqual({ hunks, hidden: 0 });
   });
 });

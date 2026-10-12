@@ -4,6 +4,7 @@
   "type": "module",
   "scripts": {
     "dev": "tsx watch src/main.ts",
+    "start": "tsx src/main.ts",
     "typecheck": "tsc -p tsconfig.json",
     "scan": "tsx src/bin/scan.ts",
     "wf": "tsx src/bin/wf.ts"

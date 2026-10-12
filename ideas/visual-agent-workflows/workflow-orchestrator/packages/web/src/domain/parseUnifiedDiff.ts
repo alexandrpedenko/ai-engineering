@@ -37,3 +37,21 @@ export function parseUnifiedDiff(text: string): DiffHunk[] {
   }
   return hunks;
 }
+
+// The hunks cut to their first `maxLines` lines (hunk headers not counted),
+// and how many lines were left out.
+export function firstLines(hunks: DiffHunk[], maxLines: number): { hunks: DiffHunk[]; hidden: number } {
+  const kept: DiffHunk[] = [];
+  let left = maxLines;
+  let hidden = 0;
+  for (const hunk of hunks) {
+    if (left <= 0) {
+      hidden += hunk.lines.length;
+      continue;
+    }
+    kept.push(hunk.lines.length <= left ? hunk : { ...hunk, lines: hunk.lines.slice(0, left) });
+    hidden += Math.max(0, hunk.lines.length - left);
+    left -= hunk.lines.length;
+  }
+  return { hunks: kept, hidden };
+}

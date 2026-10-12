@@ -1,6 +1,10 @@
 import type { FileChanges, RunEvent, RunOutcome, StepRecord } from "@orch/core";
 
-const firstLine = (text: string, max = 100) => {
+// The longest line printed for agent text, and for a failed step's summary.
+const LINE_CHARS = 100;
+const SUMMARY_CHARS = 200;
+
+const firstLine = (text: string, max = LINE_CHARS) => {
   const line = text.trim().split("\n")[0] ?? "";
   return line.length > max ? `${line.slice(0, max - 1)}…` : line;
 };
@@ -29,7 +33,7 @@ export function formatRunEvent(event: RunEvent): string {
     }
     case "step-finished": {
       const r = event.record;
-      if (r.status === "failed") return [`✗ ${event.stepId} failed: ${firstLine(r.summary, 200)}`, ...recordLines(r), ""].join("\n");
+      if (r.status === "failed") return [`✗ ${event.stepId} failed: ${firstLine(r.summary, SUMMARY_CHARS)}`, ...recordLines(r), ""].join("\n");
       const seconds = `${Math.round(r.durationMs / 1000)} s`;
       const usage = r.usage ? `  ${tokens(r.usage.inputTokens)} in / ${tokens(r.usage.outputTokens)} out` : "";
       return [`✓ ${event.stepId}  ${seconds}${usage}`, ...recordLines(r), ""].join("\n");
@@ -43,6 +47,7 @@ const REASONS: Record<NonNullable<FileChanges[number]["reason"]>, string> = {
   binary: "binary file",
   "too large": "diff too large",
   "no git": "not a git repository",
+  "no base": "the recorded state is gone",
   secret: "may hold credentials",
 };
 

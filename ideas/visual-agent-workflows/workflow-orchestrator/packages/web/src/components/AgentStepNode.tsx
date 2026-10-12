@@ -3,7 +3,7 @@ import type { Node, NodeProps } from "@xyflow/react";
 import { type FlowNodeData, NodeFrame } from "./NodeFrame";
 
 // An agent step on the canvas: its label, agent and required skills.
-export function StepNode({ data }: NodeProps<Node<FlowNodeData>>) {
+export function AgentStepNode({ data }: NodeProps<Node<FlowNodeData>>) {
   const { node } = data;
   const step = node.step.type === "agent" ? node.step : null;
   return (

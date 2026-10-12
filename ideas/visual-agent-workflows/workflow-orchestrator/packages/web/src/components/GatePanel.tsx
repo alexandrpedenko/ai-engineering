@@ -1,5 +1,6 @@
 import { Alert, Button, Stack, TextField, Typography } from "@mui/material";
-import { type GateFile, GateFileView } from "./GateFileView";
+import type { GateFile } from "../domain/gateFileViews";
+import { GateFileView } from "./GateFileView";
 
 type Props = {
   files: GateFile[] | undefined; // undefined while loading

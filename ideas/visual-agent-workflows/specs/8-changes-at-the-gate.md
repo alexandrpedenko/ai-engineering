@@ -202,3 +202,13 @@ isn't deleted, when the gate opens.
 Why: the gate's file view became more than a file view; `<ins>`/`<del>` say
 what a line is without relying on colour.
 
+**2026-10-12, after slice 8 — trees kept by refs (slice 9).**
+Spec said: the tree is kept in the run ref and the record, "nothing left in
+refs" (ADR-0016).
+Now: slice 9 keeps each tree under `refs/orchestrator/<runId>/<stepId>-<attempt>`
+so `git gc` can't remove it, diffs paths literally, diffs only files a
+person could open (or deleted ones), and adds reason `no base`. See
+[ADR-0019](../adr/0019-gate-trees-kept-by-refs.md) and
+[9-hardening.md](9-hardening.md) (C1–C5).
+Why: found in the 2026-10-12 review.
+

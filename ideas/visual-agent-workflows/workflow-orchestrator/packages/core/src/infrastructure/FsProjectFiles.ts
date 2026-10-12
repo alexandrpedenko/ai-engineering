@@ -5,40 +5,24 @@ import { dirname, isAbsolute, join, posix, relative, sep } from "node:path";
 import { promisify } from "node:util";
 import picomatch from "picomatch";
 import { glob } from "tinyglobby";
+import { MAX_FILE_BYTES } from "../application/projectFile";
 import type { ProjectFiles } from "../application/ProjectFiles";
 import type { ResolvedConfig } from "../domain/config";
 import type { FileDiff } from "../domain/gateFiles";
 import type { Snapshot } from "../domain/outputs";
+import { GitObjectId } from "../domain/runState";
 import type { Artefact, MarkdownDoc, UnreadableDoc } from "../domain/registry";
-import { parseMarkdown } from "./frontmatter";
+import { parseMarkdown } from "./parseMarkdown";
+import { isErrno } from "./isErrno";
+import { isSecret } from "./secretFiles";
 
 const run = promisify(execFile);
 const trimSlashes = (dir: string) => dir.replace(/^\.\/|\/+$/g, "");
 
 const TEXT_FILES = ["**/*.md", "**/*.mdx", "**/*.txt"];
 
-// Files that commonly hold credentials. Never opened through the orchestrator,
-// even when they are in the project's file list.
-const SECRET_FILES = [
-  "**/.env",
-  "**/.env.*",
-  "**/.envrc",
-  "**/.npmrc",
-  "**/.pypirc",
-  "**/.netrc",
-  "**/*.pem",
-  "**/*.key",
-  "**/*.p12",
-  "**/*.pfx",
-  "**/id_rsa*",
-  "**/id_dsa*",
-  "**/id_ecdsa*",
-  "**/id_ed25519*",
-  "**/.ssh/**",
-  "**/.aws/**",
-  "**/.gnupg/**",
-];
-const isSecret = picomatch(SECRET_FILES, { dot: true });
+// A name recordTree keeps a tree under: "<runId>/<stepId>-<attempt>".
+const TREE_NAME = /^[A-Za-z0-9_-]+(?:\/[A-Za-z0-9_-]+)?$/;
 const HASH_LIMIT_BYTES = 5 * 1024 * 1024;
 const DIFF_LIMIT_BYTES = 200 * 1024;
 
@@ -60,11 +44,15 @@ function countLines(hunks: string): { added: number; removed: number } {
 
 const sha1 = (bytes: Buffer) => createHash("sha1").update(bytes).digest("hex");
 
+// Errors that mean "this path can't be read as a file": gone, a symlink
+// loop, not allowed, or a file where a folder was expected.
+const UNREADABLE = ["ENOENT", "ELOOP", "EACCES", "EPERM", "ENOTDIR"];
+
 async function isFile(path: string): Promise<boolean> {
   try {
     return (await stat(path)).isFile();
   } catch (error) {
-    if ((error as NodeJS.ErrnoException).code === "ENOENT") return false;
+    if (isErrno(error, ...UNREADABLE)) return false;
     throw error;
   }
 }
@@ -114,7 +102,10 @@ export class FsProjectFiles implements ProjectFiles {
   async snapshot(declared: string[]): Promise<Snapshot> {
     const paths = await this.projectFiles();
     const hashes: Record<string, string> = {};
-    for (const path of paths) hashes[path] = await this.hash(path);
+    for (const path of paths) {
+      const hash = await this.hash(path);
+      if (hash !== null) hashes[path] = hash;
+    }
     const matches: Record<string, string[]> = {};
     for (const pattern of declared) {
       const isMatch = picomatch(pattern, { dot: true });
@@ -123,32 +114,54 @@ export class FsProjectFiles implements ProjectFiles {
     return { hashes, matches };
   }
 
-  async recordTree(): Promise<string | null> {
+  async recordTree(name: string): Promise<string | null> {
+    if (!TREE_NAME.test(name)) throw new Error(`invalid tree name "${name}"`);
     if (!(await this.inGitWorkTree())) return null;
     const orchestrator = this.orchestratorPath();
     const exclude = [":(exclude,glob)**/node_modules/**", ...(orchestrator ? [`:(exclude)${orchestrator}`] : [])];
-    return await this.withTempIndex(async (env) => {
+    const tree = await this.withTempIndex(async (env) => {
       const index = (await git(this.root, ["rev-parse", "--path-format=absolute", "--git-path", "index"])).trim();
       if (await isFile(index)) await copyFile(index, env.GIT_INDEX_FILE);
       await git(this.root, ["add", "-A", "--", ".", ...exclude], env);
       return (await git(this.root, ["write-tree"], env)).trim();
     });
+    await git(this.root, ["update-ref", `refs/orchestrator/${name}`, tree]);
+    return tree;
+  }
+
+  async forgetTrees(prefix: string): Promise<void> {
+    if (!TREE_NAME.test(prefix) || !(await this.inGitWorkTree())) return;
+    const refs = (await git(this.root, ["for-each-ref", "--format=%(refname)", `refs/orchestrator/${prefix}/`])).split("\n").filter(Boolean);
+    for (const ref of refs) await git(this.root, ["update-ref", "-d", ref]);
   }
 
   async diff(baseTree: string | null, paths: string[]): Promise<FileDiff[]> {
     const none = (path: string, reason: NonNullable<FileDiff["reason"]>): FileDiff => ({ path, added: 0, removed: 0, diff: null, reason });
     if (baseTree === null || !(await this.inGitWorkTree())) return paths.map((path) => none(path, "no git"));
-    const safe = paths.filter((path) => this.isProjectPath(path) && !isSecret(path));
+    if (!GitObjectId.safeParse(baseTree).success || !(await this.hasTree(baseTree))) return paths.map((path) => none(path, "no base"));
+
+    // A path is diffed when a person could open it now, or when the base tree
+    // has it (a deleted file). Anything else, credential files included, isn't.
+    const shaped = paths.filter((path) => this.isProjectPath(path) && !isSecret(path));
+    const inBase = new Set(
+      shaped.length === 0 ? [] : (await git(this.root, ["--literal-pathspecs", "ls-tree", "-r", "--name-only", "-z", baseTree, "--", ...shaped])).split("\0"),
+    );
+    const listed = new Set(await this.projectFiles());
+    const allowed: string[] = [];
+    for (const path of shaped) {
+      if (listed.has(path) ? await this.isOpenable(path) : inBase.has(path)) allowed.push(path);
+    }
+
     return await this.withTempIndex(async (env) => {
       await git(this.root, ["read-tree", baseTree], env);
-      if (safe.length > 0) await git(this.root, ["update-index", "--add", "--remove", "--", ...safe], env);
+      if (allowed.length > 0) await git(this.root, ["update-index", "--add", "--remove", "--", ...allowed], env);
       const diffs: FileDiff[] = [];
       for (const path of paths) {
-        if (!safe.includes(path)) {
+        if (!allowed.includes(path)) {
           diffs.push(none(path, "secret"));
           continue;
         }
-        const args = ["diff", "--cached", "--relative", "--no-color", "--no-ext-diff", "--no-renames", "-U3", baseTree, "--", path];
+        const args = ["--literal-pathspecs", "diff", "--cached", "--relative", "--no-color", "--no-ext-diff", "--no-renames", "-U3", baseTree, "--", path];
         const output = await git(this.root, args, env);
         const start = output.search(/^@@/m);
         if (start === -1) {
@@ -166,18 +179,18 @@ export class FsProjectFiles implements ProjectFiles {
   async canOpen(path: string): Promise<boolean> {
     if (!this.isProjectPath(path) || isSecret(path)) return false;
     if (!(await this.projectFiles()).includes(path)) return false;
-    return await this.staysInside(path);
+    return await this.isOpenable(path);
   }
 
   async readText(path: string): Promise<{ content: string; size: number; version: string } | null> {
     try {
       const info = await stat(join(this.root, path));
       if (!info.isFile()) return null;
-      if (info.size > 1024 * 1024) return { content: "", size: info.size, version: `${info.size}:${info.mtimeMs}` };
+      if (info.size > MAX_FILE_BYTES) return { content: "", size: info.size, version: `${info.size}:${info.mtimeMs}` };
       const bytes = await readFile(join(this.root, path));
       return { content: bytes.toString("utf8"), size: info.size, version: sha1(bytes) };
     } catch (error) {
-      if ((error as NodeJS.ErrnoException).code === "ENOENT") return null;
+      if (isErrno(error, "ENOENT")) return null;
       throw error;
     }
   }
@@ -211,11 +224,29 @@ export class FsProjectFiles implements ProjectFiles {
     }
   }
 
-  // Whether the file's real location (after following any symlinks on the
-  // way) is inside the project root.
-  private async staysInside(path: string): Promise<boolean> {
-    const [root, target] = await Promise.all([realpath(this.root), realpath(join(this.root, path))]);
-    return target.startsWith(`${root}${sep}`);
+  // Whether a listed file's real location (after following any symlinks on
+  // the way) is inside the project root and isn't a credential file itself.
+  private async isOpenable(path: string): Promise<boolean> {
+    let target: string;
+    try {
+      target = await realpath(join(this.root, path));
+    } catch (error) {
+      if (isErrno(error, ...UNREADABLE)) return false;
+      throw error;
+    }
+    const root = await realpath(this.root);
+    if (!target.startsWith(`${root}${sep}`)) return false;
+    return !isSecret(relative(root, target).split(sep).join("/"));
+  }
+
+  // Whether git still has `tree` (a ref keeps it; it may have been deleted by hand).
+  private async hasTree(tree: string): Promise<boolean> {
+    try {
+      await git(this.root, ["cat-file", "-e", `${tree}^{tree}`]);
+      return true;
+    } catch {
+      return false; // cat-file exits 1 or 128 for an object it doesn't have
+    }
   }
 
   // The orchestrator folder relative to the root, when it is inside it.
@@ -265,11 +296,17 @@ export class FsProjectFiles implements ProjectFiles {
     }
   }
 
-  // A content hash, or size and modification time for files over 5 MB.
-  private async hash(path: string): Promise<string> {
-    const info = await stat(join(this.root, path));
-    if (info.size > HASH_LIMIT_BYTES) return `${info.size}:${info.mtimeMs}`;
-    return sha1(await readFile(join(this.root, path)));
+  // A content hash, or size and modification time for files over 5 MB; null
+  // for a file that vanished or can't be read since it was listed.
+  private async hash(path: string): Promise<string | null> {
+    try {
+      const info = await stat(join(this.root, path));
+      if (info.size > HASH_LIMIT_BYTES) return `${info.size}:${info.mtimeMs}`;
+      return sha1(await readFile(join(this.root, path)));
+    } catch (error) {
+      if (isErrno(error, ...UNREADABLE, "EISDIR")) return null;
+      throw error;
+    }
   }
 
   private async markdownFilesIn(dir: string): Promise<string[]> {
@@ -277,7 +314,7 @@ export class FsProjectFiles implements ProjectFiles {
       const entries = await readdir(join(this.root, dir), { withFileTypes: true });
       return entries.filter((e) => e.isFile() && e.name.endsWith(".md")).map((e) => e.name).sort();
     } catch (error) {
-      if ((error as NodeJS.ErrnoException).code === "ENOENT") return [];
+      if (isErrno(error, "ENOENT")) return [];
       throw error;
     }
   }

@@ -84,7 +84,7 @@ describe("LangGraphRunEngine", () => {
     expect(runtime.requests[0]?.message).not.toContain("Reviewer feedback");
     expect(runtime.requests[1]?.message).toContain("# Reviewer feedback on your previous attempt\n1. add acceptance checks");
     expect(runtime.requests[1]?.key).toBe("run-1:elicit:2");
-    expect(outcome.state.steps.elicit?.cursorRunIds).toEqual(["fake-run-1", "fake-run-2"]);
+    expect(outcome.state.steps.elicit?.agentRunIds).toEqual(["fake-run-1", "fake-run-2"]);
     expect(outcome.state.revisions.review).toBe(1);
   });
 
@@ -160,7 +160,7 @@ describe("LangGraphRunEngine", () => {
     const outcome = await second.engine.continue("run-1", baWorkflow());
 
     expect(outcome).toMatchObject({ status: "waiting", gateId: "review" });
-    expect(outcome.state.steps.elicit).toMatchObject({ status: "done", summary: "requirements written", cursorRunIds: ["fake-run-1"] });
+    expect(outcome.state.steps.elicit).toMatchObject({ status: "done", summary: "requirements written", agentRunIds: ["fake-run-1"] });
     expect(first.runtime.requests).toHaveLength(1);
   });
 
@@ -179,7 +179,7 @@ describe("LangGraphRunEngine", () => {
 
     expect(outcome).toMatchObject({ status: "waiting", gateId: "review" });
     expect(stepsRun()).toEqual(["elicit", "elicit"]);
-    expect(outcome.state.steps.elicit).toMatchObject({ status: "done", cursorRunIds: ["fake-run-1", "fake-run-2"] });
+    expect(outcome.state.steps.elicit).toMatchObject({ status: "done", agentRunIds: ["fake-run-1", "fake-run-2"] });
   });
 
   it("retries a step that failed after the gate, keeping the steps before it", async () => {

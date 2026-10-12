@@ -11,7 +11,14 @@ describe("OrchestratorConfig", () => {
       runtime: "cursor",
       models: { cursor: "composer-2.5", claude: "claude-opus-5-5" },
       dataDir: ".data",
+      limits: { stepTimeoutMinutes: 60, maxTurns: 200 },
     });
+  });
+
+  it("reads step limits and refuses a bad one", () => {
+    expect(OrchestratorConfig.parse({ limits: { stepTimeoutMinutes: 5, maxBudgetUsd: 2 } }).limits).toEqual({ stepTimeoutMinutes: 5, maxTurns: 200, maxBudgetUsd: 2 });
+    expect(OrchestratorConfig.safeParse({ limits: { stepTimeoutMinutes: 0 } }).success).toBe(false);
+    expect(OrchestratorConfig.safeParse({ limits: { timeout: 5 } }).success).toBe(false);
   });
 
   it("reads the runtime and per-runtime models", () => {

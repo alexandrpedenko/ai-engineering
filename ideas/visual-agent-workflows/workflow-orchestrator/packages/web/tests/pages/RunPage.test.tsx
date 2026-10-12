@@ -122,7 +122,7 @@ describe("RunPage at a gate", () => {
 
     act(() => {
       api.emit("run-1", 5, { type: "step-started", stepId: "elicit", attempt: 2 });
-      api.emit("run-1", 6, { type: "step-finished", stepId: "elicit", record: record({ cursorRunIds: ["a1", "a2"] }) });
+      api.emit("run-1", 6, { type: "step-finished", stepId: "elicit", record: record({ agentRunIds: ["a1", "a2"] }) });
       api.emit("run-1", 7, { type: "gate-waiting", gateId: "review", shows: ["discovery/requirements.md"] });
       api.emit("run-1", 8, { type: "run-settled", outcome: waitingRun().outcome as RunOutcome });
     });
@@ -207,5 +207,32 @@ describe("RunPage outcomes", () => {
   it("says so for an unknown run", async () => {
     renderPage(<RunPage />, { path: "/runs/:runId", at: "/runs/nope" });
     expect(await screen.findByText('No run "nope".')).toBeTruthy();
+  });
+
+  it("offers Continue after a crash when the run can be continued", async () => {
+    const api = render(runDetails({ status: "interrupted", stepId: "elicit", state: runState() }));
+    await screen.findByText("BA discovery");
+
+    act(() => api.emit("run-1", 3, { type: "run-crashed", message: "the process moving this run stopped before it settled" }));
+
+    expect(await screen.findByText(/The run stopped with an error: the process moving this run stopped/)).toBeTruthy();
+    await userEvent.click(screen.getByRole("button", { name: "Continue" }));
+    expect(api.calls).toContain("continue run-1");
+  });
+
+  it("deletes a run after asking, then goes to the runs list", async () => {
+    const api = render();
+
+    await userEvent.click(await screen.findByRole("button", { name: "Delete run" }));
+    await userEvent.click(screen.getByRole("button", { name: "Delete" }));
+
+    expect(api.calls).toContain("deleteRun run-1");
+    expect(await screen.findByTestId("location")).toHaveProperty("textContent", "/runs");
+  });
+
+  it("offers no Delete while the run moves", async () => {
+    render(runDetails(null, { busy: true }));
+    await screen.findByText("BA discovery");
+    expect(screen.queryByRole("button", { name: "Delete run" })).toBeNull();
   });
 });

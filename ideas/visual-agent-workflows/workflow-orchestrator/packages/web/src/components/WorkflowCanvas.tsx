@@ -15,7 +15,7 @@ import { useEffect, useState } from "react";
 import type { Canvas } from "../domain/workflowCanvas";
 import { GateNode } from "./GateNode";
 import type { FlowNodeData } from "./NodeFrame";
-import { StepNode } from "./StepNode";
+import { AgentStepNode } from "./AgentStepNode";
 
 type Props = {
   canvas: Canvas;
@@ -26,7 +26,7 @@ type Props = {
   onDisconnect: (from: string) => void;
 };
 
-const nodeTypes: NodeTypes = { agent: StepNode, gate: GateNode };
+const nodeTypes: NodeTypes = { agent: AgentStepNode, gate: GateNode };
 
 function flowNodes(canvas: Canvas): Node<FlowNodeData>[] {
   return canvas.nodes.map((node) => ({ id: node.id, type: node.type, position: node.position, selected: node.selected, data: { node } }));

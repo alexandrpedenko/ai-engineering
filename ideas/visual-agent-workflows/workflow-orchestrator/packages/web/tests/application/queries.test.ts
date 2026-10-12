@@ -47,7 +47,7 @@ describe("read hooks", () => {
 
     await waitFor(() => expect(result.current.every((q) => !q.isPending)).toBe(true));
     expect(result.current[0]?.data?.content).toBe("A");
-    expect((result.current[1]?.error as ApiError).status).toBe(404);
+    expect(result.current[1]?.error).toMatchObject({ status: 404 });
   });
 
   it("useGateChanges loads a gate's changes, and waits while there is no gate", async () => {

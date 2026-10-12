@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { eventLine } from "../../src/domain/eventLines";
+import { eventLine } from "../../src/domain/eventLine";
 
 const agent = (event: object) => ({ seq: 7, at: "", event: { type: "agent-event", stepId: "elicit", event } }) as never;
 

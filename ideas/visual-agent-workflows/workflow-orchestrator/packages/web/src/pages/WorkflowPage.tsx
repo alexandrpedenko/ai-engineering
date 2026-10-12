@@ -7,7 +7,7 @@ import { RunsTable } from "../components/RunsTable";
 import { StartRunForm } from "../components/StartRunForm";
 import { StepList } from "../components/StepList";
 import { isNotFound } from "../domain/apiError";
-import { problemCounts } from "../domain/problems";
+import { problemCounts } from "../domain/problemCounts";
 
 // One workflow: its steps and problems, a form to start it, its runs.
 export function WorkflowPage() {
@@ -50,10 +50,7 @@ export function WorkflowPage() {
             submitting={start.isPending}
             {...(errors > 0 ? { disabledReason: "Fix the errors above before running this workflow." } : {})}
             {...(start.error ? { error: start.error.message } : {})}
-            onStart={async (values) => {
-              const { runId } = await start.mutateAsync(values);
-              navigate(`/runs/${runId}`);
-            }}
+            onStart={(values) => start.mutate(values, { onSuccess: ({ runId }) => navigate(`/runs/${runId}`) })}
           />
         </Grid>
       </Grid>

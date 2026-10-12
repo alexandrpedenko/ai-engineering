@@ -7,7 +7,7 @@ export type RunRef = {
   runId: string;
   stepId: string;
   attempt: number;
-  cursorRunId: string;
+  agentRunId: string;
   before: Snapshot; // the files before the attempt started
   baseTree: string | null; // the git tree before the attempt started (ProjectFiles.recordTree)
   startedAt: string; // ISO time
@@ -20,8 +20,10 @@ export interface RunFiles {
   // The workflow and inputs a run started with; the run always continues against these.
   saveRun(runId: string, run: SavedRun): Promise<void>;
   loadRun(runId: string): Promise<SavedRun | null>;
-  // Every saved run, newest first.
+  // Every saved run that can be read, newest first.
   listRuns(): Promise<{ runId: string; workflowId: string; startedAt: string }[]>;
   getRef(runId: string, stepId: string, attempt: number): Promise<RunRef | null>;
   putRef(ref: RunRef): Promise<void>;
+  // Removes everything kept about the run (its refs and event log included).
+  deleteRun(runId: string): Promise<void>;
 }

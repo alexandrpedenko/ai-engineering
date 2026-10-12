@@ -18,3 +18,9 @@ export class ApiError extends Error {
 export function isNotFound(error: unknown): boolean {
   return error instanceof ApiError && error.status === 404;
 }
+
+// Whether an error is the server saying the request conflicts with the
+// current state (a file changed on disk, a run that is busy).
+export function isConflict(error: unknown): boolean {
+  return error instanceof ApiError && error.status === 409;
+}

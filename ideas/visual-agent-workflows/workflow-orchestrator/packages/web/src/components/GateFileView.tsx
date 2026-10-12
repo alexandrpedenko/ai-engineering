@@ -1,16 +1,15 @@
 import { Box, Button, Chip, Paper, Stack, ToggleButton, ToggleButtonGroup, Typography } from "@mui/material";
-import type { FileChanges } from "@orch/core";
 import { useState } from "react";
+import type { GateFile } from "../domain/gateFileViews";
 import { parseUnifiedDiff } from "../domain/parseUnifiedDiff";
 import { DiffView } from "./DiffView";
 
-// One file at a gate: its change and diff, plus its whole text when loaded.
-export type GateFile = FileChanges[number] & { content?: string; error?: string; loading?: boolean };
 
 const NO_DIFF: Record<NonNullable<GateFile["reason"]>, string> = {
   binary: "No diff: this is a binary file.",
   "too large": "No diff: the diff is too large to show.",
   "no git": "No diff: the project is not a git repository, so there is nothing to compare with.",
+  "no base": "No diff: the project state recorded before the step is gone.",
   secret: "No diff: this file may hold credentials.",
 };
 

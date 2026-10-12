@@ -1,5 +1,5 @@
 import { execFile } from "node:child_process";
-import { mkdir, mkdtemp, readFile, rm, symlink, utimes, writeFile } from "node:fs/promises";
+import { chmod, mkdir, mkdtemp, readFile, rm, symlink, utimes, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { promisify } from "node:util";
@@ -298,7 +298,7 @@ describe("FsProjectFiles git trees and diffs", () => {
     await write(root, { "kb/b.md": "b edited\n", "new.md": "n\n" });
     const before = await repoState(root);
 
-    const tree = await (await filesIn(root)).recordTree();
+    const tree = await (await filesIn(root)).recordTree("run-t/step-1");
 
     expect(tree).toMatch(/^[0-9a-f]{40}$/);
     expect(await repoState(root)).toEqual(before);
@@ -308,7 +308,7 @@ describe("FsProjectFiles git trees and diffs", () => {
     const root = await tempDir();
     await gitRepo(root, { "kb/a.md": "one\ntwo\nthree\n", "kb/old.md": "gone\nsoon\n" });
     const files = await filesIn(root);
-    const tree = await files.recordTree();
+    const tree = await files.recordTree("run-t/step-1");
     await write(root, { "kb/a.md": "one\nTWO\nthree\nfour\n", "kb/new.md": "fresh\n" });
     await rm(join(root, "kb/old.md"));
 
@@ -325,7 +325,7 @@ describe("FsProjectFiles git trees and diffs", () => {
     await write(root, { "kb/a.md": "a staged\n", "kb/draft.md": "draft\n" });
     await git(root, "add", "kb/a.md");
     const files = await filesIn(root);
-    const tree = await files.recordTree();
+    const tree = await files.recordTree("run-t/step-1");
     await write(root, { "kb/draft.md": "draft\nmore\n" });
 
     const [staged, draft] = await files.diff(tree, ["kb/a.md", "kb/draft.md"]);
@@ -340,7 +340,7 @@ describe("FsProjectFiles git trees and diffs", () => {
     await write(root, { "build/out.md": "b\n", "docs/node_modules/x.md": "x\n", "orch/notes.md": "o\n" });
     const files = new FsProjectFiles(configFor(root, { dataDir: await tempDir(), orchestratorDir: join(root, "orch") }));
 
-    const tree = await files.recordTree();
+    const tree = await files.recordTree("run-t/step-1");
     const listed = (await git(root, "ls-tree", "-r", "--name-only", tree ?? "")).trim().split("\n");
 
     expect(listed).toEqual([".gitignore", "kb/a.md"]);
@@ -350,7 +350,7 @@ describe("FsProjectFiles git trees and diffs", () => {
     const root = await tempDir();
     await gitRepo(root, { "img.png": "\0PNG\0", "big.md": "x\n", ".env": "K=1\n" });
     const files = await filesIn(root);
-    const tree = await files.recordTree();
+    const tree = await files.recordTree("run-t/step-1");
     await write(root, { "img.png": "\0PNG\0changed", "big.md": "y\n".repeat(120_000), ".env": "K=2\n" });
 
     const diffs = await files.diff(tree, ["img.png", "big.md", ".env"]);
@@ -367,7 +367,7 @@ describe("FsProjectFiles git trees and diffs", () => {
     await gitRepo(outer, { "README.md": "r\n", "host/kb/a.md": "a\n" });
     const root = join(outer, "host");
     const files = await filesIn(root);
-    const tree = await files.recordTree();
+    const tree = await files.recordTree("run-t/step-1");
     await write(root, { "kb/a.md": "b\n" });
 
     expect(await files.diff(tree, ["kb/a.md"])).toEqual([{ path: "kb/a.md", added: 1, removed: 1, diff: "@@ -1 +1 @@\n-a\n+b\n" }]);
@@ -378,7 +378,7 @@ describe("FsProjectFiles git trees and diffs", () => {
     await write(root, { "kb/a.md": "a\n" });
     const files = await filesIn(root);
 
-    expect(await files.recordTree()).toBeNull();
+    expect(await files.recordTree("run-t/step-1")).toBeNull();
     expect(await files.diff(null, ["kb/a.md"])).toEqual([{ path: "kb/a.md", added: 0, removed: 0, diff: null, reason: "no git" }]);
   });
 
@@ -388,6 +388,91 @@ describe("FsProjectFiles git trees and diffs", () => {
     const root = join(outer, "data/host");
     await write(root, { "kb/a.md": "a" });
 
-    expect(await (await filesIn(root)).recordTree()).toBeNull();
+    expect(await (await filesIn(root)).recordTree("run-t/step-1")).toBeNull();
+  });
+});
+
+describe("FsProjectFiles gate diff safety", () => {
+  const git = async (root: string, ...args: string[]) => (await run("git", args, { cwd: root })).stdout;
+  const filesIn = async (root: string) => new FsProjectFiles(configFor(root, { dataDir: await tempDir() }));
+
+  it("keeps the tree under a ref, so git gc doesn't remove it, and forgets it with the run", async () => {
+    const root = await tempDir();
+    await gitRepo(root, { "kb/a.md": "a\n" });
+    const files = await filesIn(root);
+    await write(root, { "kb/a.md": "a\nuncommitted\n" });
+    const tree = await files.recordTree("run-1/elicit-1");
+    await git(root, "gc", "--prune=now", "-q");
+
+    expect((await git(root, "for-each-ref", "--format=%(objectname)", "refs/orchestrator/run-1/")).trim()).toBe(tree);
+    expect((await files.diff(tree, ["kb/a.md"]))[0]).toMatchObject({ diff: "" });
+
+    await files.forgetTrees("run-1");
+    expect(await git(root, "for-each-ref", "refs/orchestrator/")).toBe("");
+  });
+
+  it("says 'no base' for a tree git doesn't have or an id that isn't one", async () => {
+    const root = await tempDir();
+    await gitRepo(root, { "kb/a.md": "a\n" });
+    const files = await filesIn(root);
+
+    expect(await files.diff("0".repeat(40), ["kb/a.md"])).toEqual([{ path: "kb/a.md", added: 0, removed: 0, diff: null, reason: "no base" }]);
+    expect(await files.diff("--output=/tmp/x", ["kb/a.md"])).toEqual([{ path: "kb/a.md", added: 0, removed: 0, diff: null, reason: "no base" }]);
+  });
+
+  it("reads paths literally: a[b].md is not a pattern for ab.md", async () => {
+    const root = await tempDir();
+    await gitRepo(root, { "a[b].md": "one\n", "ab.md": "x\n" });
+    const files = await filesIn(root);
+    const tree = await files.recordTree("run-1/s-1");
+    await write(root, { "a[b].md": "two\n", "ab.md": "y\n" });
+
+    expect(await files.diff(tree, ["a[b].md"])).toEqual([{ path: "a[b].md", added: 1, removed: 1, diff: "@@ -1 +1 @@\n-one\n+two\n" }]);
+  });
+
+  it("doesn't diff a gitignored file, a credential file in any case, or a link to one", async () => {
+    const root = await tempDir();
+    await gitRepo(root, { ".gitignore": "secret.json\n", "kb/a.md": "a\n" });
+    await write(root, { "secret.json": "{}", ".ENV": "K=1\n" });
+    await symlink(join(root, ".ENV"), join(root, "kb/notes.md"));
+    const files = await filesIn(root);
+    const tree = await files.recordTree("run-1/s-1");
+
+    const diffs = await files.diff(tree, ["secret.json", ".ENV", "kb/notes.md"]);
+
+    expect(diffs.map((d) => d.reason)).toEqual(["secret", "secret", "secret"]);
+    expect(await files.canOpen("kb/notes.md")).toBe(false);
+  });
+
+  it("still diffs a deleted file, which only the base tree has", async () => {
+    const root = await tempDir();
+    await gitRepo(root, { "kb/old.md": "gone\n" });
+    const files = await filesIn(root);
+    const tree = await files.recordTree("run-1/s-1");
+    await rm(join(root, "kb/old.md"));
+
+    expect(await files.diff(tree, ["kb/old.md"])).toEqual([{ path: "kb/old.md", added: 0, removed: 1, diff: "@@ -1 +0,0 @@\n-gone\n" }]);
+  });
+
+  it("refuses a tree name that isn't <run>/<step>", async () => {
+    const files = await filesIn(await tempDir());
+    await expect(files.recordTree("../x")).rejects.toThrow("invalid tree name");
+  });
+});
+
+describe("FsProjectFiles snapshots of awkward files", () => {
+  it("leaves out a symlink loop and an unreadable file instead of failing", async () => {
+    const root = await tempDir();
+    await write(root, { "kb/a.md": "a", "kb/locked.md": "x" });
+    await symlink(join(root, "loop-b"), join(root, "loop-a"));
+    await symlink(join(root, "loop-a"), join(root, "loop-b"));
+    await chmod(join(root, "kb/locked.md"), 0o000);
+
+    const paths = Object.keys((await new FsProjectFiles(configFor(root)).snapshot([])).hashes);
+
+    await chmod(join(root, "kb/locked.md"), 0o644);
+    expect(paths).toContain("kb/a.md");
+    expect(paths).not.toContain("loop-a");
+    expect(paths).not.toContain("kb/locked.md");
   });
 });

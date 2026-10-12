@@ -5,6 +5,16 @@ export const RuntimeKind = z.enum(["cursor", "claude"]);
 export type RuntimeKind = z.infer<typeof RuntimeKind>;
 
 const DEFAULT_MODELS = { cursor: "composer-2.5", claude: "claude-opus-5-5" };
+const DEFAULT_LIMITS = { stepTimeoutMinutes: 60, maxTurns: 200 };
+
+// How far one agent step may go. `stepTimeoutMinutes` applies to every
+// runtime; `maxTurns` and `maxBudgetUsd` (unset: no limit) to Claude only.
+export const Limits = z.strictObject({
+  stepTimeoutMinutes: z.number().positive().default(DEFAULT_LIMITS.stepTimeoutMinutes),
+  maxTurns: z.number().int().positive().default(DEFAULT_LIMITS.maxTurns),
+  maxBudgetUsd: z.number().positive().optional(),
+});
+export type Limits = z.infer<typeof Limits>;
 
 // orchestrator.config.json. Every key is optional; unknown keys are errors so a
 // typo is not silently ignored. `defaultModel` is how the Cursor model was set
@@ -22,6 +32,7 @@ export const OrchestratorConfig = z
       .default(DEFAULT_MODELS),
     defaultModel: z.object({ id: z.string() }).optional(),
     dataDir: z.string().default(".data"),
+    limits: Limits.default(DEFAULT_LIMITS),
   })
   .transform(({ defaultModel, ...config }) =>
     defaultModel ? { ...config, models: { ...config.models, cursor: defaultModel.id } } : config,

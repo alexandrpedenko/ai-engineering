@@ -1,5 +1,5 @@
 import type { Options, SDKMessage } from "@anthropic-ai/claude-agent-sdk";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import type { StepEvent } from "../../../../src/domain/runState";
 import { type ClaudeQuery, ClaudeProvider } from "../../../../src/infrastructure/agentRuntime/claude/ClaudeProvider";
 import { assistant, failure, init, success } from "./messages";
@@ -55,12 +55,44 @@ describe("ClaudeProvider.open", () => {
       systemPrompt: { type: "preset", preset: "claude_code" },
       settingSources: ["project"],
       permissionMode: "acceptEdits",
-      disallowedTools: ["Bash"],
+      disallowedTools: ["Bash", "WebFetch", "WebSearch"],
       agents: { "business-analyst": { description: "Analyst.", prompt: "You are a BA." } },
       sessionId: run.id,
     });
     expect(options.allowedTools).toContain("Edit");
     expect(options.env?.ANTHROPIC_API_KEY).toBe(KEY);
+    expect(options.hooks?.PreToolUse?.[0]?.hooks).toHaveLength(1);
+  });
+
+  it("passes only an allow-listed environment, never other providers' keys", async () => {
+    vi.stubEnv("CURSOR_API_KEY", "crsr_other");
+    vi.stubEnv("LC_ALL", "en_US.UTF-8");
+    const { query, calls } = fakeQuery([init, success()]);
+
+    await (await new ClaudeProvider({ apiKey: KEY, query }).open(request)).result();
+
+    const env = calls[0]?.options.env ?? {};
+    expect(env.CURSOR_API_KEY).toBeUndefined();
+    expect(env.LC_ALL).toBe("en_US.UTF-8");
+    expect(env.PATH).toBe(process.env.PATH);
+    vi.unstubAllEnvs();
+  });
+
+  it("passes the turn and budget limits", async () => {
+    const { query, calls } = fakeQuery([init, success()]);
+
+    await (await new ClaudeProvider({ apiKey: KEY, query, limits: { maxTurns: 30, maxBudgetUsd: 1.5 } }).open(request)).result();
+
+    expect(calls[0]?.options).toMatchObject({ maxTurns: 30, maxBudgetUsd: 1.5 });
+  });
+
+  it("refuses file tools on the orchestrator folder it is told not to touch", async () => {
+    const { query, calls } = fakeQuery([init, success()]);
+    await (await new ClaudeProvider({ apiKey: KEY, query }).open({ ...request, doNotTouch: ["workflow-orchestrator/"] })).result();
+
+    const hook = calls[0]?.options.hooks?.PreToolUse?.[0]?.hooks[0];
+    const input = { hook_event_name: "PreToolUse", tool_name: "Read", tool_input: { file_path: "/host/workflow-orchestrator/.env" }, tool_use_id: "t", session_id: "s", transcript_path: "", cwd: "/host" };
+    expect(await hook?.(input as never, "t", { signal: new AbortController().signal })).toMatchObject({ hookSpecificOutput: { permissionDecision: "deny" } });
   });
 
   it("streams events and ends with the result", async () => {

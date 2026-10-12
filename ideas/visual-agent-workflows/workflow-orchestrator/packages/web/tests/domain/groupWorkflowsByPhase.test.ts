@@ -1,6 +1,6 @@
 import type { WorkflowSummary } from "@orch/core";
 import { describe, expect, it } from "vitest";
-import { groupWorkflowsByPhase } from "../../src/domain/grouping";
+import { groupWorkflowsByPhase } from "../../src/domain/groupWorkflowsByPhase";
 
 const wf = (id: string, name: string, phase?: string): WorkflowSummary => ({ id, name, agents: [], skills: [], problems: [], ...(phase ? { phase } : {}) });
 const phases = [

@@ -19,10 +19,12 @@ updated: 2026-10-12
 | command | does | exit codes |
 | --- | --- | --- |
 | `npm run scan -- [--project p] [--json]` | prints the registry | 0; 1 bad config; 2 bad arguments |
-| `npm run wf -- run <workflowId> [--input k=v]… [--project p] [--fake]` | starts a run, prints events, asks at each gate | 0 finished or stopped at a gate; 1 failed / rejected / invalid; 2 bad arguments; 3 no `CURSOR_API_KEY` |
+| `npm run wf -- run <workflowId> [--input k=v]… [--project p] [--fake]` | starts a run, prints events, asks at each gate | `EXIT`: 0 finished or stopped at a gate; 1 failed / rejected / crashed / invalid / another run moving; 2 bad arguments; 3 the runtime's API key not set |
 | `npm run wf -- continue <runId> […]` | an interrupted run re-enters its step; a waiting run asks at its gate | same |
 | `npm run wf -- retry <runId> […]` | a failed run's failed step runs again, then asks at gates | same |
 | `npm run wf -- status <runId>` | the outcome and each step's attempts (never needs a key) | 0; 1 unknown |
+| `npm run wf -- delete <runId>` | forgets a run that isn't moving (never needs a key) | 0; 1 unknown or moving |
+| `npm run wf -- --help` | the usage | 0 |
 
 At a gate, `formatGate` lists each file with its change and `+added −removed`
 (or why there is no diff), from `gateChanges`; no diff text. Then `y` approves, other text rejects with that text as feedback, an
@@ -31,7 +33,10 @@ first event, so it's on screen before a Ctrl-C.
 
 **Structure:** `cli/*` are adapters (argument parsing, formatting, the
 command logic, all taking their dependencies as arguments, so tests need no
-terminal). `bin/*` are the entry points: they wire real services
+terminal). The commands move runs through the same `RunSupervisor` as the
+server (lease, event log), so the web app can follow a CLI run; a run that
+crashes prints its message and how to continue it. `formatConfigError` is
+shared with `scan` and the server. `bin/*` are the entry points: they wire real services
 (`createProjectServices`, `createRunServices` from [composition](composition.md))
 and read standard input themselves (lines arriving before a question are
 queued, so piped answers work).

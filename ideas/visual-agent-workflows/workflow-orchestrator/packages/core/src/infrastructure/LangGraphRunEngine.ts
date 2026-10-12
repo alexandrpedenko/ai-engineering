@@ -8,10 +8,11 @@ import {
   START,
   StateGraph,
 } from "@langchain/langgraph";
+import { z } from "zod";
 import { ConflictError } from "../application/errors";
 import type { RunEngine, RunOutcome } from "../application/RunEngine";
 import { gateFiles } from "../domain/gateFiles";
-import { GateDecision, type RunEvent, type RunState, type StepRecord } from "../domain/runState";
+import { GateDecision, type RunEvent, RunState, type StepRecord } from "../domain/runState";
 import type { AgentStep, GateStep, Workflow } from "../domain/workflow";
 
 function appendPerKey<T>(current: Record<string, T[]>, update: Record<string, T[]>): Record<string, T[]> {
@@ -35,7 +36,9 @@ const RunStateAnnotation = Annotation.Root({
 // types expect them at compile time, so the builder is typed with `string`.
 type GraphBuilder = StateGraph<typeof RunStateAnnotation.spec, RunState, Partial<RunState>, string>;
 
-type GatePause = { gateId: string; shows: string[] };
+// What a gate's interrupt carries, as stored in the checkpoint.
+const GatePause = z.object({ gateId: z.string(), shows: z.array(z.string()) });
+type GatePause = z.infer<typeof GatePause>;
 
 export type AgentStepRunner = (runId: string, step: AgentStep, state: RunState) => Promise<StepRecord>;
 
@@ -81,32 +84,38 @@ export class LangGraphRunEngine implements RunEngine {
 
   async resume(runId: string, workflow: Workflow, decision: GateDecision): Promise<RunOutcome> {
     const graph = this.compile(workflow);
-    const current = await this.read(graph, runId);
-    if (current?.status !== "waiting") {
-      throw new ConflictError(`run "${runId}" is ${current ? current.status : "unknown"}, not waiting at a gate`);
-    }
+    await this.expectStatus(graph, runId, "waiting");
     await graph.invoke(new Command({ resume: decision }), configFor(runId));
     return await this.settle(graph, runId);
   }
 
   async continue(runId: string, workflow: Workflow): Promise<RunOutcome> {
     const graph = this.compile(workflow);
-    const current = await this.read(graph, runId);
-    if (current?.status !== "interrupted") {
-      throw new ConflictError(`run "${runId}" is ${current ? current.status : "unknown"}, not interrupted`);
-    }
+    await this.expectStatus(graph, runId, "interrupted");
     await graph.invoke(null as unknown as Partial<RunState>, configFor(runId));
     return await this.settle(graph, runId);
   }
 
   async retry(runId: string, workflow: Workflow): Promise<RunOutcome> {
     const graph = this.compile(workflow);
-    const current = await this.read(graph, runId);
-    if (current?.status !== "failed") {
-      throw new ConflictError(`run "${runId}" is ${current ? current.status : "unknown"}, not failed`);
-    }
+    const current = await this.expectStatus(graph, runId, "failed");
     await graph.invoke(new Command({ goto: current.stepId }), configFor(runId));
     return await this.settle(graph, runId);
+  }
+
+  async deleteRun(runId: string): Promise<void> {
+    await this.options.checkpointer.deleteThread(runId);
+  }
+
+  // The run's outcome, when it has this status; ConflictError otherwise.
+  private async expectStatus<S extends RunOutcome["status"]>(
+    graph: ReturnType<LangGraphRunEngine["compile"]>,
+    runId: string,
+    status: S,
+  ): Promise<Extract<RunOutcome, { status: S }>> {
+    const current = await this.read(graph, runId);
+    if (current?.status !== status) throw new ConflictError(`run "${runId}" is ${current?.status ?? "not started"}, not ${status}`);
+    return current as Extract<RunOutcome, { status: S }>;
   }
 
   async outcome(runId: string, workflow: Workflow): Promise<RunOutcome | null> {
@@ -161,9 +170,10 @@ export class LangGraphRunEngine implements RunEngine {
   private async read(graph: ReturnType<LangGraphRunEngine["compile"]>, runId: string): Promise<RunOutcome | null> {
     const snapshot = await graph.getState(configFor(runId));
     if (!snapshot.createdAt) return null;
-    const state = snapshot.values as RunState;
+    const state = RunState.parse(snapshot.values);
 
-    const pause = snapshot.tasks.flatMap((task) => task.interrupts).at(0)?.value as GatePause | undefined;
+    const interrupt = snapshot.tasks.flatMap((task) => task.interrupts).at(0);
+    const pause = interrupt ? GatePause.parse(interrupt.value) : undefined;
     if (pause) return { status: "waiting", gateId: pause.gateId, shows: pause.shows, state };
 
     // Checked before failures: a retried step keeps its failed record until the

@@ -1,6 +1,6 @@
 # workflow-orchestrator — MVP spec
 
-**Status:** draft, in review (2026-10-11). Slices 0–8 built; slice 8 in review. Body frozen: changes go in Amendments.
+**Status:** draft, in review (2026-10-11). Slices 0–9 built; slice 9 (hardening) in review. Body frozen: changes go in Amendments.
 
 A folder you drop into a project that already has Cursor skills, agents and
 artefacts. It reads them, lets you draw a workflow from them on a canvas
@@ -570,4 +570,34 @@ ref `baseTree: string | null`. `ProjectFiles` gains `recordTree()` and
 [specs/8-changes-at-the-gate.md](specs/8-changes-at-the-gate.md) (see its
 amendments for how it differs from that spec).
 Why: every gate shows a diff of this run's changes, not the whole file.
+
+**2026-10-12, slice 9 built — hardening: contracts that changed.**
+Spec said (Slices): slice 8 was the last; (Server API, ports, `StepRecord`)
+as amended above.
+Now: slice 9, [specs/9-hardening.md](specs/9-hardening.md), fixes the
+seven-part review of 2026-10-12. Contracts that changed:
+- **Server API:** `DELETE /api/runs/:runId` (204; 409 while moving);
+  `GET /api/health` adds `version`, `git`, `dataDirWritable`, `credentials`;
+  every request but GET / HEAD must say `application/json` (415), its
+  `Origin` must be the server's own (403), bodies are at most 2 MB (413); the
+  event stream resumes from `Last-Event-ID` before `?after=` and pings every
+  20 s; gate changes may give reason `no base`.
+- **`StepRecord`:** `cursorRunIds` is now `agentRunIds` (old records are read
+  and converted); `baseTree` must be a git object id. The run ref's
+  `cursorRunId` is `agentRunId`. Run state, events and run files are parsed
+  on read and versioned (ADR-0020).
+- **Ports:** `ProjectFiles.recordTree(name)` keeps the tree under
+  `refs/orchestrator/<name>`, plus `forgetTrees(prefix)` (ADR-0019);
+  `RunFiles.deleteRun`; `RunEngine.deleteRun`; a new `RunLease`;
+  `AgentRunRequest.doNotTouch`.
+- **Runs:** one moving run per project, across processes (ADR-0018); the
+  CLI moves runs through `RunSupervisor`, and `startRun`, `resumeRun`,
+  `continueRun`, `retryRun` are gone.
+- **Agents:** Cursor agents get no shell, MCP, web or subagents; Claude agents
+  are refused protected and credential paths by a hook; a protected write
+  fails the step; step timeout and Claude turn/budget limits in the config's
+  `limits` (ADR-0017).
+Why: the review found agents could reach beyond the project, cancel did
+nothing on real runtimes, runs could get stuck after a crash, and gate diffs
+broke after `git gc`.
 

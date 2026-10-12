@@ -6,7 +6,7 @@ import {
   useCancelRun,
   useContinueRun,
   useCreateWorkflow,
-  useDeleteWorkflow,
+  useDeleteRun, useDeleteWorkflow,
   useResumeRun,
   useRetryRun,
   useSaveFile,
@@ -16,7 +16,7 @@ import {
 import { OrchestratorApiContext } from "../../src/application/orchestratorApiContext";
 import { queryKeys } from "../../src/application/queryKeys";
 import { FakeOrchestratorApi } from "../support/FakeOrchestratorApi";
-import { workflow } from "../support/sampleData";
+import { waitingRun, workflow } from "../support/sampleData";
 
 // Renders a hook with a query client the test can inspect.
 function setup<T>(hook: () => T) {
@@ -138,5 +138,18 @@ describe("useSaveFile", () => {
 
     await waitFor(() => expect(result.current.error).toMatchObject({ status: 409 }));
     expect(api.files["kb/a.md"]).toBe("changed elsewhere");
+  });
+
+  it("useDeleteRun drops the run's query and marks run lists stale", async () => {
+    const { api, client, result } = setup(() => useDeleteRun("run-1"));
+    api.runsById["run-1"] = waitingRun();
+    client.setQueryData(queryKeys.run("run-1"), waitingRun());
+    client.setQueryData(queryKeys.runs(), []);
+
+    await act(async () => await result.current.mutateAsync());
+
+    expect(api.calls).toEqual(["deleteRun run-1"]);
+    expect(client.getQueryState(queryKeys.run("run-1"))).toBeUndefined();
+    expect(client.getQueryState(queryKeys.runs())?.isInvalidated).toBe(true);
   });
 });

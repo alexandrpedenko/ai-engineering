@@ -8,10 +8,10 @@ import { useLeaveWarning } from "../application/useLeaveWarning";
 import { CodeEditor } from "../components/CodeEditor";
 import { FileConflictAlert } from "../components/FileConflictAlert";
 import { FileFacts } from "../components/FileFacts";
-import { ApiError } from "../domain/apiError";
+import { isConflict } from "../domain/apiError";
 import { fileKind } from "../domain/fileKind";
-import { languageOf } from "../domain/fileLanguage";
-import { usedBy } from "../domain/fileUsage";
+import { languageOf } from "../domain/languageOf";
+import { usedBy } from "../domain/usedBy";
 
 const EMPTY_REGISTRY: Registry = { root: "", skills: [], agents: [], artefacts: [], warnings: [] };
 
@@ -36,7 +36,7 @@ export function FileEditorPage() {
   const content = draft.content;
   const registry = project.data ?? EMPTY_REGISTRY;
   const kind = fileKind(path, registry);
-  const conflict = save.error instanceof ApiError && save.error.status === 409;
+  const conflict = isConflict(save.error);
   const send = (overwrite: boolean) =>
     save.mutate(overwrite || draft.baseVersion === undefined ? { content } : { content, baseVersion: draft.baseVersion }, {
       onSuccess: () => draft.markSaved(content),

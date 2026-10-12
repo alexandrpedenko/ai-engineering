@@ -84,6 +84,7 @@ export class FakeOrchestratorApi implements OrchestratorApi {
     return this.checkProblems;
   }
   async runs(workflowId?: string) {
+    this.fail("runs");
     return this.runList.filter((run) => !workflowId || run.workflowId === workflowId);
   }
   async run(runId: string) {
@@ -130,6 +131,13 @@ export class FakeOrchestratorApi implements OrchestratorApi {
   }
   async cancel(runId: string) {
     this.calls.push(`cancel ${runId}`);
+  }
+  async deleteRun(runId: string) {
+    this.calls.push(`deleteRun ${runId}`);
+    this.fail("deleteRun");
+    if (!this.runsById[runId]) throw new ApiError(404, `no run "${runId}"`);
+    delete this.runsById[runId];
+    this.runList = this.runList.filter((run) => run.runId !== runId);
   }
   watchRun(runId: string, after: number, onEvent: (event: LoggedEvent) => void) {
     this.calls.push(`watch ${runId} after ${after}`);

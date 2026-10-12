@@ -1,25 +1,45 @@
 import { MemorySaver } from "@langchain/langgraph";
 import { describe, expect, it } from "vitest";
+import type { AgentRuntime } from "../../src/application/AgentRuntime";
 import { ConflictError, InvalidInputError, MissingCredentialsError, NotFoundError } from "../../src/application/errors";
 import type { LoggedEvent } from "../../src/application/EventLog";
 import { runAgentStep } from "../../src/application/runAgentStep";
-import { RunSupervisor } from "../../src/application/RunSupervisor";
+import { ORPHANED_MESSAGE, RunSupervisor } from "../../src/application/RunSupervisor";
 import { FakeAgentRuntime, type FakeReply } from "../../src/infrastructure/FakeAgentRuntime";
 import { LangGraphRunEngine } from "../../src/infrastructure/LangGraphRunEngine";
 import { agentDeps } from "../support/agentDeps";
 import { MemoryEventLog } from "../support/MemoryEventLog";
+import { MemoryRunLease } from "../support/MemoryRunLease";
 import { MemoryWorkflowStore } from "../support/MemoryWorkflowStore";
 import { baWorkflow, registry } from "../support/workflows";
 
 // A supervisor over the real engine, a fake agent, and in-memory stores.
-function setup(replies: FakeReply[] = [{}], options: { canRun?: boolean; failingEngine?: boolean } = {}) {
+function setup(replies: FakeReply[] = [{}], options: { canRun?: boolean; failingEngine?: boolean; lease?: MemoryRunLease; cancelFails?: boolean } = {}) {
   const runtime = new FakeAgentRuntime(replies);
+  // With cancelFails, every agent run's cancel stops it and then rejects.
+  const agents: AgentRuntime = options.cancelFails
+    ? {
+        start: async (request) => {
+          const handle = await runtime.start(request);
+          return {
+            ...handle,
+            cancel: async () => {
+              await handle.cancel();
+              throw new Error("cancel refused");
+            },
+          };
+        },
+        attach: async (id) => await runtime.attach(id),
+      }
+    : runtime;
   const eventLog = new MemoryEventLog();
   const store = new MemoryWorkflowStore([baWorkflow()]);
+  const errors: unknown[] = [];
+  const forgotten: string[] = [];
   let ids = 0;
   // The engine and the agent step report to the supervisor, which is created after them.
   let supervisor: RunSupervisor | undefined;
-  const { deps, runFiles } = agentDeps(runtime, {
+  const { deps, runFiles } = agentDeps(agents, {
     onEvent: (runId, event) => supervisor?.onEvent(runId, event),
     onHandle: (runId, handle) => supervisor?.onHandle(runId, handle),
   });
@@ -42,8 +62,13 @@ function setup(replies: FakeReply[] = [{}], options: { canRun?: boolean; failing
     assertCanRun: () => {
       if (options.canRun === false) throw new MissingCredentialsError("CURSOR_API_KEY");
     },
+    ...(options.lease ? { lease: options.lease } : {}),
+    forgetTrees: async (runId) => {
+      forgotten.push(runId);
+    },
+    reportError: (error) => errors.push(error),
   });
-  return { supervisor, runtime, eventLog, store, runFiles };
+  return { supervisor, runtime, eventLog, store, runFiles, errors, forgotten, engine };
 }
 
 const types = (events: LoggedEvent[]) => events.map((e) => e.event.type);
@@ -187,5 +212,163 @@ describe("RunSupervisor", () => {
 
   it("watch refuses an unknown run", async () => {
     await expect(setup().supervisor.watch("nope", 0, () => {})).rejects.toBeInstanceOf(NotFoundError);
+  });
+
+  it("cancels a step whose agent is still streaming events", async () => {
+    const { supervisor } = setup([{ holds: true, streams: true, events: [{ kind: "text", text: "working" }] }]);
+    const { runId } = await supervisor.start("ba-discovery", {});
+    await new Promise((resolve) => setTimeout(resolve, 10));
+
+    await supervisor.cancel(runId);
+    await supervisor.settled(runId);
+
+    expect(supervisor.isBusy(runId)).toBe(false);
+  });
+
+  it("moves one run at a time in a project", async () => {
+    const { supervisor } = setup([{ holds: true }]);
+    const { runId } = await supervisor.start("ba-discovery", {});
+
+    await expect(supervisor.start("ba-discovery", {})).rejects.toThrow(`run "${runId}" is moving; one run moves at a time in a project`);
+
+    await supervisor.cancel(runId);
+    await supervisor.settled(runId);
+  });
+
+  it("refuses to move a run another process holds the lease for, and frees nothing it didn't take", async () => {
+    const lease = new MemoryRunLease();
+    lease.held = { pid: 999, runId: "run-other", since: "", alive: true, mine: false };
+    const { supervisor, runFiles } = setup([{}], { lease });
+
+    await expect(supervisor.start("ba-discovery", {})).rejects.toThrow("in another process (pid 999)");
+
+    const [saved] = await runFiles.listRuns();
+    expect(supervisor.isBusy(saved?.runId ?? "")).toBe(false);
+  });
+
+  it("takes the lease while a run moves and gives it back when it settles", async () => {
+    const lease = new MemoryRunLease();
+    const { supervisor } = setup([{}], { lease });
+
+    const { runId } = await supervisor.start("ba-discovery", {});
+    await supervisor.settled(runId);
+
+    expect(lease.log).toEqual([`acquire ${runId}`, `release ${runId}`]);
+    expect(lease.held).toBeNull();
+  });
+
+  it("leaves nothing busy when the event log can't be read", async () => {
+    const { supervisor, eventLog } = setup();
+    eventLog.failLastSeq = new Error("torn log");
+
+    await expect(supervisor.start("ba-discovery", {})).rejects.toThrow("torn log");
+
+    eventLog.failLastSeq = null;
+    const { runId } = await supervisor.start("ba-discovery", {});
+    await supervisor.settled(runId);
+  });
+
+  it("goes on numbering events when writing one fails, and reports it", async () => {
+    const { supervisor, eventLog, errors } = setup();
+    eventLog.failAppend = new Error("disk full");
+
+    const { runId } = await supervisor.start("ba-discovery", {});
+    await supervisor.settled(runId);
+
+    expect(errors).toHaveLength(4);
+    expect(supervisor.isBusy(runId)).toBe(false);
+  });
+
+  it("watch gives events numbered but not yet written, once each", async () => {
+    const { supervisor, eventLog } = setup([{ holds: true }]);
+    eventLog.holdAppends();
+    const { runId } = await supervisor.start("ba-discovery", {});
+    await new Promise((resolve) => setTimeout(resolve, 10)); // step-started is numbered, its write held
+    const seen: number[] = [];
+
+    const watching = supervisor.watch(runId, 0, (event) => seen.push(event.seq));
+    await new Promise((resolve) => setTimeout(resolve, 5));
+    eventLog.releaseAppends();
+    const stop = await watching;
+    await supervisor.cancel(runId);
+    await supervisor.settled(runId);
+    stop();
+
+    expect(seen).toEqual([1, 2, 3]);
+  });
+
+  it("marks a run whose process stopped mid-step as crashed when someone watches it", async () => {
+    const { supervisor, eventLog, runFiles } = setup();
+    const { runId } = await supervisor.start("ba-discovery", {});
+    await supervisor.settled(runId);
+    eventLog.events.set(runId, (eventLog.events.get(runId) ?? []).slice(0, 1));
+    const restarted = setup();
+    for (const [id, events] of eventLog.events) restarted.eventLog.events.set(id, events);
+    for (const [id, run] of runFiles.runs) await restarted.runFiles.saveRun(id, run);
+    const seen: string[] = [];
+
+    await restarted.supervisor.watch(runId, 0, (event) => seen.push(event.event.type === "run-crashed" ? event.event.message : event.event.type));
+
+    expect(seen).toEqual(["step-started", ORPHANED_MESSAGE]);
+    expect((await restarted.eventLog.read(runId)).at(-1)).toMatchObject({ seq: 2 });
+  });
+
+  it("doesn't mark a run another live process is moving", async () => {
+    const lease = new MemoryRunLease();
+    const { supervisor, eventLog, runFiles } = setup([{}], { lease });
+    const { runId } = await supervisor.start("ba-discovery", {});
+    await supervisor.settled(runId);
+    eventLog.events.set(runId, (eventLog.events.get(runId) ?? []).slice(0, 1));
+    lease.held = { pid: 999, runId, since: "", alive: true, mine: false };
+    void runFiles;
+
+    const seen: string[] = [];
+    await supervisor.watch(runId, 0, (event) => seen.push(event.event.type));
+
+    expect(seen).toEqual(["step-started"]);
+  });
+
+  it("deletes a run that isn't moving: files, state and gate trees", async () => {
+    const { supervisor, runFiles, forgotten, engine } = setup();
+    const { runId } = await supervisor.start("ba-discovery", {});
+    await supervisor.settled(runId);
+
+    await supervisor.delete(runId);
+
+    expect(await runFiles.loadRun(runId)).toBeNull();
+    expect(forgotten).toEqual([runId]);
+    expect(await engine.outcome(runId, baWorkflow())).toBeNull();
+    await expect(supervisor.delete(runId)).rejects.toBeInstanceOf(NotFoundError);
+  });
+
+  it("refuses to delete a moving run", async () => {
+    const { supervisor } = setup([{ holds: true }]);
+    const { runId } = await supervisor.start("ba-discovery", {});
+
+    await expect(supervisor.delete(runId)).rejects.toBeInstanceOf(ConflictError);
+
+    await supervisor.cancel(runId);
+    await supervisor.settled(runId);
+  });
+
+  it("on shutdown, cancels what is moving, waits for it, and refuses new runs", async () => {
+    const { supervisor } = setup([{ holds: true }]);
+    const { runId } = await supervisor.start("ba-discovery", {});
+
+    await supervisor.shutdown();
+
+    expect(supervisor.isBusy(runId)).toBe(false);
+    await expect(supervisor.start("ba-discovery", {})).rejects.toThrow("the orchestrator is stopping");
+  });
+
+  it("reports a cancel that fails instead of crashing", async () => {
+    const { supervisor, errors } = setup([{ holds: true }], { cancelFails: true });
+    const { runId } = await supervisor.start("ba-discovery", {});
+    await new Promise((resolve) => setTimeout(resolve, 5));
+
+    await supervisor.shutdown();
+
+    expect(errors.map((e) => (e as Error).message)).toEqual(["cancel refused"]);
+    expect(supervisor.isBusy(runId)).toBe(false);
   });
 });

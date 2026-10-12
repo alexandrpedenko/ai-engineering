@@ -5,29 +5,47 @@ import type { StepEvent } from "../../../domain/runState";
 import type { AgentProvider, ProviderRun } from "../AgentProvider";
 import { AsyncQueue } from "../AsyncQueue";
 import { ClaudeEventMapper } from "./ClaudeEventMapper";
+import { pathGuard } from "./pathGuard";
 
 // The one Claude Agent SDK call this provider makes, so tests can replace it.
 export type ClaudeQuery = (params: { prompt: string; options: Options }) => AsyncIterable<SDKMessage>;
 
 const defaultQuery: ClaudeQuery = (params) => sdkQuery(params);
 
-// Tools an agent step may use without a person approving them. No shell
-// (Bash) until delivery steps need it.
+// Tools an agent step may use without a person approving them, and tools it
+// never gets: no shell and no web (ADR-0017).
 const ALLOWED_TOOLS = ["Read", "Write", "Edit", "Glob", "Grep", "Skill", "Task"];
-const DISALLOWED_TOOLS = ["Bash"];
+const DISALLOWED_TOOLS = ["Bash", "WebFetch", "WebSearch"];
+
+// The environment variables the Claude process gets besides its API key.
+const PASSED_ENV = ["PATH", "HOME", "USER", "LOGNAME", "SHELL", "TMPDIR", "TEMP", "TMP", "LANG", "TERM", "SYSTEMROOT", "APPDATA", "LOCALAPPDATA", "USERPROFILE"];
+
+// The part of the environment a Claude run may see: PASSED_ENV, LC_*, and the key.
+export function claudeEnv(env: NodeJS.ProcessEnv, apiKey: string): Record<string, string> {
+  const passed: Record<string, string> = {};
+  for (const [name, value] of Object.entries(env)) {
+    if (value !== undefined && (PASSED_ENV.includes(name) || name.startsWith("LC_"))) passed[name] = value;
+  }
+  return { ...passed, ANTHROPIC_API_KEY: apiKey };
+}
+
+export type ClaudeLimits = { maxTurns?: number; maxBudgetUsd?: number };
 
 // Claude Code through the Claude Agent SDK: works in the project with Claude
 // Code's own system prompt and the project's .claude settings; the project's
-// agent files are passed in as subagents. Runs live inside this process, so
-// one from an earlier process is always reported as cut off (ADR-0013).
+// agent files are passed in as subagents. File tools are refused on protected
+// paths (pathGuard). Runs live inside this process, so one from an earlier
+// process is always reported as cut off (ADR-0013).
 export class ClaudeProvider implements AgentProvider {
   readonly name = "claude" as const;
   private readonly apiKey: string;
   private readonly query: ClaudeQuery;
+  private readonly limits: ClaudeLimits;
 
-  constructor(options: { apiKey: string; query?: ClaudeQuery }) {
+  constructor(options: { apiKey: string; query?: ClaudeQuery; limits?: ClaudeLimits }) {
     this.apiKey = options.apiKey;
     this.query = options.query ?? defaultQuery;
+    this.limits = options.limits ?? {};
   }
 
   async open(request: AgentRunRequest): Promise<ProviderRun> {
@@ -43,7 +61,10 @@ export class ClaudeProvider implements AgentProvider {
       disallowedTools: DISALLOWED_TOOLS,
       sessionId,
       abortController: abort,
-      env: { ...process.env, ANTHROPIC_API_KEY: this.apiKey },
+      env: claudeEnv(process.env, this.apiKey),
+      hooks: { PreToolUse: [{ hooks: [pathGuard(request.cwd, request.doNotTouch ?? [])] }] },
+      ...(this.limits.maxTurns ? { maxTurns: this.limits.maxTurns } : {}),
+      ...(this.limits.maxBudgetUsd ? { maxBudgetUsd: this.limits.maxBudgetUsd } : {}),
       agents: Object.fromEntries(
         (request.subagents ?? []).map((agent) => [agent.name, { description: agent.description || agent.name, prompt: agent.prompt }]),
       ),

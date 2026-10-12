@@ -1,7 +1,7 @@
 import { Badge, Box, List, ListItemButton, ListItemText, ListSubheader } from "@mui/material";
 import type { ReactNode } from "react";
-import type { PhaseGroup } from "../domain/grouping";
-import { problemCounts } from "../domain/problems";
+import type { PhaseGroup } from "../domain/groupWorkflowsByPhase";
+import { problemCounts } from "../domain/problemCounts";
 
 type Props = {
   groups: PhaseGroup[];

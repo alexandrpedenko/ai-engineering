@@ -10,7 +10,7 @@ export type FileDiff = {
   added: number; // lines
   removed: number; // lines
   diff: string | null;
-  reason?: "binary" | "too large" | "no git" | "secret";
+  reason?: "binary" | "too large" | "no git" | "no base" | "secret";
 };
 
 export type GateChange = FileChange["change"] | "unchanged";

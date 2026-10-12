@@ -1,4 +1,4 @@
-import { InvalidInputError, MissingCredentialsError, NotFoundError, type GateDecision, type RunEvent, type RunOutcome } from "@orch/core";
+import { ConflictError, InvalidInputError, MissingCredentialsError, NotFoundError, RunCrashedError, type GateDecision, type RunEvent, type RunOutcome } from "@orch/core";
 import { describe, expect, it } from "vitest";
 import { runWfCommand, type WfServices } from "../../src/cli/wfCommand";
 
@@ -36,6 +36,10 @@ function setup(options: { answers?: string[]; afterResume?: RunOutcome[]; curren
     outcome: async (runId) => {
       calls.push(`outcome ${runId}`);
       return options.current ?? waiting;
+    },
+    delete: async (runId) => {
+      calls.push(`delete ${runId}`);
+      if (options.fail) throw options.fail;
     },
     gateChanges: async (runId, gateId) => {
       calls.push(`gateChanges ${runId} ${gateId}`);
@@ -118,7 +122,7 @@ describe("runWfCommand continue and status", () => {
   });
 
   it("prints a run's status without needing an API key", async () => {
-    const done = { status: "finished", state: { steps: { elicit: { status: "done", cursorRunIds: ["a", "b"] } } } } as unknown as RunOutcome;
+    const done = { status: "finished", state: { steps: { elicit: { status: "done", agentRunIds: ["a", "b"] } } } } as unknown as RunOutcome;
     const { deps, output, servicesOptions } = setup({ current: done });
 
     expect(await runWfCommand(["status", "run-1"], deps)).toBe(0);
@@ -171,3 +175,36 @@ describe("runWfCommand errors", () => {
     await expect(runWfCommand(["run", "x"], deps)).rejects.toThrow("disk on fire");
   });
 });
+
+describe("runWfCommand delete and help", () => {
+  it("deletes a run without needing an API key", async () => {
+    const { deps, calls, output, servicesOptions } = setup();
+
+    expect(await runWfCommand(["delete", "run-1"], deps)).toBe(0);
+
+    expect(calls).toEqual(["delete run-1"]);
+    expect(output()).toBe("deleted run-1\n");
+    expect(servicesOptions()).toMatchObject({ fake: true });
+  });
+
+  it("prints the usage for --help", async () => {
+    const { deps, output } = setup();
+    expect(await runWfCommand(["--help"], deps)).toBe(0);
+    expect(output()).toMatch(/^usage:/);
+  });
+
+  it("says a run crashed and how to continue it", async () => {
+    const { deps, output } = setup({ fail: new RunCrashedError("run-9", "engine exploded") });
+
+    expect(await runWfCommand(["continue", "run-9"], deps)).toBe(1);
+
+    expect(output()).toBe("the run stopped with an error: engine exploded\nContinue with: npm run wf -- continue run-9\n");
+  });
+
+  it("says another run is moving", async () => {
+    const { deps, output } = setup({ fail: new ConflictError('run "run-2" is moving in another process (pid 7)') });
+    expect(await runWfCommand(["run", "ba-discovery"], deps)).toBe(1);
+    expect(output()).toBe('run "run-2" is moving in another process (pid 7)\n');
+  });
+});
+

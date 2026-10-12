@@ -12,6 +12,6 @@ export function useServerStatus(): { status: ServerStatus; runtime?: string } {
     queryFn: async () => await api.health(),
     retry: false,
   });
-  const status = toServerStatus({ isPending: health.isPending, isError: health.isError, up: health.data?.up });
+  const status = toServerStatus({ isPending: health.isPending, isError: health.isError, ...(health.data ? { up: health.data.up } : {}) });
   return health.data?.runtime ? { status, runtime: health.data.runtime } : { status };
 }

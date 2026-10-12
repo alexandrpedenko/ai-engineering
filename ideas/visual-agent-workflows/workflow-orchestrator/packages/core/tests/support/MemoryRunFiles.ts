@@ -27,8 +27,14 @@ export class MemoryRunFiles implements RunFiles {
     return this.refs.get(`${runId}/${stepId}/${attempt}`) ?? null;
   }
 
+  async deleteRun(runId: string) {
+    this.log.push(`deleteRun ${runId}`);
+    this.runs.delete(runId);
+    for (const key of this.refs.keys()) if (key.startsWith(`${runId}/`)) this.refs.delete(key);
+  }
+
   async putRef(ref: RunRef) {
-    this.log.push(`putRef ${ref.stepId}-${ref.attempt} ${ref.cursorRunId}`);
+    this.log.push(`putRef ${ref.stepId}-${ref.attempt} ${ref.agentRunId}`);
     this.refs.set(`${ref.runId}/${ref.stepId}/${ref.attempt}`, ref);
   }
 }

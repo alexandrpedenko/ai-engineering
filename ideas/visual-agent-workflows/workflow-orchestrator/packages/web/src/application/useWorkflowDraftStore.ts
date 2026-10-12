@@ -1,6 +1,5 @@
 import type { Workflow } from "@orch/core";
 import { create } from "zustand";
-import { useShallow } from "zustand/react/shallow";
 
 type WorkflowDraftState = {
   drafts: Record<string, Workflow>; // unsaved edits, by workflow id
@@ -30,8 +29,3 @@ export const useWorkflowDraftStore = create<WorkflowDraftState>((set) => ({
   forget: (id) => set((state) => ({ drafts: without(state.drafts, id), selected: without(state.selected, id) })),
   select: (id, stepId) => set((state) => ({ selected: { ...state.selected, [id]: stepId } })),
 }));
-
-// The ids of the workflows that have a draft. Re-renders only when that list changes.
-export function useDraftIds(): string[] {
-  return useWorkflowDraftStore(useShallow((state) => Object.keys(state.drafts)));
-}

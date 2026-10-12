@@ -6,7 +6,7 @@ import { NODE_SPACING, positionOf, stepIdProblem } from "./workflowGraph";
 // that is the server's validator's job.
 
 export type AgentStepFields = Omit<AgentStep, "id" | "type">;
-export type GateFields = Omit<GateStep, "id" | "type">;
+export type GateStepFields = Omit<GateStep, "id" | "type">;
 export type WorkflowFieldsPatch = Partial<{ name: string; inputs: WorkflowInput[]; phase: string | null }>;
 export type RenameResult = { ok: true; workflow: Workflow } | { ok: false; problem: string };
 
@@ -135,7 +135,7 @@ export function updateAgentStep(workflow: Workflow, stepId: string, patch: Parti
 }
 
 // Changes fields of a gate. Does nothing when `stepId` is not a gate.
-export function updateGate(workflow: Workflow, stepId: string, patch: Partial<GateFields>): Workflow {
+export function updateGate(workflow: Workflow, stepId: string, patch: Partial<GateStepFields>): Workflow {
   return { ...workflow, steps: workflow.steps.map((step) => (step.id === stepId && step.type === "gate" ? { ...step, ...patch } : step)) };
 }
 

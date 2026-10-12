@@ -1,5 +1,5 @@
 import { Box, Typography } from "@mui/material";
-import type { FeedLine } from "../domain/eventLines";
+import type { FeedLine } from "../domain/eventLine";
 
 const MAX_LINES = 200;
 

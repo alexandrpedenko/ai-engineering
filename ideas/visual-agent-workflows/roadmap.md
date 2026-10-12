@@ -71,6 +71,16 @@ paragraph in spec.md's Slices section (see spec.md, Amendments,
    project (ADR-0014, Alternatives).
 11. **Phase gates.** Delivery waits until discovery is approved.
 
+12. **A browser end-to-end test.** Playwright against `dev:sample`: start a
+   run, watch the feed, read the gate's diff, approve (slice 9, left out).
+13. **A live smoke test per runtime.** A one-step workflow on Cursor and on
+   Claude behind a flag someone runs by hand, so SDK changes show up before a
+   real run (slice 9, left out).
+14. **Cheaper change detection in big repositories.** Every step reads and
+   hashes the whole project twice; in git, a tree after the step and
+   `git diff-tree` could replace both (slice 9, left out).
+15. **Windows CI.** Paths and scripts are written for it; nothing runs it yet.
+
 ## Parked
 
 - **Settings UI and a project list** ([specs/proposal-settings-and-projects.md](specs/proposal-settings-and-projects.md)).
@@ -93,3 +103,12 @@ Known, low-severity, left out of earlier slices on purpose:
   focus to the wrong one (slice 6 review).
 - The web app keeps its own copy of the step-id rule, because it may only
   import types from core (slice 6 review).
+- The run page doesn't say when its live connection drops; the browser
+  reconnects by itself (slice 9).
+- The web app casts `Registry`, `RunDetails` and stream events after a loose
+  check; the contract test is what keeps them true (slice 9, I3).
+- `npm ls` reports dompurify 3.4.16 as "invalid" against monaco-editor's
+  exact 3.4.15, because npm doesn't apply the override; the lockfile pins
+  3.4.16 (slice 9).
+- 14 lint warnings remain (shadowed names, two effects that set state).
+- A licence for the orchestrator: the owner's choice.

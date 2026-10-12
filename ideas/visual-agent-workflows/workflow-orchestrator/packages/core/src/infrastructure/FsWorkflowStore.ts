@@ -5,7 +5,8 @@ import { ConflictError, InvalidInputError, NotFoundError } from "../application/
 import type { WorkflowStore } from "../application/WorkflowStore";
 import type { ResolvedConfig } from "../domain/config";
 import { DEFAULT_PHASES, type Phase, PhasesFile } from "../domain/phase";
-import { Workflow } from "../domain/workflow";
+import { StepId, Workflow } from "../domain/workflow";
+import { isErrno } from "./isErrno";
 
 // WorkflowStore on <host>/<workflowsDir>/: <id>.json per workflow, phases.json.
 // Files are written as JSON with two-space indents and a final newline.
@@ -17,7 +18,7 @@ export class FsWorkflowStore implements WorkflowStore {
   }
 
   async get(id: string): Promise<Workflow | null> {
-    if (!/^[a-z][a-z0-9-]*$/.test(id)) return null;
+    if (!StepId.safeParse(id).success) return null;
     return await this.read(`${id}.json`, Workflow);
   }
 
@@ -26,7 +27,7 @@ export class FsWorkflowStore implements WorkflowStore {
     try {
       names = await readdir(this.dir);
     } catch (error) {
-      if ((error as NodeJS.ErrnoException).code === "ENOENT") return [];
+      if (isErrno(error, "ENOENT")) return [];
       throw error;
     }
     const ids = names.filter((n) => n.endsWith(".json") && n !== "phases.json").map((n) => n.slice(0, -5)).sort();
@@ -50,17 +51,17 @@ export class FsWorkflowStore implements WorkflowStore {
     try {
       await this.write(`${workflow.id}.json`, workflow, "wx");
     } catch (error) {
-      if ((error as NodeJS.ErrnoException).code === "EEXIST") throw new ConflictError(`a workflow "${workflow.id}" already exists`);
+      if (isErrno(error, "EEXIST")) throw new ConflictError(`a workflow "${workflow.id}" already exists`);
       throw error;
     }
   }
 
   async remove(id: string): Promise<void> {
-    if (!/^[a-z][a-z0-9-]*$/.test(id)) throw new NotFoundError(`no workflow "${id}"`);
+    if (!StepId.safeParse(id).success) throw new NotFoundError(`no workflow "${id}"`);
     try {
       await unlink(join(this.dir, `${id}.json`));
     } catch (error) {
-      if ((error as NodeJS.ErrnoException).code === "ENOENT") throw new NotFoundError(`no workflow "${id}"`);
+      if (isErrno(error, "ENOENT")) throw new NotFoundError(`no workflow "${id}"`);
       throw error;
     }
   }
@@ -86,7 +87,7 @@ export class FsWorkflowStore implements WorkflowStore {
     try {
       text = await readFile(path, "utf8");
     } catch (error) {
-      if ((error as NodeJS.ErrnoException).code === "ENOENT") return null;
+      if (isErrno(error, "ENOENT")) return null;
       throw error;
     }
     let raw: unknown;

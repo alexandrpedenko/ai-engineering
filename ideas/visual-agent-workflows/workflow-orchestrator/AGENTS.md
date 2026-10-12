@@ -32,7 +32,8 @@ packages/core/src/
 packages/server/src/
   routes/           HTTP adapters: parse the request with zod → call a use case → map the result. No logic.
   composition.ts    the only place that creates adapters and wires them into use cases.
-  main.ts           starts the server.
+  main.ts           starts the server (may use cli/ formatters for its messages).
+  logger.ts         the server's JSON-lines log.
 
 packages/web/src/
   domain/           UI-side pure logic and types (e.g. group workflows by phase, workflow ↔ canvas nodes).
@@ -63,7 +64,8 @@ What goes where, by question:
 - `import type` for anything used only as a type. `web/src` imports from
   `@orch/core` with `import type` only (web tests may use core's schemas to
   build sample data).
-- No non-null assertions (`!`) except on the DOM root in `bootstrap/`.
+- No non-null assertions (`!`) except on the DOM root in `bootstrap/`, and on
+  fixture data in tests.
 - Imports without file extensions (`moduleResolution: "bundler"`).
 - MUI 9 has no system props: layout and typography values (`alignItems`,
   `justifyContent`, `fontWeight`, …) go in `sx`, not on the component.
@@ -118,9 +120,9 @@ What goes where, by question:
 
 ## Tests (ADR-0012)
 
-**`npm run check` is the gate**: type check over every package, then every
-test, including the architecture and guard tests. Nothing is handed over with
-it failing.
+**`npm run check` is the gate**: type check over every package, then
+`oxlint` (`.oxlintrc.json`), then every test, including the architecture,
+guard, docs and contract tests. Nothing is handed over with it failing.
 
 - **Every feature has tests on each side it touches.** A feature behind an
   HTTP route has route tests in `server` *and* hook/page tests in `web`.

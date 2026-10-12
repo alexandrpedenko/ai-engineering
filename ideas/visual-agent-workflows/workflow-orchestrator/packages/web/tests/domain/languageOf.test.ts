@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { languageOf } from "../../src/domain/fileLanguage";
+import { languageOf } from "../../src/domain/languageOf";
 
 describe("languageOf", () => {
   it.each([

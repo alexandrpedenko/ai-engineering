@@ -92,8 +92,10 @@ read about each hop:
 8. The run ends `finished`, `failed`, `rejected` or `interrupted`; the last
    event is `run-settled` with that outcome.
 
-The terminal path (`npm run wf`) is the same from step 3 on, without the
-supervisor and SSE: each command runs until the run stops moving. ([cli](cli.md))
+The terminal path (`npm run wf`) is the same from step 2 on, without SSE:
+it uses the same `RunSupervisor` (so the run is logged, holds the project's
+lease, and shows up in the web app) and waits until the run stops moving.
+([cli](cli.md))
 
 ## Vocabulary
 

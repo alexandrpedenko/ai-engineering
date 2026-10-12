@@ -31,6 +31,8 @@ export interface OrchestratorApi {
   continueRun(runId: string): Promise<void>;
   retry(runId: string): Promise<void>;
   cancel(runId: string): Promise<void>;
+  // Forgets a run that isn't moving; a 409 ApiError while it moves.
+  deleteRun(runId: string): Promise<void>;
   // Calls onEvent for every event of the run after `after`, then for live
   // ones, until the returned function is called.
   watchRun(runId: string, after: number, onEvent: (event: LoggedEvent) => void): () => void;

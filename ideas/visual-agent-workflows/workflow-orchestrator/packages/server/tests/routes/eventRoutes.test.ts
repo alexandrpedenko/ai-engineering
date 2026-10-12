@@ -1,4 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { eventRoutes, afterOf } from "../../src/routes/eventRoutes";
 import { startToGate, testServer } from "../support/testServer";
 
 let server: Awaited<ReturnType<typeof testServer>>;
@@ -79,3 +80,28 @@ describe("GET /api/runs/:runId/events", () => {
     expect((await server.app.request("/api/runs/run-nope/events")).status).toBe(404);
   });
 });
+
+describe("afterOf", () => {
+  it("prefers the Last-Event-ID a reconnecting browser sends over ?after=", () => {
+    expect(afterOf("0", "7")).toBe(7);
+    expect(afterOf("3", undefined)).toBe(3);
+    expect(afterOf(undefined, undefined)).toBe(0);
+    expect(afterOf("x", "-2")).toBe(0);
+  });
+});
+
+describe("keep-alive", () => {
+  it("sends a comment line while nothing happens", async () => {
+    const runId = await startToGate(server);
+    await server.services.supervisor.settled(runId);
+    const app = eventRoutes(server.services, 10);
+
+    const response = await app.request(`/runs/${runId}/events?after=6`);
+    const reader = response.body?.getReader();
+    const chunk = await reader?.read();
+    await reader?.cancel();
+
+    expect(new TextDecoder().decode(chunk?.value)).toBe(": ping\n\n");
+  });
+});
+

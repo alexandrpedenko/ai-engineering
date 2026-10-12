@@ -1,8 +1,8 @@
 import { writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { createApp, createServerServices } from "../../src/composition";
-import { git, jsonBody, startToGate, testServer } from "../support/testServer";
+import { action, git, jsonBody, startToGate, testServer } from "../support/testServer";
 
 let server: Awaited<ReturnType<typeof testServer>>;
 beforeAll(async () => {
@@ -14,8 +14,8 @@ describe("/api/runs", () => {
   it("lists runs and shows one run", async () => {
     const runId = await startToGate(server);
 
-    const list = (await (await server.app.request("/api/runs?workflowId=ba-discovery")).json()) as object[];
-    expect(list[0]).toMatchObject({ runId, workflowId: "ba-discovery", status: "waiting", busy: false });
+    const list = (await (await server.app.request("/api/runs?workflowId=ba-discovery")).json()) as { runId: string }[];
+    expect(list.find((run) => run.runId === runId)).toMatchObject({ runId, workflowId: "ba-discovery", status: "waiting", busy: false });
     expect(await (await server.app.request("/api/runs?workflowId=other")).json()).toEqual([]);
 
     const details = await (await server.app.request(`/api/runs/${runId}`)).json();
@@ -32,26 +32,31 @@ describe("/api/runs", () => {
     expect(await (await server.app.request(`/api/runs/${runId}`)).json()).toMatchObject({ outcome: { status: "finished" } });
 
     expect((await server.app.request(`/api/runs/${runId}/resume`, jsonBody("POST", { decision: "approve" }))).status).toBe(409);
-    expect((await server.app.request(`/api/runs/${runId}/continue`, { method: "POST" })).status).toBe(409);
-    expect((await server.app.request(`/api/runs/${runId}/cancel`, { method: "POST" })).status).toBe(409);
+    expect((await server.app.request(`/api/runs/${runId}/continue`, action("POST"))).status).toBe(409);
+    expect((await server.app.request(`/api/runs/${runId}/cancel`, action("POST"))).status).toBe(409);
     expect((await server.app.request("/api/runs/run-nope/resume", jsonBody("POST", { decision: "approve" }))).status).toBe(404);
   });
 
   it("retries a failed run with 202, and refuses one that isn't failed", async () => {
     const runId = await startToGate(server);
-    expect((await server.app.request(`/api/runs/${runId}/retry`, { method: "POST" })).status).toBe(409);
-    expect((await server.app.request("/api/runs/run-nope/retry", { method: "POST" })).status).toBe(404);
+    expect((await server.app.request(`/api/runs/${runId}/retry`, action("POST"))).status).toBe(409);
+    expect((await server.app.request("/api/runs/run-nope/retry", action("POST"))).status).toBe(404);
 
-    // Make design fail by cancelling it as soon as its agent call starts.
-    expect((await server.app.request(`/api/runs/${runId}/resume`, jsonBody("POST", { decision: "approve" }))).status).toBe(202);
-    await server.app.request(`/api/runs/${runId}/cancel`, { method: "POST" });
-    await server.services.supervisor.settled(runId);
+    // The design step's fake agent takes 5 s, so the cancel always lands while it works.
+    vi.stubEnv("ORCH_FAKE_DELAY_MS", "5000");
+    try {
+      expect((await server.app.request(`/api/runs/${runId}/resume`, jsonBody("POST", { decision: "approve" }))).status).toBe(202);
+      expect((await server.app.request(`/api/runs/${runId}/cancel`, action("POST"))).status).toBe(202);
+      await server.services.supervisor.settled(runId);
+    } finally {
+      vi.unstubAllEnvs();
+    }
     expect(await (await server.app.request(`/api/runs/${runId}`)).json()).toMatchObject({ outcome: { status: "failed", stepId: "design" } });
 
-    expect((await server.app.request(`/api/runs/${runId}/retry`, { method: "POST" })).status).toBe(202);
+    expect((await server.app.request(`/api/runs/${runId}/retry`, action("POST"))).status).toBe(202);
     await server.services.supervisor.settled(runId);
     expect(await (await server.app.request(`/api/runs/${runId}`)).json()).toMatchObject({
-      outcome: { status: "finished", state: { steps: { design: { status: "done", cursorRunIds: [expect.any(String), expect.any(String)] } } } },
+      outcome: { status: "finished", state: { steps: { design: { status: "done", agentRunIds: [expect.any(String), expect.any(String)] } } } },
     });
   });
 
@@ -64,6 +69,22 @@ describe("/api/runs", () => {
     expect((await restarted.request(`/api/runs/${runId}/resume`, jsonBody("POST", { decision: "approve" }))).status).toBe(202);
     await services.supervisor.settled(runId);
     expect(await (await restarted.request(`/api/runs/${runId}`)).json()).toMatchObject({ outcome: { status: "finished" } });
+  });
+});
+
+describe("DELETE /api/runs/:runId and request size", () => {
+  it("deletes a run that isn't moving, then knows it no more", async () => {
+    const runId = await startToGate(server);
+
+    expect((await server.app.request(`/api/runs/${runId}`, action("DELETE"))).status).toBe(204);
+
+    expect((await server.app.request(`/api/runs/${runId}`)).status).toBe(404);
+    expect((await server.app.request(`/api/runs/${runId}`, action("DELETE"))).status).toBe(404);
+  });
+
+  it("refuses a body over 2 MB", async () => {
+    const response = await server.app.request("/api/workflows/check", jsonBody("POST", { workflow: "x".repeat(2 * 1024 * 1024 + 1) }));
+    expect(response.status).toBe(413);
   });
 });
 

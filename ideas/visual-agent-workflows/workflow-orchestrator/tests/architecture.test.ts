@@ -26,7 +26,7 @@ const rules: Record<Layer, { layers: Layer[]; packages: string[] }> = {
   "server/routes": { layers: ["server/routes", "core/index"], packages: ["hono", "hono/*", "zod"] },
   "server/cli": { layers: ["server/cli", "core/index"], packages: [] },
   "server/composition": {
-    layers: ["server/routes", "server/composition", "core/index", "core/infrastructure"],
+    layers: ["server/routes", "server/cli", "server/composition", "core/index", "core/infrastructure"],
     packages: ["*"],
   },
   "server/bin": {
@@ -63,7 +63,7 @@ export function layerOf(path: string): Layer | null {
     return null;
   }
   if (pkg === "server") {
-    if (rest === "main.ts" || rest === "composition.ts") return "server/composition";
+    if (rest === "main.ts" || rest === "composition.ts" || rest === "logger.ts") return "server/composition";
     if (rest.startsWith("routes/")) return "server/routes";
     if (rest.startsWith("cli/")) return "server/cli";
     if (rest.startsWith("bin/")) return "server/bin";

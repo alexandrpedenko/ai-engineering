@@ -30,6 +30,9 @@ export async function testServer(options: { fake?: boolean; git?: boolean } = {}
   return { app, services, projectRoot, dataDir: join(dir, "data"), cleanup: async () => await rm(dir, { recursive: true, force: true }) };
 }
 
+// A request with no body, sent as JSON like the web app sends it.
+export const action = (method: string): RequestInit => ({ method, headers: { "content-type": "application/json" } });
+
 export const jsonBody = (method: string, body: unknown): RequestInit => ({
   method,
   headers: { "content-type": "application/json" },

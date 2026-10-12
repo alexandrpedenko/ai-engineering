@@ -1,8 +1,9 @@
-import { cp, mkdtemp, rm } from "node:fs/promises";
+import { cp, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { existsSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { createProjectServices, createRunServices, createServerServices, orchestratorDir } from "../src/composition";
+import { createProjectServices, createRunServices, createServerServices, doNotTouchFor, orchestratorDir } from "../src/composition";
 
 const temps: string[] = [];
 afterEach(async () => {
@@ -84,3 +85,69 @@ describe("createRunServices", () => {
     await expect(services.start("nope", {})).rejects.toThrow(/no workflow "nope"/);
   });
 });
+
+describe("environment and wiring", () => {
+  it("never reads the developer's .env in tests", () => {
+    expect(process.env.ORCH_ENV_FILE).toMatch(/no-such\.env$/);
+    expect(existsSync(process.env.ORCH_ENV_FILE ?? "")).toBe(false);
+  });
+
+  it("loads the .env file ORCH_ENV_FILE names", async () => {
+    const paths = await tempCopyOfSample();
+    const envFile = join(paths.dataDir, "..", "test.env");
+    await writeFile(envFile, "ORCH_TEST_MARK=loaded\n");
+    vi.stubEnv("ORCH_ENV_FILE", envFile);
+    try {
+      await createServerServices({ ...paths, fake: true });
+      expect(process.env.ORCH_TEST_MARK).toBe("loaded");
+    } finally {
+      vi.unstubAllEnvs();
+      delete process.env.ORCH_TEST_MARK;
+    }
+  });
+
+  it("keeps agents out of the orchestrator folder only when it is inside the project", () => {
+    expect(doNotTouchFor("/code/app", "/code/app/workflow-orchestrator")).toEqual(["workflow-orchestrator/"]);
+    expect(doNotTouchFor("/code/app", "/code/app/tools/orch")).toEqual(["tools/orch/"]);
+    expect(doNotTouchFor("/code/app", "/code/orch")).toEqual([]);
+  });
+
+  it("answers 503 on resume, continue and retry without an API key", async () => {
+    const paths = await tempCopyOfSample();
+    vi.stubEnv("CURSOR_API_KEY", "");
+    try {
+      const services = await createServerServices({ ...paths, fake: false });
+      await expect(services.supervisor.resume("run-1", { decision: "approve" })).rejects.toThrow("CURSOR_API_KEY is not set");
+      await expect(services.supervisor.continue("run-1")).rejects.toThrow("CURSOR_API_KEY is not set");
+      await expect(services.supervisor.retry("run-1")).rejects.toThrow("CURSOR_API_KEY is not set");
+    } finally {
+      vi.unstubAllEnvs();
+    }
+  });
+
+  it("gives a CLI run an event log the server can replay", async () => {
+    const paths = await tempCopyOfSample();
+    const printed: string[] = [];
+    const cli = await createRunServices({ ...paths, fake: true, onEvent: (_, event) => printed.push(event.type) });
+    const { runId } = await cli.start("ba-discovery", {});
+
+    const server = await createServerServices({ ...paths, fake: true });
+    const seen: string[] = [];
+    const stop = await server.supervisor.watch(runId, 0, (event) => seen.push(event.event.type));
+    stop();
+
+    expect(printed).toEqual(["step-started", "agent-event", "agent-event", "step-finished", "gate-waiting"]);
+    expect(seen).toEqual([...printed, "run-settled"]);
+  });
+
+  it("deletes a run from the CLI", async () => {
+    const paths = await tempCopyOfSample();
+    const cli = await createRunServices({ ...paths, fake: true });
+    const { runId } = await cli.start("ba-discovery", {});
+
+    await cli.delete(runId);
+
+    await expect(cli.outcome(runId)).rejects.toThrow(`no run "${runId}"`);
+  });
+});
+

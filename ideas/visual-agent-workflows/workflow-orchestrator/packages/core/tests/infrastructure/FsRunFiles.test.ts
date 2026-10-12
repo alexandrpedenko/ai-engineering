@@ -1,4 +1,4 @@
-import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readdir, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
@@ -17,7 +17,7 @@ const ref = {
   runId: "run-1",
   stepId: "elicit",
   attempt: 2,
-  cursorRunId: "agent-abc",
+  agentRunId: "agent-abc",
   before: { hashes: { "a.md": "h" }, matches: { "a.md": ["a.md"] } },
   baseTree: "4b825dc642cb6eb9a060e54bf8d69288fbee4904",
   startedAt: "2026-10-11T12:00:00.000Z",
@@ -67,5 +67,52 @@ describe("FsRunFiles", () => {
 
   it("refuses a run id that could escape the data folder", async () => {
     await expect(new FsRunFiles(dataDir).loadRun("../etc")).rejects.toThrow("invalid run id");
+  });
+
+  it("writes a format version and no temporary files", async () => {
+    const files = new FsRunFiles(dataDir);
+    await files.saveRun("run-1", { workflow: baWorkflow(), inputs: {}, startedAt: "2026-10-11T12:00:00.000Z" });
+    await files.putRef(ref);
+
+    expect(JSON.parse(await readFile(join(dataDir, "runs/run-1/run.json"), "utf8")).formatVersion).toBe(1);
+    expect(JSON.parse(await readFile(join(dataDir, "runs/run-1/refs/elicit-2.json"), "utf8")).formatVersion).toBe(1);
+    expect(await readdir(join(dataDir, "runs/run-1"))).toEqual(["refs", "run.json"]);
+  });
+
+  it("reads a ref with the old agent run id name", async () => {
+    const { agentRunId, ...rest } = ref;
+    await mkdir(join(dataDir, "runs/run-1/refs"), { recursive: true });
+    await writeFile(join(dataDir, "runs/run-1/refs/elicit-2.json"), JSON.stringify({ ...rest, cursorRunId: agentRunId }));
+
+    expect(await new FsRunFiles(dataDir).getRef("run-1", "elicit", 2)).toEqual(ref);
+  });
+
+  it("leaves an unreadable run out of the list and reports it", async () => {
+    const reported: unknown[] = [];
+    const files = new FsRunFiles(dataDir, (error) => reported.push(error));
+    await files.saveRun("run-good", { workflow: baWorkflow(), inputs: {}, startedAt: "2026-10-11T12:00:00.000Z" });
+    await mkdir(join(dataDir, "runs/run-torn"), { recursive: true });
+    await writeFile(join(dataDir, "runs/run-torn/run.json"), '{"workflow": {');
+
+    expect((await files.listRuns()).map((r) => r.runId)).toEqual(["run-good"]);
+    expect(String(reported[0])).toMatch(/run "run-torn" can't be read: .*run\.json is not valid JSON/);
+  });
+
+  it("refuses a ref whose base tree isn't a git object id", async () => {
+    await mkdir(join(dataDir, "runs/run-1/refs"), { recursive: true });
+    await writeFile(join(dataDir, "runs/run-1/refs/elicit-2.json"), JSON.stringify({ ...ref, baseTree: "--output=/tmp/x" }));
+
+    await expect(new FsRunFiles(dataDir).getRef("run-1", "elicit", 2)).rejects.toThrow();
+  });
+
+  it("deletes everything kept about a run", async () => {
+    const files = new FsRunFiles(dataDir);
+    await files.saveRun("run-1", { workflow: baWorkflow(), inputs: {}, startedAt: "" });
+    await files.putRef(ref);
+
+    await files.deleteRun("run-1");
+
+    expect(await files.loadRun("run-1")).toBeNull();
+    expect(await files.listRuns()).toEqual([]);
   });
 });

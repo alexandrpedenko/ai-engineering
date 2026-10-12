@@ -1,7 +1,7 @@
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
-import { jsonBody, testServer } from "../support/testServer";
+import { action, jsonBody, testServer } from "../support/testServer";
 
 let server: Awaited<ReturnType<typeof testServer>>;
 beforeAll(async () => {
@@ -48,8 +48,8 @@ describe("/api/workflows", () => {
     expect(await saved.json()).toEqual({
       problems: [{ severity: "warning", message: 'phase "testing" is not in phases.json; the workflow is shown under Unsorted' }],
     });
-    expect((await server.app.request("/api/workflows/copy", { method: "DELETE" })).status).toBe(204);
-    expect((await server.app.request("/api/workflows/copy", { method: "DELETE" })).status).toBe(404);
+    expect((await server.app.request("/api/workflows/copy", action("DELETE"))).status).toBe(204);
+    expect((await server.app.request("/api/workflows/copy", action("DELETE"))).status).toBe(404);
   });
 
   it("refuses a body that isn't a workflow or whose id differs", async () => {
@@ -72,7 +72,7 @@ describe("POST /api/workflows", () => {
     const again = await server.app.request("/api/workflows", jsonBody("POST", { workflow }));
     expect(again.status).toBe(409);
     expect(await again.json()).toEqual({ error: 'a workflow "created" already exists' });
-    await server.app.request("/api/workflows/created", { method: "DELETE" });
+    await server.app.request("/api/workflows/created", action("DELETE"));
   });
 
   it("refuses a body without a valid workflow", async () => {

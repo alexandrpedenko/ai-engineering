@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 import { ProjectPage } from "../../src/pages/ProjectPage";
 import { FakeOrchestratorApi } from "../support/FakeOrchestratorApi";
 import { renderPage } from "../support/renderWithProviders";
+import { ApiError } from "../../src/domain/apiError";
 
 describe("ProjectPage", () => {
   it("shows skills, agents and artefacts in tabs", async () => {
@@ -30,5 +31,12 @@ describe("ProjectPage", () => {
     await userEvent.click(await screen.findByText("requirements-elicitation"));
 
     expect(screen.getByTestId("location").textContent).toBe(`/files?path=${encodeURIComponent(".cursor/skills/requirements-elicitation/SKILL.md")}`);
+  });
+
+  it("says when the project can't be read", async () => {
+    const api = new FakeOrchestratorApi();
+    api.failures.project = new ApiError(500, "internal error");
+    renderPage(<ProjectPage />, { path: "/project", at: "/project", api });
+    expect(await screen.findByText("internal error")).toBeTruthy();
   });
 });

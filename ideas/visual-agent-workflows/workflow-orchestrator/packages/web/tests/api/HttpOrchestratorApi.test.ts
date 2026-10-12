@@ -75,7 +75,7 @@ describe("HttpOrchestratorApi actions", () => {
     expect(calls[0]).toMatchObject({ url: "/api/workflows/ba-discovery/runs", method: "POST", body: '{"inputs":{"focus":"x"}}' });
   });
 
-  it("posts resume, continue, retry and cancel", async () => {
+  it("posts resume, continue, retry and cancel, and deletes a run, each saying it is JSON", async () => {
     const calls = respondWith(202);
     const api = new HttpOrchestratorApi();
 
@@ -83,13 +83,25 @@ describe("HttpOrchestratorApi actions", () => {
     await api.continueRun("run-1");
     await api.retry("run-1");
     await api.cancel("run-1");
+    await api.deleteRun("run-1");
 
     expect(calls.map((c) => `${c.method} ${c.url} ${c.body ?? ""}`)).toEqual([
       'POST /api/runs/run-1/resume {"decision":"reject","feedback":"more"}',
       "POST /api/runs/run-1/continue ",
       "POST /api/runs/run-1/retry ",
       "POST /api/runs/run-1/cancel ",
+      "DELETE /api/runs/run-1 ",
     ]);
+    for (const call of calls) expect(call.headers).toEqual({ "content-type": "application/json" });
+  });
+
+  it("turns an error page that isn't JSON into an ApiError with the status", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => new Response("<html>Bad Gateway</html>", { status: 502, statusText: "Bad Gateway" })),
+    );
+
+    await expect(new HttpOrchestratorApi().project()).rejects.toMatchObject({ name: "ApiError", status: 502, message: "Bad Gateway" });
   });
 
   it("turns an error answer into an ApiError with the server's message and problems", async () => {
@@ -146,6 +158,20 @@ describe("HttpOrchestratorApi.watchRun", () => {
     ]);
     expect(source.closed).toBe(true);
   });
+
+  it("skips a message that isn't an event it understands, instead of throwing", () => {
+    const api = new HttpOrchestratorApi("", (url) => new FakeEventSource(url));
+    const seen: unknown[] = [];
+    api.watchRun("run-1", 0, (event) => seen.push(event));
+    const source = FakeEventSource.last;
+    if (!source) throw new Error("no event source");
+
+    source.listeners.get("step-started")?.(new MessageEvent("step-started", { data: "{ cut off", lastEventId: "1" }));
+    source.send("step-started", 2, { stepId: "no type" });
+    source.send("step-started", Number.NaN, { type: "step-started", stepId: "x", attempt: 1 });
+
+    expect(seen).toEqual([]);
+  });
 });
 
 describe("HttpOrchestratorApi workflow files", () => {
@@ -167,7 +193,7 @@ describe("HttpOrchestratorApi workflow files", () => {
 
     calls = respondWith(204);
     await api.deleteWorkflow("ba-discovery");
-    expect(calls).toEqual([{ url: "/api/workflows/ba-discovery", method: "DELETE", headers: undefined }]);
+    expect(calls).toEqual([{ url: "/api/workflows/ba-discovery", method: "DELETE", headers: json }]);
   });
 
   it("turns a 409 on create into an ApiError with the server's message", async () => {

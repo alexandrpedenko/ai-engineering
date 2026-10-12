@@ -24,7 +24,7 @@ function fakeRun(options: { messages?: SDKMessage[]; result?: Partial<RunResult>
   } as Run;
 }
 
-function fakeSdk(run: Run, getRunError?: Error) {
+function fakeSdk(run: Run, getRunError?: Error, sendError?: Error) {
   const created: AgentOptions[] = [];
   const sent: { message: unknown; options: unknown }[] = [];
   let closed = 0;
@@ -35,6 +35,7 @@ function fakeSdk(run: Run, getRunError?: Error) {
         agentId: "agent-1",
         send: async (message: unknown, sendOptions: unknown) => {
           sent.push({ message, options: sendOptions });
+          if (sendError) throw sendError;
           return run;
         },
         close: () => {
@@ -62,8 +63,34 @@ describe("CursorProvider.open", () => {
 
     await new CursorProvider({ apiKey: KEY, sdk }).open(request);
 
-    expect(created).toEqual([{ apiKey: KEY, model: { id: "composer-2.5" }, local: { cwd: "/host", settingSources: ["project"] } }]);
+    expect(created).toEqual([
+      { apiKey: KEY, model: { id: "composer-2.5" }, local: { cwd: "/host", settingSources: ["project"] }, tools: ["read", "edit", "delete", "grep", "glob", "ls"] },
+    ]);
     expect(sent).toEqual([{ message: "Do it", options: { idempotencyKey: "run-1:elicit:1" } }]);
+  });
+
+  it("offers no shell, MCP, web or subagent tools", async () => {
+    const { sdk, created } = fakeSdk(fakeRun());
+    await new CursorProvider({ apiKey: KEY, sdk }).open(request);
+    for (const tool of ["shell", "mcp", "webFetch", "webSearch", "task"]) expect(created[0]?.tools).not.toContain(tool);
+  });
+
+  it("cancels the SDK run", async () => {
+    let cancelled = 0;
+    const run = { ...fakeRun(), cancel: async () => void cancelled++ } as Run;
+    const { sdk } = fakeSdk(run);
+
+    await (await new CursorProvider({ apiKey: KEY, sdk }).open(request)).cancel();
+
+    expect(cancelled).toBe(1);
+  });
+
+  it("closes the agent when sending the message fails", async () => {
+    const { sdk, closed } = fakeSdk(fakeRun(), undefined, new Error("rate limited"));
+
+    await expect(new CursorProvider({ apiKey: KEY, sdk }).open(request)).rejects.toThrow("rate limited");
+
+    expect(closed()).toBe(1);
   });
 
   it("maps the stream to step events and the result, then closes the agent", async () => {

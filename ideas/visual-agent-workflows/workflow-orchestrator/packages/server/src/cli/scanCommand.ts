@@ -1,5 +1,6 @@
 import { InvalidConfigError, type Registry } from "@orch/core";
 import { formatRegistry } from "./formatRegistry";
+import { formatConfigError } from "./formatConfigError";
 
 export type ScanDeps = {
   scan(options: { projectRoot?: string }): Promise<Registry>;
@@ -49,8 +50,7 @@ export async function runScanCommand(argv: string[], deps: ScanDeps): Promise<nu
     return 0;
   } catch (error) {
     if (!(error instanceof InvalidConfigError)) throw error;
-    const lines = error.problems.map((p) => `  ${p.key}: ${p.message}`);
-    deps.write(`Invalid config in ${error.configPath}\n${lines.join("\n")}\n`);
+    deps.write(formatConfigError(error));
     return 1;
   }
 }

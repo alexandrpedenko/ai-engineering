@@ -69,7 +69,7 @@ export function stepTimeline(details: RunDetails, events: LoggedEvent[]): StepVi
   return stepsInRunOrder(details.workflow).map((step) => {
     const record = records.get(step.id);
     const decisions = state.decisions?.[step.id] ?? [];
-    const finished = record?.cursorRunIds.length ?? 0;
+    const finished = record?.agentRunIds.length ?? 0;
     const view: StepView = { step, state: "pending", attempt: running.get(step.id) ?? finished, decisions };
     if (record) view.record = record;
 

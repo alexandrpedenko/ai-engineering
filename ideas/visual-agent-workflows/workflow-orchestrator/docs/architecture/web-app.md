@@ -9,7 +9,7 @@ code:
 depends_on: [http-api, gate-changes]
 used_by: []
 adrs: [9, 10, 11, 14]
-specs: [5-shell-and-runs, 5.5-retry, 5.8-artefacts-anywhere, 6-workflow-editor, 7-file-editor, 8-changes-at-the-gate]
+specs: [5-shell-and-runs, 5.5-retry, 5.8-artefacts-anywhere, 6-workflow-editor, 7-file-editor, 8-changes-at-the-gate, 9-hardening]
 updated: 2026-10-12
 ---
 
@@ -20,11 +20,12 @@ updated: 2026-10-12
 ## Layers (ADR-0010)
 
 ```
-domain/        pure: groupWorkflowsByPhase, problemCounts, stepTimeline, runHeadline, eventLine, ApiError,
-               parseUnifiedDiff,
+domain/        pure: groupWorkflowsByPhase, problemCounts, stepTimeline, runHeadline, eventLine, ApiError
+               (isNotFound, isConflict), parseUnifiedDiff (+ firstLines), gateFileViews, formatDateTime,
+               languageOf, usedBy,
                workflowGraph (questions), workflowEdits (edits), workflowCanvas (toCanvas)
 application/   OrchestratorApi (port), queries.ts, mutations.ts, useRunEvents, useGateDraftStore,
-               useWorkflowDraftStore + useWorkflowDraft, useWorkflowCheck, useServerStatus,
+               useWorkflowDraftStore + useWorkflowDraft + useDraftIds, useWorkflowCheck, useServerStatus,
                queryKeys, the API context
 api/           HttpOrchestratorApi (fetch + EventSource), responseSchemas (zod checks of answers)
 components/    presentational only: props in, callbacks out (no hooks from application, no router)
@@ -62,9 +63,11 @@ editor opens.
   `mutations.ts` (each invalidates what it changes). Keys in `queryKeys.ts`.
   No refetch on focus; 30 s stale time (`bootstrap/queryClient.ts`).
 - **Live events → `useRunEvents(runId)`**: `api.watchRun` (an `EventSource`
-  on `/events?after=`, which the browser reconnects with `Last-Event-ID`);
-  keeps the run's events in order, once each; on `run-settled` writes the
-  outcome into the run's cache entry and refreshes run lists; on
+  on `/events?after=`, which the browser reconnects with `Last-Event-ID`; a
+  message that isn't an event it understands is skipped); keeps the run's
+  events in order, once each: an event at or below the last seq seen is
+  dropped before it changes anything; on `run-settled` writes the
+  outcome into the run's cache entry and refreshes run lists (`runLists`); on
   `step-finished` / `run-crashed` refreshes the run; on `gate-waiting`
   refreshes the run's gate changes.
 - **Client state → Zustand**: `useGateDraftStore` keeps gate feedback being
@@ -72,7 +75,13 @@ editor opens.
   the selected step, per workflow (memory only); `useDraftIds` gives the ids
   with drafts and re-renders only when that list changes.
 - Answers are checked with zod in `api/`; errors become `ApiError` (status,
-  message, problems).
+  message, problems), including an error page that isn't JSON (the status
+  text). Every request but a GET is sent as `application/json`, which the
+  server requires (ADR-0015).
+- **A page that fails to draw** shows "This page failed to draw: …" with Try
+  again (`ErrorBoundary` around the routed page in `AppLayout`, reset on
+  navigation), not a blank screen. Run start times are shown with
+  `formatDateTime`.
 
 ## The run view
 
@@ -93,7 +102,11 @@ the **Whole file** (read via `/api/files`); a deleted file has no body; a
 file with no diff says why and shows the whole file; Edit opens the file
 editor; or "No files were changed before this gate."; Approve,
 Reject with feedback), Continue for interrupted runs, Retry on the failure banner, and
-**Cancel this step** under the running step.
+**Cancel this step** under the running step. A crashed run offers Continue or
+Retry when the server says it is interrupted or failed. **Delete run** (not
+while it moves) asks first and goes to the runs list. The gate's files come
+from `gateFileViews(changes, textOf)`; `DiffView` draws the first 2,000 lines
+of a diff, then "Show all N lines".
 
 ## The workflow editor
 

@@ -29,6 +29,10 @@ export class FakeRunEngine implements RunEngine {
     return this.answer;
   }
 
+  async deleteRun(runId: string) {
+    this.calls.push({ method: "deleteRun", runId, workflowId: "" });
+  }
+
   async outcome(runId: string, workflow: Workflow) {
     this.calls.push({ method: "outcome", runId, workflowId: workflow.id });
     return this.outcomeOf;

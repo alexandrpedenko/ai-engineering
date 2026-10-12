@@ -1,6 +1,6 @@
 import type { WorkflowSummary } from "@orch/core";
 import { describe, expect, it } from "vitest";
-import { usedBy } from "../../src/domain/fileUsage";
+import { usedBy } from "../../src/domain/usedBy";
 
 const summary = (id: string, name: string, agents: string[], skills: string[]): WorkflowSummary => ({ id, name, agents, skills, problems: [] });
 const workflows = [

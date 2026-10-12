@@ -1,0 +1,89 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "plugins": [
+    "typescript",
+    "unicorn",
+    "oxc",
+    "import",
+    "react",
+    "jsx-a11y",
+    "promise",
+    "vitest"
+  ],
+  "categories": {
+    "correctness": "error",
+    "suspicious": "warn"
+  },
+  "ignorePatterns": [
+    "**/dist/**",
+    "**/node_modules/**",
+    ".data/**",
+    "fixtures/**"
+  ],
+  "rules": {
+    "no-console": "error",
+    "import/no-default-export": "error",
+    "import/no-cycle": "error",
+    "react/rules-of-hooks": "error",
+    "react/exhaustive-deps": "error",
+    "promise/prefer-await-to-then": "error",
+    "typescript/no-explicit-any": "error",
+    "typescript/no-non-null-assertion": "error",
+    "typescript/consistent-type-imports": "error",
+    "eqeqeq": "error",
+    "react/react-in-jsx-scope": "off",
+    "import/default": "off",
+    "vitest/valid-expect": "off",
+    "vitest/require-to-throw-message": "off",
+    "vitest/no-conditional-expect": "off",
+    "jsx-a11y/prefer-tag-over-role": "off",
+    "jsx-a11y/no-autofocus": "off",
+    "eslint/no-unmodified-loop-condition": "off",
+    "import/no-unassigned-import": "off",
+    "react/set-state-in-effect": "warn",
+    "unicorn/consistent-function-scoping": "off",
+    "unicorn/no-array-sort": "off"
+  },
+  "overrides": [
+    {
+      "files": [
+        "**/vite.config.ts",
+        "vitest.config.ts"
+      ],
+      "rules": {
+        "import/no-default-export": "off"
+      }
+    },
+    {
+      "files": [
+        "packages/server/src/main.ts",
+        "packages/server/src/composition.ts",
+        "packages/server/src/routes/errors.ts",
+        "packages/web/src/components/ErrorBoundary.tsx",
+        "scripts/**",
+        "packages/core/scripts/**"
+      ],
+      "rules": {
+        "no-console": "off"
+      }
+    },
+    {
+      "files": [
+        "packages/web/src/bootstrap/main.tsx"
+      ],
+      "rules": {
+        "typescript/no-non-null-assertion": "off"
+      }
+    },
+    {
+      "files": [
+        "**/tests/**",
+        "tests/**"
+      ],
+      "rules": {
+        "no-console": "off",
+        "typescript/no-non-null-assertion": "off"
+      }
+    }
+  ]
+}

@@ -1,6 +1,7 @@
 import { readFile, rm } from "node:fs/promises";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
+import { InvalidInputError } from "../../src/application/errors";
 import { runAgentStep } from "../../src/application/runAgentStep";
 import { OrchestratorConfig } from "../../src/domain/config";
 import type { RunState } from "../../src/domain/runState";
@@ -53,7 +54,7 @@ describe("runAgentStep", () => {
 
     expect(record).toMatchObject({
       status: "done",
-      cursorRunIds: ["fake-run-1"],
+      agentRunIds: ["fake-run-1"],
       summary: "Wrote 12 requirements",
       usage: { inputTokens: 900, outputTokens: 400 },
     });
@@ -68,7 +69,7 @@ describe("runAgentStep", () => {
     const { deps, runtime } = setup();
     const state: RunState = {
       ...emptyState,
-      steps: { elicit: { status: "done", cursorRunIds: ["old-1"], writes: [], missing: [], summary: "", durationMs: 0 } },
+      steps: { elicit: { status: "done", agentRunIds: ["old-1"], writes: [], missing: [], summary: "", durationMs: 0 } },
       feedback: { elicit: ["add checks"] },
     };
 
@@ -76,7 +77,7 @@ describe("runAgentStep", () => {
 
     expect(runtime.requests[0]?.key).toBe("run-1:elicit:2");
     expect(runtime.requests[0]?.message).toContain("1. add checks");
-    expect(record.cursorRunIds).toEqual(["old-1", "fake-run-1"]);
+    expect(record.agentRunIds).toEqual(["old-1", "fake-run-1"]);
   });
 
   it("reports start, every agent event in order, and finish", async () => {
@@ -99,7 +100,7 @@ describe("runAgentStep", () => {
 
     expect(record).toMatchObject({
       status: "failed",
-      cursorRunIds: [],
+      agentRunIds: [],
       summary: "couldn't start the agent: [plan_required] Cloud Agent is not available for free users.",
     });
     expect(events.map((e) => e.type)).toEqual(["step-started", "step-finished"]);
@@ -109,7 +110,73 @@ describe("runAgentStep", () => {
   it("refuses an agent or skill that isn't in the project", async () => {
     const { deps } = setup();
     await expect(runAgentStep(deps, "run-1", { ...elicit, agent: "ghost" }, emptyState)).rejects.toThrow('agent "ghost"');
-    await expect(runAgentStep(deps, "run-1", { ...elicit, skills: ["nope"] }, emptyState)).rejects.toThrow('skill "nope"');
+    await expect(runAgentStep(deps, "run-1", { ...elicit, skills: ["nope"] }, emptyState)).rejects.toBeInstanceOf(InvalidInputError);
+  });
+
+  it("hands over the agent run while its events still stream, so it can be cancelled mid-step", async () => {
+    const runtime = new FakeAgentRuntime([{ holds: true, streams: true, events: [{ kind: "text", text: "working" }] }]);
+    const { deps } = agentDeps(runtime, { onHandle: (_, handle) => void handle?.cancel() });
+
+    const record = await runAgentStep(deps, "run-1", elicit, emptyState);
+
+    expect(record).toMatchObject({ status: "failed", summary: "cancelled" });
+  });
+
+  it("cancels an agent run that goes past the step timeout", async () => {
+    const runtime = new FakeAgentRuntime([{ holds: true, streams: true }]);
+    const { deps } = agentDeps(runtime, { stepTimeoutMs: 20 });
+
+    const record = await runAgentStep(deps, "run-1", elicit, emptyState);
+
+    expect(record).toMatchObject({ status: "failed", summary: "timed out after 0 min" });
+  });
+
+  it("fails a step that changed a protected file, naming it", async () => {
+    const { deps, projectFiles } = setup();
+    projectFiles.snapshots = [
+      { hashes: {}, matches: {} },
+      { hashes: { "workflow-orchestrator/src/main.ts": "h", ".claude/settings.json": "h", "discovery/requirements.md": "h" }, matches: {} },
+    ];
+
+    const record = await runAgentStep(deps, "run-1", elicit, emptyState);
+
+    expect(record.status).toBe("failed");
+    expect(record.summary).toBe("changed files it must not touch: .claude/settings.json, workflow-orchestrator/src/main.ts");
+  });
+
+  it("tells the runtime which folders not to touch, and names the tree after the attempt", async () => {
+    const { deps, runtime, projectFiles } = setup();
+    await runAgentStep(deps, "run-1", elicit, emptyState);
+    expect(runtime.requests[0]?.doNotTouch).toEqual(["workflow-orchestrator/"]);
+    expect(projectFiles.treeNames).toEqual(["run-1/elicit-1"]);
+  });
+
+  it("measures a retry of a failed attempt from that attempt's baseline", async () => {
+    const { deps, projectFiles, runFiles } = setup();
+    const before = { hashes: { "a.md": "old" }, matches: {} };
+    await runFiles.putRef({ runId: "run-1", stepId: "elicit", attempt: 1, agentRunId: "gone", before, baseTree: "tree-1", startedAt: "" });
+    const failed: RunState = {
+      ...emptyState,
+      steps: { elicit: { status: "failed", agentRunIds: ["gone"], writes: [], missing: [], summary: "cancelled", durationMs: 0, baseTree: "tree-1" } },
+    };
+    projectFiles.snapshots = [{ hashes: { "a.md": "half-written" }, matches: {} }];
+
+    const record = await runAgentStep(deps, "run-1", elicit, failed);
+
+    expect(record.baseTree).toBe("tree-1");
+    expect(record.writes).toEqual([{ path: "a.md", change: "modified" }]);
+    expect(projectFiles.treeNames).toEqual([]);
+  });
+
+  it("keeps the ref's baseline when its agent run can't be found and a new one starts", async () => {
+    const { deps, projectFiles, runFiles } = setup();
+    const before = { hashes: { "a.md": "old" }, matches: {} };
+    await runFiles.putRef({ runId: "run-1", stepId: "elicit", attempt: 1, agentRunId: "gone", before, baseTree: "tree-1", startedAt: "" });
+    projectFiles.snapshots = [{ hashes: { "a.md": "new" }, matches: {} }];
+
+    const record = await runAgentStep(deps, "run-1", elicit, emptyState);
+
+    expect(record).toMatchObject({ baseTree: "tree-1", writes: [{ path: "a.md", change: "modified" }] });
   });
 
   it("reports its agent run while waiting, and clears it after", async () => {
@@ -215,7 +282,7 @@ describe("runAgentStep", () => {
     const record = await runAgentStep(deps, "run-1", elicit, emptyState);
 
     expect(runtime.requests).toHaveLength(1);
-    expect(record).toMatchObject({ status: "done", cursorRunIds: ["fake-run-1"], summary: "first and only run" });
+    expect(record).toMatchObject({ status: "done", agentRunIds: ["fake-run-1"], summary: "first and only run" });
     expect(events.map((e) => e.type)).toEqual(["step-started", "step-finished"]);
   });
 
@@ -236,7 +303,7 @@ describe("runAgentStep", () => {
       runId: "run-1",
       stepId: "elicit",
       attempt: 1,
-      cursorRunId: "gone",
+      agentRunId: "gone",
       before: { hashes: {}, matches: {} },
       baseTree: null,
       startedAt: "2026-10-11T11:00:00Z",
@@ -245,6 +312,6 @@ describe("runAgentStep", () => {
     const record = await runAgentStep(deps, "run-1", elicit, emptyState);
 
     expect(runtime.requests).toHaveLength(1);
-    expect(record.cursorRunIds).toEqual(["fake-run-1"]);
+    expect(record.agentRunIds).toEqual(["fake-run-1"]);
   });
 });

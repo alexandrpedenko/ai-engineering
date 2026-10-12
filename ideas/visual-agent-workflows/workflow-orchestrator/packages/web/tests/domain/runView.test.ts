@@ -34,7 +34,7 @@ describe("stepTimeline", () => {
   });
 
   it("takes newer records from step-finished events", () => {
-    const failed = record({ status: "failed", summary: "boom", cursorRunIds: ["a1", "a2"] });
+    const failed = record({ status: "failed", summary: "boom", agentRunIds: ["a1", "a2"] });
     const events = logged([
       { type: "step-started", stepId: "elicit", attempt: 2 },
       { type: "step-finished", stepId: "elicit", record: failed },

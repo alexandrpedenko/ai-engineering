@@ -6,7 +6,8 @@ export const queryKeys = {
   workflows: ["workflows"] as const,
   workflow: (id: string) => ["workflows", id] as const,
   workflowCheck: (draft: unknown) => ["workflow-check", draft] as const,
-  runsAll: ["runs"] as const,
+  // Every runs list (a prefix of `runs`), not single runs.
+  runLists: ["runs", "list"] as const,
   runs: (workflowId?: string) => ["runs", "list", workflowId ?? "all"] as const,
   run: (runId: string) => ["runs", "one", runId] as const,
   gateChangesOf: (runId: string) => ["runs", "gate-changes", runId] as const,
