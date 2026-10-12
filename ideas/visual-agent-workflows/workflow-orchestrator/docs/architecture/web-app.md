@@ -6,11 +6,11 @@ code:
   - packages/web/src/**
   - packages/web/index.html
   - packages/web/vite.config.ts
-depends_on: [http-api]
+depends_on: [http-api, gate-changes]
 used_by: []
 adrs: [9, 10, 11, 14]
-specs: [5-shell-and-runs, 5.5-retry, 5.8-artefacts-anywhere, 6-workflow-editor, 7-file-editor]
-updated: 2026-10-11
+specs: [5-shell-and-runs, 5.5-retry, 5.8-artefacts-anywhere, 6-workflow-editor, 7-file-editor, 8-changes-at-the-gate]
+updated: 2026-10-12
 ---
 
 # Web app
@@ -21,6 +21,7 @@ updated: 2026-10-11
 
 ```
 domain/        pure: groupWorkflowsByPhase, problemCounts, stepTimeline, runHeadline, eventLine, ApiError,
+               parseUnifiedDiff,
                workflowGraph (questions), workflowEdits (edits), workflowCanvas (toCanvas)
 application/   OrchestratorApi (port), queries.ts, mutations.ts, useRunEvents, useGateDraftStore,
                useWorkflowDraftStore + useWorkflowDraft, useWorkflowCheck, useServerStatus,
@@ -64,7 +65,8 @@ editor opens.
   on `/events?after=`, which the browser reconnects with `Last-Event-ID`);
   keeps the run's events in order, once each; on `run-settled` writes the
   outcome into the run's cache entry and refreshes run lists; on
-  `step-finished` / `run-crashed` refreshes the run.
+  `step-finished` / `run-crashed` refreshes the run; on `gate-waiting`
+  refreshes the run's gate changes.
 - **Client state → Zustand**: `useGateDraftStore` keeps gate feedback being
   typed, per run; `useWorkflowDraftStore` keeps unsaved workflow drafts and
   the selected step, per workflow (memory only); `useDraftIds` gives the ids
@@ -83,9 +85,13 @@ engine runs them; the order of `steps` in the file doesn't count), each
 decision). Newer `step-finished` / `run-settled` events win over the cached
 details. `runHeadline` says whether the run is moving, waiting, finished,
 failed, rejected, interrupted or crashed. `RunPage` adds the live feed under
-the running step, the gate panel (the files in the run outcome's `shows`,
-read via `/api/files`, each with Edit to open it in the file editor, or "No
-files were changed before this gate."; Approve,
+the running step, the gate panel (`useGateChanges(runId, gateId)`: each file
+the gate lists as a `GateFileView` with its change, `+added −removed`, and
+the **Diff** (default; `DiffView` draws `parseUnifiedDiff`'s hunks with both
+line numbers, added lines in `<ins>` on green, removed in `<del>` on red) or
+the **Whole file** (read via `/api/files`); a deleted file has no body; a
+file with no diff says why and shows the whole file; Edit opens the file
+editor; or "No files were changed before this gate."; Approve,
 Reject with feedback), Continue for interrupted runs, Retry on the failure banner, and
 **Cancel this step** under the running step.
 

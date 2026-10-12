@@ -7,7 +7,8 @@ import { queryKeys } from "./queryKeys";
 
 // Every event of a run, from the first, live, while the component is mounted.
 // When the run settles, its outcome is written into the run's cache entry and
-// the run lists are refreshed (ADR-0011).
+// the run lists are refreshed (ADR-0011). A gate that starts waiting fetches
+// its changes again.
 export function useRunEvents(runId: string): LoggedEvent[] {
   const api = useOrchestratorApi();
   const client = useQueryClient();
@@ -24,6 +25,8 @@ export function useRunEvents(runId: string): LoggedEvent[] {
         void refresh(queryKeys.runsAll);
       } else if (event.type === "run-crashed" || event.type === "step-finished") {
         void refresh(queryKeys.run(runId));
+      } else if (event.type === "gate-waiting") {
+        void refresh(queryKeys.gateChangesOf(runId));
       }
     });
     return stop;

@@ -139,6 +139,31 @@ describe("runAgentStep", () => {
     expect(projectFiles.snapshotCalls).toEqual([["discovery/requirements.md"], ["discovery/requirements.md"]]);
   });
 
+  it("records the project's git tree before the agent starts, in the run ref and the record", async () => {
+    const { deps, projectFiles, runFiles } = setup();
+    projectFiles.trees = ["tree-before"];
+
+    const record = await runAgentStep(deps, "run-1", elicit, emptyState);
+
+    expect(record.baseTree).toBe("tree-before");
+    expect((await runFiles.getRef("run-1", "elicit", 1))?.baseTree).toBe("tree-before");
+  });
+
+  it("leaves the tree out of the record when there is none", async () => {
+    const { deps } = setup();
+    expect(await runAgentStep(deps, "run-1", elicit, emptyState)).not.toHaveProperty("baseTree");
+  });
+
+  it("keeps the first tree when it reattaches to an attempt", async () => {
+    const { deps, projectFiles } = setup({ dies: true });
+    projectFiles.trees = ["tree-first", "tree-later"];
+    await expect(runAgentStep(deps, "run-1", elicit, emptyState)).rejects.toThrow();
+
+    const record = await runAgentStep(deps, "run-1", elicit, emptyState);
+
+    expect(record.baseTree).toBe("tree-first");
+  });
+
   it("records files a step with no declared writes put anywhere in the project", async () => {
     const root = await copyOfSampleProject();
     temps.push(root);
@@ -213,6 +238,7 @@ describe("runAgentStep", () => {
       attempt: 1,
       cursorRunId: "gone",
       before: { hashes: {}, matches: {} },
+      baseTree: null,
       startedAt: "2026-10-11T11:00:00Z",
     });
 

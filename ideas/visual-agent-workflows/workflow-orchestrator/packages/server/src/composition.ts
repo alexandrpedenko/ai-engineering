@@ -6,6 +6,7 @@ import type { BaseCheckpointSaver } from "@langchain/langgraph";
 import { SqliteSaver } from "@langchain/langgraph-checkpoint-sqlite";
 import {
   continueRun,
+  gateChanges,
   MissingCredentialsError,
   NotFoundError,
   type RunEvent,
@@ -201,6 +202,7 @@ export async function createRunServices(options: RunServicesOptions) {
     continue: async (runId: string) => await continueRun(runDeps, runId),
     retry: async (runId: string) => await retryRun(runDeps, runId),
     outcome: async (runId: string) => await runOutcome(runDeps, runId),
+    gateChanges: async (runId: string, gateId: string) => await gateChanges({ ...runDeps, projectFiles: w.projectFiles }, runId, gateId),
   };
 }
 

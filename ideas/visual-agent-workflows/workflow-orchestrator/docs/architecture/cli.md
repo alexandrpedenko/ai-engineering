@@ -5,11 +5,11 @@ summary: npm run scan and npm run wf — the same use cases as the server, drive
 code:
   - packages/server/src/cli/**
   - packages/server/src/bin/**
-depends_on: [project-registry, runs-and-events, engine]
+depends_on: [project-registry, runs-and-events, engine, gate-changes]
 used_by: []
 adrs: [10]
-specs: [1-registry, 3-cursor-runtime, 5.5-retry]
-updated: 2026-10-11
+specs: [1-registry, 3-cursor-runtime, 5.5-retry, 8-changes-at-the-gate]
+updated: 2026-10-12
 ---
 
 # Terminal commands
@@ -24,7 +24,8 @@ updated: 2026-10-11
 | `npm run wf -- retry <runId> […]` | a failed run's failed step runs again, then asks at gates | same |
 | `npm run wf -- status <runId>` | the outcome and each step's attempts (never needs a key) | 0; 1 unknown |
 
-At a gate: `y` approves, other text rejects with that text as feedback, an
+At a gate, `formatGate` lists each file with its change and `+added −removed`
+(or why there is no diff), from `gateChanges`; no diff text. Then `y` approves, other text rejects with that text as feedback, an
 empty line (or end of input) stops for now. The run id is printed with the
 first event, so it's on screen before a Ctrl-C.
 

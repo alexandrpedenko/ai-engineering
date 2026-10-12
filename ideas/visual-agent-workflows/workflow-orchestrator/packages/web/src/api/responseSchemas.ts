@@ -45,6 +45,18 @@ export const RunDetails = z
     outcome: z.object({ status: z.string(), state: z.object({}).loose() }).loose().nullable(),
   })
   .loose();
+export const GateChanges = z.object({
+  files: z.array(
+    z.object({
+      path: z.string(),
+      change: z.enum(["created", "modified", "deleted", "unchanged"]),
+      added: z.number(),
+      removed: z.number(),
+      diff: z.string().nullable(),
+      reason: z.enum(["binary", "too large", "no git", "secret"]).optional(),
+    }),
+  ),
+});
 export const FileContent = z.object({ path: z.string(), content: z.string(), version: z.string() });
 export const FileSaved = z.object({ version: z.string() });
 export const Started = z.object({ runId: z.string() });

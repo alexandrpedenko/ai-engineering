@@ -2,7 +2,7 @@ import { Alert, Box, Button, Stack, Typography } from "@mui/material";
 import type { GateStep } from "@orch/core";
 import { useNavigate, useParams } from "react-router";
 import { useCancelRun, useContinueRun, useResumeRun, useRetryRun } from "../application/mutations";
-import { useFiles, useRun } from "../application/queries";
+import { useFiles, useGateChanges, useRun } from "../application/queries";
 import { useGateDraftStore } from "../application/useGateDraftStore";
 import { useRunEvents } from "../application/useRunEvents";
 import { EventFeed } from "../components/EventFeed";
@@ -30,8 +30,9 @@ export function RunPage() {
   const rows = run.data ? stepTimeline(run.data, events) : [];
   const waitingRow = rows.find((row) => row.state === "waiting");
   const waitingGate = waitingRow?.step as GateStep | undefined;
-  const shows = waitingRow?.shows ?? [];
-  const files = useFiles(shows);
+  const changes = useGateChanges(runId, waitingGate?.id);
+  const readable = (changes.data ?? []).filter((file) => file.change !== "deleted").map((file) => file.path);
+  const texts = useFiles(readable);
 
   if (run.isPending) return <Typography>Loading…</Typography>;
   if (run.error) {
@@ -98,12 +99,14 @@ export function RunPage() {
           if (row.state === "waiting" && waitingGate) {
             return (
               <GatePanel
-                files={shows.map((path, i) => {
-                  const file = files[i];
-                  if (!file || file.isPending) return { path, loading: true };
-                  if (file.error) return { path, error: isNotFound(file.error) ? "File not found." : file.error.message };
-                  return { path, content: file.data.content };
+                files={changes.data?.map((file) => {
+                  const text = texts[readable.indexOf(file.path)];
+                  if (file.change === "deleted" || !text) return file;
+                  if (text.isPending) return { ...file, loading: true };
+                  if (text.error) return { ...file, error: isNotFound(text.error) ? "File not found." : text.error.message };
+                  return { ...file, content: text.data.content };
                 })}
+                {...(changes.error ? { error: `Couldn't load the changes: ${changes.error.message}` } : {})}
                 feedback={draft}
                 sending={sending}
                 onFeedbackChange={(text) => setDraft(runId, text)}

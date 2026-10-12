@@ -1,12 +1,13 @@
 import { execFile } from "node:child_process";
-import { createHash } from "node:crypto";
-import { mkdir, readdir, readFile, realpath, stat, writeFile } from "node:fs/promises";
+import { createHash, randomUUID } from "node:crypto";
+import { copyFile, mkdir, readdir, readFile, realpath, rm, stat, writeFile } from "node:fs/promises";
 import { dirname, isAbsolute, join, posix, relative, sep } from "node:path";
 import { promisify } from "node:util";
 import picomatch from "picomatch";
 import { glob } from "tinyglobby";
 import type { ProjectFiles } from "../application/ProjectFiles";
 import type { ResolvedConfig } from "../domain/config";
+import type { FileDiff } from "../domain/gateFiles";
 import type { Snapshot } from "../domain/outputs";
 import type { Artefact, MarkdownDoc, UnreadableDoc } from "../domain/registry";
 import { parseMarkdown } from "./frontmatter";
@@ -39,10 +40,22 @@ const SECRET_FILES = [
 ];
 const isSecret = picomatch(SECRET_FILES, { dot: true });
 const HASH_LIMIT_BYTES = 5 * 1024 * 1024;
+const DIFF_LIMIT_BYTES = 200 * 1024;
 
-async function git(cwd: string, args: string[]): Promise<string> {
-  const { stdout } = await run("git", args, { cwd, maxBuffer: 256 * 1024 * 1024 });
+async function git(cwd: string, args: string[], env: Record<string, string> = {}): Promise<string> {
+  const { stdout } = await run("git", args, { cwd, maxBuffer: 256 * 1024 * 1024, env: { ...process.env, ...env } });
   return stdout;
+}
+
+// Lines added and removed in a diff's hunks.
+function countLines(hunks: string): { added: number; removed: number } {
+  let added = 0;
+  let removed = 0;
+  for (const line of hunks.split("\n")) {
+    if (line.startsWith("+")) added++;
+    else if (line.startsWith("-")) removed++;
+  }
+  return { added, removed };
 }
 
 const sha1 = (bytes: Buffer) => createHash("sha1").update(bytes).digest("hex");
@@ -110,13 +123,50 @@ export class FsProjectFiles implements ProjectFiles {
     return { hashes, matches };
   }
 
+  async recordTree(): Promise<string | null> {
+    if (!(await this.inGitWorkTree())) return null;
+    const orchestrator = this.orchestratorPath();
+    const exclude = [":(exclude,glob)**/node_modules/**", ...(orchestrator ? [`:(exclude)${orchestrator}`] : [])];
+    return await this.withTempIndex(async (env) => {
+      const index = (await git(this.root, ["rev-parse", "--path-format=absolute", "--git-path", "index"])).trim();
+      if (await isFile(index)) await copyFile(index, env.GIT_INDEX_FILE);
+      await git(this.root, ["add", "-A", "--", ".", ...exclude], env);
+      return (await git(this.root, ["write-tree"], env)).trim();
+    });
+  }
+
+  async diff(baseTree: string | null, paths: string[]): Promise<FileDiff[]> {
+    const none = (path: string, reason: NonNullable<FileDiff["reason"]>): FileDiff => ({ path, added: 0, removed: 0, diff: null, reason });
+    if (baseTree === null || !(await this.inGitWorkTree())) return paths.map((path) => none(path, "no git"));
+    const safe = paths.filter((path) => this.isProjectPath(path) && !isSecret(path));
+    return await this.withTempIndex(async (env) => {
+      await git(this.root, ["read-tree", baseTree], env);
+      if (safe.length > 0) await git(this.root, ["update-index", "--add", "--remove", "--", ...safe], env);
+      const diffs: FileDiff[] = [];
+      for (const path of paths) {
+        if (!safe.includes(path)) {
+          diffs.push(none(path, "secret"));
+          continue;
+        }
+        const args = ["diff", "--cached", "--relative", "--no-color", "--no-ext-diff", "--no-renames", "-U3", baseTree, "--", path];
+        const output = await git(this.root, args, env);
+        const start = output.search(/^@@/m);
+        if (start === -1) {
+          diffs.push(/^Binary files /m.test(output) ? none(path, "binary") : { path, added: 0, removed: 0, diff: "" });
+          continue;
+        }
+        const hunks = output.slice(start);
+        const counts = countLines(hunks);
+        diffs.push(Buffer.byteLength(hunks) > DIFF_LIMIT_BYTES ? { path, ...counts, diff: null, reason: "too large" } : { path, ...counts, diff: hunks });
+      }
+      return diffs;
+    });
+  }
+
   async canOpen(path: string): Promise<boolean> {
-    if (!path || isAbsolute(path) || path.includes("\\")) return false;
-    const normal = posix.normalize(path);
-    if (normal !== path || normal.startsWith("../") || normal === "..") return false;
-    if (isSecret(normal)) return false;
-    if (!(await this.projectFiles()).includes(normal)) return false;
-    return await this.staysInside(normal);
+    if (!this.isProjectPath(path) || isSecret(path)) return false;
+    if (!(await this.projectFiles()).includes(path)) return false;
+    return await this.staysInside(path);
   }
 
   async readText(path: string): Promise<{ content: string; size: number; version: string } | null> {
@@ -137,6 +187,28 @@ export class FsProjectFiles implements ProjectFiles {
     await mkdir(dirname(join(this.root, path)), { recursive: true });
     await writeFile(join(this.root, path), bytes);
     return { version: sha1(bytes) };
+  }
+
+  // Whether a path is relative, normalised and stays inside the root on paper
+  // (no "..", no backslashes). Says nothing about whether the file exists.
+  private isProjectPath(path: string): boolean {
+    if (!path || isAbsolute(path) || path.includes("\\")) return false;
+    const normal = posix.normalize(path);
+    return normal === path && !normal.startsWith("../") && normal !== "..";
+  }
+
+  // Runs `work` with GIT_INDEX_FILE pointing at a new, empty temporary index
+  // file under the data folder, and removes the file afterwards.
+  private async withTempIndex<T>(work: (env: { GIT_INDEX_FILE: string }) => Promise<T>): Promise<T> {
+    const dir = join(this.config.dataDir, "tmp");
+    await mkdir(dir, { recursive: true });
+    const file = join(dir, `index-${randomUUID()}`);
+    try {
+      return await work({ GIT_INDEX_FILE: file });
+    } finally {
+      await rm(file, { force: true });
+      await rm(`${file}.lock`, { force: true });
+    }
   }
 
   // Whether the file's real location (after following any symlinks on the
@@ -178,14 +250,19 @@ export class FsProjectFiles implements ProjectFiles {
   // The git file list relative to the root, or null when git can't give one:
   // not a git work tree, the root is ignored by its repository, or no git.
   private async gitFiles(): Promise<string[] | null> {
-    try {
-      await git(this.root, ["check-ignore", "-q", "--", this.root]);
-      return null; // exit 0: the root itself is ignored
-    } catch (error) {
-      if ((error as { code?: unknown }).code !== 1) return null; // 128: not a repository; ENOENT: no git
-    }
+    if (!(await this.inGitWorkTree())) return null;
     const output = await git(this.root, ["ls-files", "-z", "--cached", "--others", "--exclude-standard"]);
     return output.split("\0").filter((path) => path !== "");
+  }
+
+  // Whether the root is inside a git work tree that doesn't ignore it.
+  private async inGitWorkTree(): Promise<boolean> {
+    try {
+      await git(this.root, ["check-ignore", "-q", "--", this.root]);
+      return false; // exit 0: the root itself is ignored
+    } catch (error) {
+      return (error as { code?: unknown }).code === 1; // 128: not a repository; ENOENT: no git
+    }
   }
 
   // A content hash, or size and modification time for files over 5 MB.

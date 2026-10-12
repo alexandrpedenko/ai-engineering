@@ -1,4 +1,4 @@
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
@@ -19,6 +19,7 @@ const ref = {
   attempt: 2,
   cursorRunId: "agent-abc",
   before: { hashes: { "a.md": "h" }, matches: { "a.md": ["a.md"] } },
+  baseTree: "4b825dc642cb6eb9a060e54bf8d69288fbee4904",
   startedAt: "2026-10-11T12:00:00.000Z",
 };
 
@@ -37,6 +38,14 @@ describe("FsRunFiles", () => {
 
     expect(await files.getRef("run-1", "elicit", 2)).toEqual(ref);
     expect(await files.getRef("run-1", "elicit", 1)).toBeNull();
+  });
+
+  it("reads a ref saved without a base tree as having none", async () => {
+    const { baseTree: _, ...old } = ref;
+    await mkdir(join(dataDir, "runs/run-1/refs"), { recursive: true });
+    await writeFile(join(dataDir, "runs/run-1/refs/elicit-2.json"), JSON.stringify(old));
+
+    expect(await new FsRunFiles(dataDir).getRef("run-1", "elicit", 2)).toEqual({ ...ref, baseTree: null });
   });
 
   it("lists runs newest first, and nothing when there are none", async () => {

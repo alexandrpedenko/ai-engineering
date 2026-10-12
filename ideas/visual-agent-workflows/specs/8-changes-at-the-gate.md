@@ -1,6 +1,6 @@
 # Slice 8 — changes at the gate
 
-**Status:** spec drafted (2026-10-11), in review.
+**Status:** built (2026-10-12), in review.
 
 **Capability.** At every gate, see **what the steps before it changed**, not
 just the files' current text: for each changed file a diff (lines added and
@@ -143,3 +143,62 @@ These change the Server API, `StepRecord` and the `ProjectFiles` port in
 - Committing or reverting a step's changes from the gate.
 - Diffs between two attempts of a step (the base is always "before the
   latest attempt of the first step").
+
+## Amendments
+
+**2026-10-12, slice 8 build — `baseTree` is optional on the record.**
+Spec said: `StepRecord.baseTree: string | null`.
+Now: `baseTree?: string`, absent when no tree was recorded. The run ref keeps
+`baseTree: string | null`, and a ref saved before this slice reads as `null`.
+Why: records already in LangGraph's checkpoints have no such field, and the
+type would claim they do.
+
+**2026-10-12, slice 8 build — the port diffs, the use case knows the change.**
+Spec said: `ProjectFiles.diff(baseTree, paths): Promise<FileChanges>`, and
+`change` is one of created / modified / deleted, "from the record".
+Now: `diff` returns `FileDiff[]` (`path, added, removed, diff, reason?`).
+`gateChanges` adds `change` from a new domain function, `gateFileChanges`,
+which takes the changes of all agent steps from `onReject` up to the gate
+together (created then modified is `created`; created then deleted is left
+out) and lists deleted files last. `change` can also be **`unchanged`**: a
+file in the gate's `shows` that no step touched (its `diff` is `""`).
+Why: the adapter only sees two trees, not what each step did; and a `shows`
+file can be untouched, which none of the three values described.
+
+**2026-10-12, slice 8 build — a fourth reason: `secret`.**
+Spec said: no diff with reason `binary`, `too large` or `no git`.
+Now: also `secret`, for a file `canOpen` refuses as a credential file (`.env`,
+keys, …). Its diff is never read. A path that isn't a plain relative path
+inside the project gets the same reason.
+Why: the whole-file view already refuses those files; a diff would show
+their content anyway.
+
+**2026-10-12, slice 8 build — diff text starts at the first hunk.**
+Spec said: `diff` is the unified diff.
+Now: `diff` is git's output from the first `@@` line on, without the
+`diff --git` / `index` / `---` / `+++` header lines. `added` / `removed` are
+counted from it. A deleted file has its diff and counts (`−3`), and the web
+and terminal show only the counts for it, no body.
+Why: the header repeats the path and the change, which the answer already
+has.
+
+**2026-10-12, slice 8 build — the terminal shows the gate from `gateChanges`.**
+Spec said: at a gate, each file line gets `+added −removed`.
+Now: `WfServices` gains `gateChanges(runId, gateId)`; `wf` prints
+`formatGate(gateId, files)` before every gate question (including on
+`continue` at a waiting run), and `formatRunEvent` prints nothing for the
+`gate-waiting` event, which carries paths only. A file with no diff says why
+("no diff: not a git repository").
+Why: the event has no counts; one place prints the gate instead of two.
+
+**2026-10-12, slice 8 build — web names.**
+Spec said: `GatePanel` lists the files; `DiffView` draws the diff.
+Now: `FileView` (used only by the gate) is replaced by `GateFileView`, one
+file at a gate with its Diff / Whole file switch (local state). `DiffView`
+puts added lines in `<ins>` and removed in `<del>`. `queryKeys.gateChanges`
+lives under `["runs", …]`, and `useRunEvents` refreshes it on `gate-waiting`.
+Whole-file text is still read through `/api/files`, for every file that
+isn't deleted, when the gate opens.
+Why: the gate's file view became more than a file view; `<ins>`/`<del>` say
+what a line is without relying on colour.
+

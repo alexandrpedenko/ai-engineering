@@ -1,4 +1,4 @@
-import type { GateDecision, LoggedEvent, LogEvent, Phase, Problem, Registry, RunSummary, Workflow, WorkflowSummary } from "@orch/core";
+import type { FileChanges, GateDecision, LoggedEvent, LogEvent, Phase, Problem, Registry, RunSummary, Workflow, WorkflowSummary } from "@orch/core";
 import type { z } from "zod";
 import type { OrchestratorApi } from "../application/OrchestratorApi";
 import { ApiError } from "../domain/apiError";
@@ -71,6 +71,10 @@ export class HttpOrchestratorApi implements OrchestratorApi {
 
   async run(runId: string): Promise<RunDetails> {
     return (await this.get(`/api/runs/${encodeURIComponent(runId)}`, schemas.RunDetails)) as unknown as RunDetails;
+  }
+
+  async gateChanges(runId: string, gateId: string): Promise<FileChanges> {
+    return (await this.get(`/api/runs/${encodeURIComponent(runId)}/gates/${encodeURIComponent(gateId)}/changes`, schemas.GateChanges)).files;
   }
 
   async file(path: string): Promise<{ path: string; content: string; version: string }> {

@@ -3,7 +3,7 @@
 export { toAgentDef } from "./domain/agentDef";
 export { buildPrompt, PROMPT_SECTIONS, promptSection, resolveModel, type PromptInput } from "./domain/buildPrompt";
 export { OrchestratorConfig, type ResolvedConfig, RuntimeKind } from "./domain/config";
-export { gateFiles } from "./domain/gateFiles";
+export { diffBaseFor, gateFileChanges, gateFiles, type FileChanges, type FileDiff, type GateChange } from "./domain/gateFiles";
 export { DEFAULT_PHASES, Phase, PhasesFile } from "./domain/phase";
 export type { AgentDef, Artefact, MarkdownDoc, Registry, RegistryWarning, Skill, UnreadableDoc } from "./domain/registry";
 export { diffSnapshots, type FileChange, type Snapshot } from "./domain/outputs";
@@ -17,6 +17,7 @@ export type { AgentRunRequest, AgentRunResult, AgentRuntime, RunHandle } from ".
 export { ConflictError, FileChangedError, InvalidConfigError, InvalidInputError, MissingCredentialsError, NotFoundError } from "./application/errors";
 export { checkWorkflow } from "./application/checkWorkflow";
 export { continueRun } from "./application/continueRun";
+export { gateChanges, type GateChangesDeps } from "./application/gateChanges";
 export { createWorkflow } from "./application/createWorkflow";
 export type { EventLog, LogEvent, LoggedEvent } from "./application/EventLog";
 export { listRuns, type RunListDeps, type RunSummary } from "./application/listRuns";

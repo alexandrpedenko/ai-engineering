@@ -1,6 +1,6 @@
 import { waitFor } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
-import { useFile, useFiles, usePhases, useProject, useRun, useRuns, useWorkflow, useWorkflows } from "../../src/application/queries";
+import { useFile, useFiles, useGateChanges, usePhases, useProject, useRun, useRuns, useWorkflow, useWorkflows } from "../../src/application/queries";
 import { ApiError } from "../../src/domain/apiError";
 import { FakeOrchestratorApi } from "../support/FakeOrchestratorApi";
 import { renderHookWithProviders } from "../support/renderWithProviders";
@@ -48,6 +48,16 @@ describe("read hooks", () => {
     await waitFor(() => expect(result.current.every((q) => !q.isPending)).toBe(true));
     expect(result.current[0]?.data?.content).toBe("A");
     expect((result.current[1]?.error as ApiError).status).toBe(404);
+  });
+
+  it("useGateChanges loads a gate's changes, and waits while there is no gate", async () => {
+    const api = new FakeOrchestratorApi();
+    api.changes["run-1/review"] = [{ path: "a.md", change: "created", added: 1, removed: 0, diff: "@@ -0,0 +1 @@\n+a\n" }];
+
+    expect((await dataOf(() => useGateChanges("run-1", "review"), api))?.map((f) => f.path)).toEqual(["a.md"]);
+    const { result } = renderHookWithProviders(() => useGateChanges("run-1", undefined), api);
+    expect(result.current.fetchStatus).toBe("idle");
+    expect(api.calls.filter((c) => c.startsWith("gateChanges"))).toEqual(["gateChanges run-1 review"]);
   });
 
   it("useFile loads one file with its version", async () => {

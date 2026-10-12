@@ -4,11 +4,11 @@ area: http-api
 summary: The server's routes, the Server-Sent Events stream, and how errors become status codes.
 code:
   - packages/server/src/routes/**
-depends_on: [runs-and-events, workflows, project-registry]
+depends_on: [runs-and-events, workflows, project-registry, gate-changes]
 used_by: [web-app]
 adrs: [10, 15]
-specs: [4-server, 5.5-retry, 6-workflow-editor, 7-file-editor]
-updated: 2026-10-11
+specs: [4-server, 5.5-retry, 6-workflow-editor, 7-file-editor, 8-changes-at-the-gate]
+updated: 2026-10-12
 ---
 
 # HTTP API
@@ -32,6 +32,7 @@ case or the supervisor, return the result. They get their dependencies as
 | POST | `/api/workflows/:id/runs` | `{ inputs }` → **202** `{ runId }` |
 | GET | `/api/runs?workflowId=` | `[{ runId, workflowId, startedAt, status, busy }]` |
 | GET | `/api/runs/:runId` | `{ runId, workflow, inputs, startedAt, busy, outcome }` |
+| GET | `/api/runs/:runId/gates/:gateId/changes` | `{ files: [{ path, change, added, removed, diff, reason? }] }` ([gate-changes](gate-changes.md)); **404** for an unknown run or gate |
 | POST | `/api/runs/:runId/resume` · `/continue` · `/retry` · `/cancel` | **202** |
 | GET | `/api/runs/:runId/events?after=` | SSE |
 

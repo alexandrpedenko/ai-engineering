@@ -9,5 +9,7 @@ export const queryKeys = {
   runsAll: ["runs"] as const,
   runs: (workflowId?: string) => ["runs", "list", workflowId ?? "all"] as const,
   run: (runId: string) => ["runs", "one", runId] as const,
+  gateChangesOf: (runId: string) => ["runs", "gate-changes", runId] as const,
+  gateChanges: (runId: string, gateId: string) => ["runs", "gate-changes", runId, gateId] as const,
   file: (path: string) => ["files", path] as const,
 };

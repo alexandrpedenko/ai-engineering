@@ -1,6 +1,6 @@
 # workflow-orchestrator — MVP spec
 
-**Status:** draft, in review (2026-10-11). Slices 0–7 built; slice 7 in review. Body frozen: changes go in Amendments.
+**Status:** draft, in review (2026-10-11). Slices 0–8 built; slice 8 in review. Body frozen: changes go in Amendments.
 
 A folder you drop into a project that already has Cursor skills, agents and
 artefacts. It reads them, lets you draw a workflow from them on a canvas
@@ -291,7 +291,7 @@ adds. Every slice ships server and web tests for what it touches and ends with
 | 5 | app shell + run views | the shell: sidebar of phases (ADR-0009) → workflows, project view (skills, agents, artefacts), runs list, run view with live events, gate panel showing the files with approve / reject. The canvas is no longer the whole page. | a full BA run done from the browser only; two phases with their workflows listed in order | done: [specs/5-shell-and-runs.md](specs/5-shell-and-runs.md) |
 | 6 | workflow editor | React Flow canvas for one workflow, palette (agent step, gate), inspector with agent/skill/phase pickers, validation shown on nodes, save; new workflow inside a phase | the BA workflow can be drawn from scratch and runs the same as the hand-written JSON | built, in review: [specs/6-workflow-editor.md](specs/6-workflow-editor.md) |
 | 7 | file editor | Monaco for skills, agents, artefacts; save through `/api/files` | edit a skill in the browser, re-run, the change is in the next prompt | built, in review: [specs/7-file-editor.md](specs/7-file-editor.md) |
-| 8 | delivery | a delivery workflow on the fixture (implement → tests check → review), git-diff summary in the gate | a reviewed requirement turns into a code change in the fixture with the diff shown at the gate | spec drafted: [specs/8-changes-at-the-gate.md](specs/8-changes-at-the-gate.md) |
+| 8 | delivery | a delivery workflow on the fixture (implement → tests check → review), git-diff summary in the gate | a reviewed requirement turns into a code change in the fixture with the diff shown at the gate | built, in review: [specs/8-changes-at-the-gate.md](specs/8-changes-at-the-gate.md) |
 
 After the MVP, roughly in order: parallel steps on git worktrees, router
 step, sub-workflows, phase gates (delivery waits for discovery), cloud
@@ -556,4 +556,18 @@ run commands (Bash is refused), so the "tests check" step becomes a roadmap
 item (a command step). Status: spec drafted.
 Why: discovery steps revise existing artefacts and user stories update wiki
 pages; a reviewer needs to see what changed there as much as in code.
+
+**2026-10-12, slice 8 built — gate changes in the API, the record and the port.**
+Spec said (Server API, `StepRecord`, ports): no route for what a gate's steps
+changed; `StepRecord` without a base; `ProjectFiles` with `snapshot` as the
+only before/after record.
+Now: `GET /api/runs/:runId/gates/:gateId/changes` → `{ files: [{ path,
+change, added, removed, diff, reason? }] }` (`change`: created, modified,
+deleted or unchanged; `reason`: binary, too large, no git or secret), 404 for
+an unknown run or gate. `StepRecord` gains `baseTree?: string`, and the run
+ref `baseTree: string | null`. `ProjectFiles` gains `recordTree()` and
+`diff(baseTree, paths)`. ADR-0016 accepted. Built with
+[specs/8-changes-at-the-gate.md](specs/8-changes-at-the-gate.md) (see its
+amendments for how it differs from that spec).
+Why: every gate shows a diff of this run's changes, not the whole file.
 

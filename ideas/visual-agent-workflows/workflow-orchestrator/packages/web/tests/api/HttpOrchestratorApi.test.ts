@@ -40,6 +40,7 @@ describe("HttpOrchestratorApi reads", () => {
       [() => api.runs("ba-discovery"), "/api/runs?workflowId=ba-discovery", []],
       [() => api.runs(), "/api/runs", []],
       [() => api.run("run-1"), "/api/runs/run-1", waitingRun()],
+      [() => api.gateChanges("run-1", "review"), "/api/runs/run-1/gates/review/changes", { files: [] }],
       [() => api.file("discovery/a b.md"), "/api/files?path=discovery%2Fa%20b.md", { path: "discovery/a b.md", content: "x", version: "v1" }],
     ];
     for (const [call, url, body] of cases) {
@@ -47,6 +48,12 @@ describe("HttpOrchestratorApi reads", () => {
       await call();
       expect(calls).toEqual([{ url, method: "GET", headers: undefined }]);
     }
+  });
+
+  it("returns a gate's changes unwrapped", async () => {
+    const files = [{ path: "a.md", change: "modified", added: 1, removed: 0, diff: "@@ -1 +1,2 @@\n a\n+b\n" }];
+    respondWith(200, { files });
+    expect(await new HttpOrchestratorApi().gateChanges("run-1", "review")).toEqual(files);
   });
 
   it("returns phases unwrapped", async () => {

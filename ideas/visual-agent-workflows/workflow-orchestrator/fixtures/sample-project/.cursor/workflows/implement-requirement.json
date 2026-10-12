@@ -1,0 +1,32 @@
+{
+  "schema": 1,
+  "id": "implement-requirement",
+  "name": "Implement a requirement",
+  "phase": "delivery",
+  "inputs": [{ "id": "requirement", "label": "Requirement to implement (e.g. R3)", "type": "text", "required": true }],
+  "steps": [
+    {
+      "id": "implement",
+      "type": "agent",
+      "label": "Implement it",
+      "agent": "developer",
+      "skills": ["implement-requirement"],
+      "instructions": "Implement requirement {{inputs.requirement}} from discovery/requirements.md.",
+      "reads": ["discovery/requirements.md"],
+      "writes": ["src/**"]
+    },
+    {
+      "id": "review",
+      "type": "gate",
+      "label": "Review the change",
+      "shows": [],
+      "onReject": "implement",
+      "maxRevisions": 3
+    }
+  ],
+  "edges": [{ "from": "implement", "to": "review" }],
+  "layout": {
+    "implement": { "x": 0, "y": 0 },
+    "review": { "x": 280, "y": 0 }
+  }
+}

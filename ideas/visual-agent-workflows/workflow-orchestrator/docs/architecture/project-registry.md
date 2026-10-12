@@ -16,10 +16,10 @@ code:
   - packages/core/src/infrastructure/frontmatter.ts
   - packages/core/src/infrastructure/FsProjectFiles.ts
 depends_on: []
-used_by: [workflows, prompts, agent-steps, http-api, cli, composition]
+used_by: [workflows, prompts, agent-steps, gate-changes, http-api, cli, composition]
 adrs: [1, 5]
 specs: [1-registry, 4-server, 5.6-claude-runtime, 5.7-local-settings, 5.8-artefacts-anywhere, 7-file-editor]
-updated: 2026-10-11
+updated: 2026-10-12
 ---
 
 # Project registry
@@ -86,6 +86,9 @@ frontmatter into a skill or agent (`toSkill`, `toAgentDef`) is domain.
 - `snapshot(declared)`: a hash of every project file (files over 5 MB:
   `size:mtimeMs`), and which files each declared pattern matched, for the file
   check ([agent-steps](agent-steps.md)).
+- `recordTree()` / `diff(baseTree, paths)`: the project's files as a git
+  tree before a step, and each file's diff against it at a gate, through
+  temporary index files ([gate-changes](gate-changes.md)).
 - `canOpen(path)`: a normalised relative path that is in the project file
   list, whose real location (after symlinks) is inside the project root, and
   that isn't a file that commonly holds credentials (`.env`, `.env.*`,

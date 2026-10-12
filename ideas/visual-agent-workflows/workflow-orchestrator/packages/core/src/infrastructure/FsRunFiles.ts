@@ -15,6 +15,7 @@ const RefFile = z.object({
   attempt: z.number().int(),
   cursorRunId: z.string(),
   before: SnapshotFile,
+  baseTree: z.string().nullable().default(null),
   startedAt: z.string(),
 });
 

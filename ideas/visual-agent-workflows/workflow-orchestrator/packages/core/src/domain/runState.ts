@@ -20,6 +20,9 @@ export type StepRecord = {
   summary: string; // the agent's final message
   usage?: Usage;
   durationMs: number;
+  // The git tree of the project recorded before the attempt started; absent
+  // when there is none (not a git repository, or recorded before trees were kept).
+  baseTree?: string;
 };
 
 // A person's answer at a gate. Arrives from outside, so it is a schema.

@@ -5,10 +5,10 @@ summary: How the orchestrator is put together, how a run flows through it, and w
 code:
   - packages/*/package.json
 depends_on: []
-used_by: [project-registry, workflows, prompts, engine, agent-steps, runs-and-events, http-api, cli, composition, web-app, quality-gates]
+used_by: [project-registry, workflows, prompts, engine, agent-steps, gate-changes, runs-and-events, http-api, cli, composition, web-app, quality-gates]
 adrs: [1, 8, 10]
 specs: []
-updated: 2026-10-11
+updated: 2026-10-12
 ---
 
 # Architecture overview
@@ -37,6 +37,7 @@ When a doc and the code disagree, the code is right and the doc is a bug.
 | prompts | [prompts.md](prompts.md) | how an agent step becomes the message an agent receives |
 | engine | [engine.md](engine.md) | LangGraph: steps as nodes, gates as interrupts, outcomes, continue |
 | agent-steps | [agent-steps.md](agent-steps.md) | one agent step: runtime port, Cursor and fake runtimes, run refs, file checks |
+| gate-changes | [gate-changes.md](gate-changes.md) | what the steps before a gate changed: a git tree before each step, a diff per file |
 | runs-and-events | [runs-and-events.md](runs-and-events.md) | starting and moving runs, background operations, the event log, cancel |
 | http-api | [http-api.md](http-api.md) | routes, SSE, how errors become status codes |
 | cli | [cli.md](cli.md) | `npm run scan`, `npm run wf` |
@@ -75,7 +76,7 @@ read about each hop:
 3. `LangGraphRunEngine.start` compiles the workflow into a graph and invokes
    it with the run id as thread id. ([engine](engine.md))
 4. The first node is an agent step: `runAgentStep` builds the message
-   ([prompts](prompts.md)), snapshots the files, starts the agent through the
+   ([prompts](prompts.md)), snapshots the files and records a git tree of them, starts the agent through the
    `AgentRuntime` port, saves a run ref, forwards the agent's events, waits,
    snapshots again and records what changed. ([agent-steps](agent-steps.md))
 5. Every event goes through the supervisor: numbered, appended to
@@ -85,7 +86,9 @@ read about each hop:
    rows the run page shows. ([web-app](web-app.md))
 7. The gate node calls `interrupt()`; the run settles as `waiting`. The person
    approves or rejects → `POST …/resume` → `RunSupervisor.resume` → the engine
-   resumes the graph with `Command({ resume })`. ([engine](engine.md))
+   resumes the graph with `Command({ resume })`. ([engine](engine.md)) The
+   gate panel shows each file's diff against the tree recorded before the
+   steps ran. ([gate-changes](gate-changes.md))
 8. The run ends `finished`, `failed`, `rejected` or `interrupted`; the last
    event is `run-settled` with that outcome.
 

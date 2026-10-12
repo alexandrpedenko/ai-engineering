@@ -1,6 +1,6 @@
 import type { RunOutcome, StepRecord } from "@orch/core";
 import { describe, expect, it } from "vitest";
-import { formatOutcome, formatRunEvent } from "../../src/cli/formatRunEvent";
+import { formatGate, formatOutcome, formatRunEvent } from "../../src/cli/formatRunEvent";
 
 const record = (over: Partial<StepRecord> = {}): StepRecord => ({
   status: "done",
@@ -42,8 +42,39 @@ describe("formatRunEvent", () => {
     expect(formatRunEvent(event)).toBe("✗ elicit failed: rate limited\n");
   });
 
-  it("lists the files a gate shows", () => {
-    expect(formatRunEvent({ type: "gate-waiting", gateId: "review", shows: ["a.md", "b.md"] })).toBe("\n◆ review: check these files:\n    a.md\n    b.md\n");
+  it("leaves a waiting gate to formatGate", () => {
+    expect(formatRunEvent({ type: "gate-waiting", gateId: "review", shows: ["a.md"] })).toBe("");
+  });
+});
+
+describe("formatGate", () => {
+  it("lists each file with its change and the lines added and removed", () => {
+    const text = formatGate("review", [
+      { path: "discovery/requirements.md", change: "modified", added: 6, removed: 2, diff: "@@" },
+      { path: "wiki/glossary.md", change: "created", added: 14, removed: 0, diff: "@@" },
+      { path: "kb/old.md", change: "deleted", added: 0, removed: 3, diff: "@@" },
+      { path: "img.png", change: "modified", added: 0, removed: 0, diff: null, reason: "binary" },
+      { path: "discovery/brief.md", change: "unchanged", added: 0, removed: 0, diff: "" },
+    ]);
+
+    expect(text).toBe(
+      [
+        "",
+        "◆ review: check these files:",
+        "    discovery/requirements.md  modified  +6 −2",
+        "    wiki/glossary.md           created   +14",
+        "    kb/old.md                  deleted   −3",
+        "    img.png                    modified  no diff: binary file",
+        "    discovery/brief.md         unchanged",
+        "",
+      ].join("\n"),
+    );
+  });
+
+  it("says when the project has no git to diff against", () => {
+    expect(formatGate("review", [{ path: "a.md", change: "modified", added: 0, removed: 0, diff: null, reason: "no git" }])).toContain(
+      "a.md  modified  no diff: not a git repository",
+    );
   });
 });
 

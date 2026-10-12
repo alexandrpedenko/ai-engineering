@@ -37,6 +37,10 @@ function setup(options: { answers?: string[]; afterResume?: RunOutcome[]; curren
       calls.push(`outcome ${runId}`);
       return options.current ?? waiting;
     },
+    gateChanges: async (runId, gateId) => {
+      calls.push(`gateChanges ${runId} ${gateId}`);
+      return [{ path: "discovery/requirements.md", change: "modified", added: 6, removed: 2, diff: "@@" }];
+    },
   };
 
   const deps = {
@@ -61,7 +65,7 @@ describe("runWfCommand run", () => {
 
     expect(await runWfCommand(["run", "ba-discovery", "--input", "focus=a=b", "--fake"], deps)).toBe(0);
 
-    expect(calls).toEqual(['start ba-discovery {"focus":"a=b"}', "resume run-1 approve"]);
+    expect(calls).toEqual(['start ba-discovery {"focus":"a=b"}', "gateChanges run-1 review", "resume run-1 approve"]);
     expect(output()).toMatch(/^project \/host \(settings\.json\) · runtime claude \(settings\.json\)\nrun run-1\n▸ elicit \(attempt 1\)\n/);
     expect(output()).toMatch(/finished {2}run-1\n$/);
   });
@@ -71,14 +75,14 @@ describe("runWfCommand run", () => {
 
     await runWfCommand(["run", "ba-discovery"], deps);
 
-    expect(calls.slice(1)).toEqual(["resume run-1 reject:add checks", "resume run-1 approve"]);
+    expect(calls.slice(1)).toEqual(["gateChanges run-1 review", "resume run-1 reject:add checks", "gateChanges run-1 review", "resume run-1 approve"]);
   });
 
   it("stops at the gate on an empty line and says how to continue", async () => {
     const { deps, calls, output } = setup({ answers: [""] });
 
     expect(await runWfCommand(["run", "ba-discovery"], deps)).toBe(0);
-    expect(calls).toHaveLength(1);
+    expect(calls).toEqual(['start ba-discovery {}', "gateChanges run-1 review"]);
     expect(output()).toContain("stopped at review. Continue with: npm run wf -- continue run-1");
   });
 
@@ -101,7 +105,7 @@ describe("runWfCommand continue and status", () => {
     const { deps, calls } = setup({ current: interrupted, answers: ["y"] });
 
     expect(await runWfCommand(["continue", "run-1"], deps)).toBe(0);
-    expect(calls).toEqual(["outcome run-1", "continue run-1", "resume run-1 approve"]);
+    expect(calls).toEqual(["outcome run-1", "continue run-1", "gateChanges run-1 review", "resume run-1 approve"]);
   });
 
   it("asks again at the gate of a waiting run", async () => {
@@ -109,8 +113,8 @@ describe("runWfCommand continue and status", () => {
 
     await runWfCommand(["continue", "run-1"], deps);
 
-    expect(calls).toEqual(["outcome run-1", "resume run-1 approve"]);
-    expect(output()).toContain("◆ review: check these files:");
+    expect(calls).toEqual(["outcome run-1", "gateChanges run-1 review", "resume run-1 approve"]);
+    expect(output()).toContain("◆ review: check these files:\n    discovery/requirements.md  modified  +6 −2\n");
   });
 
   it("prints a run's status without needing an API key", async () => {
@@ -128,7 +132,7 @@ describe("runWfCommand retry", () => {
     const { deps, calls } = setup({ answers: ["y"] });
 
     expect(await runWfCommand(["retry", "run-1", "--fake"], deps)).toBe(0);
-    expect(calls).toEqual(["retry run-1", "resume run-1 approve"]);
+    expect(calls).toEqual(["retry run-1", "gateChanges run-1 review", "resume run-1 approve"]);
   });
 
   it("needs a run id", async () => {

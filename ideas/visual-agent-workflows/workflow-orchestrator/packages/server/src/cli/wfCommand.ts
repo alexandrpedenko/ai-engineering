@@ -4,11 +4,12 @@ import {
   InvalidInputError,
   MissingCredentialsError,
   NotFoundError,
+  type FileChanges,
   type GateDecision,
   type RunEvent,
   type RunOutcome,
 } from "@orch/core";
-import { formatOutcome, formatRunEvent } from "./formatRunEvent";
+import { formatGate, formatOutcome, formatRunEvent } from "./formatRunEvent";
 
 // What the command needs from a set of run services (see composition.ts).
 export type WfServices = {
@@ -18,6 +19,7 @@ export type WfServices = {
   continue(runId: string): Promise<RunOutcome>;
   retry(runId: string): Promise<RunOutcome>;
   outcome(runId: string): Promise<RunOutcome>;
+  gateChanges(runId: string, gateId: string): Promise<FileChanges>;
 };
 
 export type WfDeps = {
@@ -65,10 +67,11 @@ function parse(argv: string[]): Parsed | string {
 
 const exitCodeOf = (outcome: RunOutcome) => (outcome.status === "failed" || outcome.status === "rejected" ? 1 : 0);
 
-// Asks at each gate until the run finishes, fails, or the person stops.
+// Shows each gate's changes and asks, until the run finishes, fails, or the person stops.
 async function throughGates(services: WfServices, runId: string, first: RunOutcome, deps: WfDeps): Promise<RunOutcome> {
   let outcome = first;
   while (outcome.status === "waiting") {
+    deps.write(formatGate(outcome.gateId, await services.gateChanges(runId, outcome.gateId)));
     const answer = (await deps.ask(GATE_QUESTION)).trim();
     if (answer === "") return outcome;
     const decision: GateDecision = answer.toLowerCase() === "y" ? { decision: "approve" } : { decision: "reject", feedback: answer };
@@ -120,7 +123,6 @@ export async function runWfCommand(argv: string[], deps: WfDeps): Promise<number
     } else {
       outcome = await services.outcome(runId);
       if (outcome.status === "interrupted") outcome = await services.continue(runId);
-      else if (outcome.status === "waiting") deps.write(formatRunEvent({ type: "gate-waiting", gateId: outcome.gateId, shows: outcome.shows }));
     }
 
     outcome = await throughGates(services, runId, outcome, deps);

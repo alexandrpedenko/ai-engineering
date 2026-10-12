@@ -1,10 +1,9 @@
-import { Button, Stack, TextField, Typography } from "@mui/material";
-import { FileView } from "./FileView";
-
-export type GateFile = { path: string; content?: string; error?: string; loading?: boolean };
+import { Alert, Button, Stack, TextField, Typography } from "@mui/material";
+import { type GateFile, GateFileView } from "./GateFileView";
 
 type Props = {
-  files: GateFile[];
+  files: GateFile[] | undefined; // undefined while loading
+  error?: string; // the files couldn't be loaded
   feedback: string;
   sending: boolean;
   onFeedbackChange: (text: string) => void;
@@ -13,14 +12,16 @@ type Props = {
   onEditFile: (path: string) => void;
 };
 
-// The files a gate asks a person to check (each can be opened in the editor),
-// and their answer. Reject needs feedback.
-export function GatePanel({ files, feedback, sending, onFeedbackChange, onApprove, onReject, onEditFile }: Props) {
+// The files a gate asks a person to check, each with what the steps before
+// the gate changed (and an Edit button), and their answer. Reject needs feedback.
+export function GatePanel({ files, error, feedback, sending, onFeedbackChange, onApprove, onReject, onEditFile }: Props) {
   return (
     <Stack spacing={2} aria-label="gate">
-      {files.length === 0 && <Typography color="text.secondary">No files were changed before this gate.</Typography>}
-      {files.map((file) => (
-        <FileView key={file.path} {...file} onEdit={() => onEditFile(file.path)} />
+      {error && <Alert severity="error">{error}</Alert>}
+      {!files && !error && <Typography color="text.secondary">Loading the changes…</Typography>}
+      {files?.length === 0 && <Typography color="text.secondary">No files were changed before this gate.</Typography>}
+      {files?.map((file) => (
+        <GateFileView key={file.path} file={file} onEdit={() => onEditFile(file.path)} />
       ))}
       <TextField
         label="Feedback (needed to reject)"

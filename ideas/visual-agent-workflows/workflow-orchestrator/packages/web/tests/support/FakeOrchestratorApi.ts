@@ -1,4 +1,4 @@
-import type { GateDecision, LoggedEvent, LogEvent, Phase, Problem, Registry, RunSummary, Workflow, WorkflowSummary } from "@orch/core";
+import type { FileChanges, GateDecision, LoggedEvent, LogEvent, Phase, Problem, Registry, RunSummary, Workflow, WorkflowSummary } from "@orch/core";
 import type { OrchestratorApi } from "../../src/application/OrchestratorApi";
 import { ApiError } from "../../src/domain/apiError";
 import type { RunDetails } from "../../src/domain/runView";
@@ -23,6 +23,7 @@ export class FakeOrchestratorApi implements OrchestratorApi {
   runList: RunSummary[] = [];
   runsById: Record<string, RunDetails> = {};
   files: Record<string, string> = {};
+  changes: Record<string, FileChanges> = {}; // by "runId/gateId"; unknown gates answer 404
   history: Record<string, LoggedEvent[]> = {};
   startedRunId = "run-new";
   checkProblems: Problem[] = []; // what checkWorkflow answers
@@ -88,6 +89,12 @@ export class FakeOrchestratorApi implements OrchestratorApi {
   async run(runId: string) {
     const found = this.runsById[runId];
     if (!found) throw new ApiError(404, `no run "${runId}"`);
+    return found;
+  }
+  async gateChanges(runId: string, gateId: string) {
+    this.calls.push(`gateChanges ${runId} ${gateId}`);
+    const found = this.changes[`${runId}/${gateId}`];
+    if (!found) throw new ApiError(404, `no gate "${gateId}" in run "${runId}"`);
     return found;
   }
   async file(path: string) {

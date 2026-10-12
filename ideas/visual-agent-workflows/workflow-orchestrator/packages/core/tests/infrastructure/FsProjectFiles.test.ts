@@ -46,15 +46,16 @@ describe("FsProjectFiles on the sample project", () => {
   it("reads skills in skill-folder order, including category folders", async () => {
     const docs = await files.skillDocs();
     expect(docs.map((d) => d.path)).toEqual([
+      ".cursor/skills/implement-requirement/SKILL.md",
       ".cursor/skills/requirements-elicitation/SKILL.md",
       ".agents/skills/discovery/architecture-review/SKILL.md",
     ]);
-    expect(docs[0]).toMatchObject({ frontmatter: { name: "requirements-elicitation" } });
+    expect(docs[1]).toMatchObject({ frontmatter: { name: "requirements-elicitation" } });
   });
 
   it("reads agents directly inside the agent folder", async () => {
     const docs = await files.agentDocs();
-    expect(docs.map((d) => d.path)).toEqual([".cursor/agents/architect.md", ".cursor/agents/business-analyst.md"]);
+    expect(docs.map((d) => d.path)).toEqual([".cursor/agents/architect.md", ".cursor/agents/business-analyst.md", ".cursor/agents/developer.md"]);
   });
 
   it("lists markdown and text files outside the skill, agent and workflow folders as artefacts", async () => {
@@ -274,5 +275,119 @@ describe("FsProjectFiles on a changed copy", () => {
     const paths = (await new FsProjectFiles(config).artefacts()).map((a) => a.path);
 
     expect(paths).toEqual(["discovery/brief.md", "docs/guide.md", "wiki/README.md"]);
+  });
+});
+
+describe("FsProjectFiles git trees and diffs", () => {
+  const git = async (root: string, ...args: string[]) => (await run("git", args, { cwd: root })).stdout;
+  const filesIn = async (root: string) => new FsProjectFiles(configFor(root, { dataDir: await tempDir() }));
+  // Everything about the repository a person could see change.
+  const repoState = async (root: string) => ({
+    status: await git(root, "status", "--porcelain"),
+    staged: await git(root, "diff", "--cached"),
+    stash: await git(root, "stash", "list"),
+    head: await git(root, "rev-parse", "HEAD"),
+    branches: await git(root, "branch", "--list"),
+  });
+
+  it("records a tree without changing status, the index, stash, branches or HEAD", async () => {
+    const root = await tempDir();
+    await gitRepo(root, { "kb/a.md": "a\n", "kb/b.md": "b\n" });
+    await write(root, { "kb/a.md": "a staged\n" });
+    await git(root, "add", "kb/a.md");
+    await write(root, { "kb/b.md": "b edited\n", "new.md": "n\n" });
+    const before = await repoState(root);
+
+    const tree = await (await filesIn(root)).recordTree();
+
+    expect(tree).toMatch(/^[0-9a-f]{40}$/);
+    expect(await repoState(root)).toEqual(before);
+  });
+
+  it("diffs a modified, a created and a deleted file against the tree, counting lines", async () => {
+    const root = await tempDir();
+    await gitRepo(root, { "kb/a.md": "one\ntwo\nthree\n", "kb/old.md": "gone\nsoon\n" });
+    const files = await filesIn(root);
+    const tree = await files.recordTree();
+    await write(root, { "kb/a.md": "one\nTWO\nthree\nfour\n", "kb/new.md": "fresh\n" });
+    await rm(join(root, "kb/old.md"));
+
+    const [modified, created, deleted] = await files.diff(tree, ["kb/a.md", "kb/new.md", "kb/old.md"]);
+
+    expect(modified).toEqual({ path: "kb/a.md", added: 2, removed: 1, diff: "@@ -1,3 +1,4 @@\n one\n-two\n+TWO\n three\n+four\n" });
+    expect(created).toEqual({ path: "kb/new.md", added: 1, removed: 0, diff: "@@ -0,0 +1 @@\n+fresh\n" });
+    expect(deleted).toMatchObject({ path: "kb/old.md", added: 0, removed: 2 });
+  });
+
+  it("counts untracked and staged-but-uncommitted changes as before the step", async () => {
+    const root = await tempDir();
+    await gitRepo(root, { "kb/a.md": "a\n" });
+    await write(root, { "kb/a.md": "a staged\n", "kb/draft.md": "draft\n" });
+    await git(root, "add", "kb/a.md");
+    const files = await filesIn(root);
+    const tree = await files.recordTree();
+    await write(root, { "kb/draft.md": "draft\nmore\n" });
+
+    const [staged, draft] = await files.diff(tree, ["kb/a.md", "kb/draft.md"]);
+
+    expect(staged).toEqual({ path: "kb/a.md", added: 0, removed: 0, diff: "" });
+    expect(draft).toMatchObject({ added: 1, removed: 0, diff: "@@ -1 +1,2 @@\n draft\n+more\n" });
+  });
+
+  it("leaves gitignored files, node_modules and the orchestrator folder out of the tree", async () => {
+    const root = await tempDir();
+    await gitRepo(root, { ".gitignore": "build/\n", "kb/a.md": "a\n" });
+    await write(root, { "build/out.md": "b\n", "docs/node_modules/x.md": "x\n", "orch/notes.md": "o\n" });
+    const files = new FsProjectFiles(configFor(root, { dataDir: await tempDir(), orchestratorDir: join(root, "orch") }));
+
+    const tree = await files.recordTree();
+    const listed = (await git(root, "ls-tree", "-r", "--name-only", tree ?? "")).trim().split("\n");
+
+    expect(listed).toEqual([".gitignore", "kb/a.md"]);
+  });
+
+  it("gives no diff for a binary file, a diff over 200 kB, or a file that may hold credentials", async () => {
+    const root = await tempDir();
+    await gitRepo(root, { "img.png": "\0PNG\0", "big.md": "x\n", ".env": "K=1\n" });
+    const files = await filesIn(root);
+    const tree = await files.recordTree();
+    await write(root, { "img.png": "\0PNG\0changed", "big.md": "y\n".repeat(120_000), ".env": "K=2\n" });
+
+    const diffs = await files.diff(tree, ["img.png", "big.md", ".env"]);
+
+    expect(diffs).toEqual([
+      { path: "img.png", added: 0, removed: 0, diff: null, reason: "binary" },
+      { path: "big.md", added: 120_000, removed: 1, diff: null, reason: "too large" },
+      { path: ".env", added: 0, removed: 0, diff: null, reason: "secret" },
+    ]);
+  });
+
+  it("diffs a project in a subfolder of its repository with paths relative to the project", async () => {
+    const outer = await tempDir();
+    await gitRepo(outer, { "README.md": "r\n", "host/kb/a.md": "a\n" });
+    const root = join(outer, "host");
+    const files = await filesIn(root);
+    const tree = await files.recordTree();
+    await write(root, { "kb/a.md": "b\n" });
+
+    expect(await files.diff(tree, ["kb/a.md"])).toEqual([{ path: "kb/a.md", added: 1, removed: 1, diff: "@@ -1 +1 @@\n-a\n+b\n" }]);
+  });
+
+  it("records no tree outside git, and every diff says so", async () => {
+    const root = await tempDir();
+    await write(root, { "kb/a.md": "a\n" });
+    const files = await filesIn(root);
+
+    expect(await files.recordTree()).toBeNull();
+    expect(await files.diff(null, ["kb/a.md"])).toEqual([{ path: "kb/a.md", added: 0, removed: 0, diff: null, reason: "no git" }]);
+  });
+
+  it("records no tree for a project its repository ignores", async () => {
+    const outer = await tempDir();
+    await gitRepo(outer, { ".gitignore": "data/\n", "README.md": "r" });
+    const root = join(outer, "data/host");
+    await write(root, { "kb/a.md": "a" });
+
+    expect(await (await filesIn(root)).recordTree()).toBeNull();
   });
 });

@@ -27,7 +27,7 @@ export type AgentStepDeps = {
 // one. An agent that can't be started gives a failed record; an error while
 // waiting on a started agent is thrown (the run is then interrupted and can
 // reattach). Which files changed is read from disk before and after, not from the
-// agent's summary.
+// agent's summary; the project's git tree from before is kept for the gate's diffs.
 export async function runAgentStep(deps: AgentStepDeps, runId: string, step: AgentStep, state: RunState): Promise<StepRecord> {
   const agent = deps.registry.agents.find((a) => a.name === step.agent);
   if (!agent) throw new Error(`agent "${step.agent}" is not in the project`);
@@ -43,13 +43,16 @@ export async function runAgentStep(deps: AgentStepDeps, runId: string, step: Age
 
   let handle: RunHandle | null = null;
   let before: Snapshot;
+  let baseTree: string | null;
   const ref = await deps.runFiles.getRef(runId, step.id, attempt);
   if (ref) handle = await deps.runtime.attach(ref.cursorRunId, deps.cwd);
 
   if (ref && handle) {
     before = ref.before;
+    baseTree = ref.baseTree;
   } else {
     before = await deps.projectFiles.snapshot(step.writes);
+    baseTree = await deps.projectFiles.recordTree();
     const message = buildPrompt({
       step,
       agent,
@@ -77,11 +80,12 @@ export async function runAgentStep(deps: AgentStepDeps, runId: string, step: Age
         summary: `couldn't start the agent: ${error instanceof Error ? error.message : String(error)}`,
         durationMs: 0,
       };
+      if (baseTree) record.baseTree = baseTree;
       deps.onEvent(runId, { type: "step-finished", stepId: step.id, record });
       return record;
     }
     const startedAt = (deps.now?.() ?? new Date()).toISOString();
-    await deps.runFiles.putRef({ runId, stepId: step.id, attempt, cursorRunId: handle.id, before, startedAt });
+    await deps.runFiles.putRef({ runId, stepId: step.id, attempt, cursorRunId: handle.id, before, baseTree, startedAt });
     for await (const event of handle.events()) deps.onEvent(runId, { type: "agent-event", stepId: step.id, event });
   }
 
@@ -104,6 +108,7 @@ export async function runAgentStep(deps: AgentStepDeps, runId: string, step: Age
     durationMs: result.durationMs,
   };
   if (result.usage) record.usage = result.usage;
+  if (baseTree) record.baseTree = baseTree;
   deps.onEvent(runId, { type: "step-finished", stepId: step.id, record });
   return record;
 }

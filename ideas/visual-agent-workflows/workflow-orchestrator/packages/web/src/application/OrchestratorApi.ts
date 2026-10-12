@@ -1,4 +1,4 @@
-import type { GateDecision, LoggedEvent, Phase, Problem, Registry, RunSummary, Workflow, WorkflowSummary } from "@orch/core";
+import type { FileChanges, GateDecision, LoggedEvent, Phase, Problem, Registry, RunSummary, Workflow, WorkflowSummary } from "@orch/core";
 import type { RunDetails } from "../domain/runView";
 
 // What the web app needs from the orchestrator server. Hooks depend on this,
@@ -19,6 +19,8 @@ export interface OrchestratorApi {
   checkWorkflow(workflow: Workflow): Promise<Problem[]>;
   runs(workflowId?: string): Promise<RunSummary[]>;
   run(runId: string): Promise<RunDetails>;
+  // Each file a gate lists, with how the steps before it changed the file and its diff.
+  gateChanges(runId: string, gateId: string): Promise<FileChanges>;
   // A project file's text and version (which changes whenever the text does).
   file(path: string): Promise<{ path: string; content: string; version: string }>;
   // Saves a project file and returns its new version. With `baseVersion`, a

@@ -23,8 +23,8 @@ describe("createProjectServices", () => {
     const registry = await services.scan();
 
     expect(registry.root).toBe(services.config.projectRoot);
-    expect(registry.skills.map((s) => s.name)).toEqual(["architecture-review", "requirements-elicitation"]);
-    expect(registry.agents.map((a) => a.name)).toEqual(["architect", "business-analyst"]);
+    expect(registry.skills.map((s) => s.name)).toEqual(["architecture-review", "implement-requirement", "requirements-elicitation"]);
+    expect(registry.agents.map((a) => a.name)).toEqual(["architect", "business-analyst", "developer"]);
     expect(registry.agents[0]?.model).toBe("inherit");
     expect(registry.artefacts.map((a) => a.path)).toEqual(["discovery/brief.md", "wiki/README.md"]);
     expect(registry.warnings).toEqual([]);

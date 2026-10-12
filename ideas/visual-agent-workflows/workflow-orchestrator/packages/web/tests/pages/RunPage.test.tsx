@@ -1,5 +1,6 @@
 import { act, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import type { FileChanges, RunOutcome } from "@orch/core";
 import { beforeEach, describe, expect, it } from "vitest";
 import { useGateDraftStore } from "../../src/application/useGateDraftStore";
 import { RunPage } from "../../src/pages/RunPage";
@@ -11,10 +12,13 @@ beforeEach(() => {
   useGateDraftStore.setState({ drafts: {} });
 });
 
-function render(details = waitingRun()) {
+const requirementsDiff = "@@ -1,2 +1,3 @@\n # Requirements\n-R1 Members can book.\n+R1 Members can book a room.\n+R2 Members can cancel.\n";
+
+function render(details = waitingRun(), changes: FileChanges = [{ path: "discovery/requirements.md", change: "modified", added: 2, removed: 1, diff: requirementsDiff }]) {
   const api = new FakeOrchestratorApi();
   api.runsById["run-1"] = details;
-  api.files["discovery/requirements.md"] = "# Requirements\nR1 Members can book a room.";
+  api.changes["run-1/review"] = changes;
+  api.files["discovery/requirements.md"] = "# Requirements\nR1 Members can book a room.\nR2 Members can cancel.";
   renderPage(<RunPage />, { path: "/runs/:runId", at: "/runs/run-1", api });
   return api;
 }
@@ -27,7 +31,7 @@ describe("RunPage at a gate", () => {
     expect(within(screen.getByLabelText("step elicit")).getByText("done")).toBeTruthy();
     expect(within(screen.getByLabelText("step review")).getByText("waiting for review")).toBeTruthy();
     expect(within(screen.getByLabelText("step design")).getByText("not started")).toBeTruthy();
-    expect(await screen.findByText(/R1 Members can book a room/)).toBeTruthy();
+    expect(await screen.findByText("R1 Members can book a room.")).toBeTruthy();
   });
 
   it("approves", async () => {
@@ -47,17 +51,83 @@ describe("RunPage at a gate", () => {
     expect(api.calls).toContain("resume run-1 reject:Add acceptance checks");
   });
 
-  it("shows the files the run says the gate waits on", async () => {
-    const api = new FakeOrchestratorApi();
-    api.runsById["run-1"] = runDetails({ status: "waiting", gateId: "review", shows: ["ux-space/flows.md"], state: runState({ steps: { elicit: record() } }) });
-    api.files["ux-space/flows.md"] = "# Flows\nBook a room in three taps.";
-    renderPage(<RunPage />, { path: "/runs/:runId", at: "/runs/run-1", api });
-    expect(await screen.findByText(/Book a room in three taps/)).toBeTruthy();
+  it("shows each file's change and line counts, and the diff by default", async () => {
+    render();
+
+    const file = await screen.findByLabelText("discovery/requirements.md");
+    expect(within(file).getByText("modified")).toBeTruthy();
+    expect(within(file).getByText("+2 −1")).toBeTruthy();
+    const diff = await within(file).findByLabelText("diff of discovery/requirements.md");
+    expect(within(diff).getByText("@@ -1,2 +1,3 @@")).toBeTruthy();
+    expect(within(diff).getByText("R1 Members can book.").tagName).toBe("DEL");
+    expect(within(diff).getByText("R2 Members can cancel.").tagName).toBe("INS");
+    expect(within(diff).getByText("# Requirements").tagName).toBe("SPAN");
+    expect(within(file).getByRole("button", { name: "Diff" }).getAttribute("aria-pressed")).toBe("true");
+  });
+
+  it("switches a file to its whole text and back", async () => {
+    render();
+    const file = await screen.findByLabelText("discovery/requirements.md");
+
+    await userEvent.click(within(file).getByRole("button", { name: "Whole file" }));
+
+    expect(within(file).queryByLabelText("diff of discovery/requirements.md")).toBeNull();
+    expect(await within(file).findByText(/R1 Members can book a room\. R2 Members can cancel\./)).toBeTruthy();
+
+    await userEvent.click(within(file).getByRole("button", { name: "Diff" }));
+    expect(within(file).getByLabelText("diff of discovery/requirements.md")).toBeTruthy();
+  });
+
+  it("lists a deleted file without a body or an Edit button", async () => {
+    render(waitingRun(), [{ path: "kb/old-notes.md", change: "deleted", added: 0, removed: 3, diff: "@@ -1,3 +0,0 @@\n-a\n-b\n-c\n" }]);
+
+    const file = await screen.findByLabelText("kb/old-notes.md");
+    expect(within(file).getByText("deleted")).toBeTruthy();
+    expect(within(file).getByText("−3")).toBeTruthy();
+    expect(within(file).queryByLabelText("diff of kb/old-notes.md")).toBeNull();
+    expect(within(file).queryByRole("button", { name: "Edit" })).toBeNull();
+    expect(within(file).queryByRole("button", { name: "Whole file" })).toBeNull();
+  });
+
+  it("says why a file has no diff, and shows it whole", async () => {
+    render(waitingRun(), [{ path: "discovery/requirements.md", change: "modified", added: 0, removed: 0, diff: null, reason: "no git" }]);
+
+    const file = await screen.findByLabelText("discovery/requirements.md");
+    expect(within(file).getByText("No diff: the project is not a git repository, so there is nothing to compare with.")).toBeTruthy();
+    expect(await within(file).findByText(/R2 Members can cancel\./)).toBeTruthy();
+    expect(within(file).queryByRole("button", { name: "Whole file" })).toBeNull();
+  });
+
+  it("says when a listed file wasn't changed", async () => {
+    render(waitingRun(), [{ path: "discovery/requirements.md", change: "unchanged", added: 0, removed: 0, diff: "" }]);
+    expect(await screen.findByText("No changes in this file.")).toBeTruthy();
   });
 
   it("says when nothing was changed before the gate", async () => {
-    render(runDetails({ status: "waiting", gateId: "review", shows: [], state: runState({ steps: { elicit: record() } }) }));
+    render(runDetails({ status: "waiting", gateId: "review", shows: [], state: runState({ steps: { elicit: record() } }) }), []);
     expect(await screen.findByText("No files were changed before this gate.")).toBeTruthy();
+  });
+
+  it("says when the changes can't be loaded", async () => {
+    const api = new FakeOrchestratorApi();
+    api.runsById["run-1"] = waitingRun();
+    renderPage(<RunPage />, { path: "/runs/:runId", at: "/runs/run-1", api });
+    expect(await screen.findByText('Couldn\'t load the changes: no gate "review" in run "run-1"')).toBeTruthy();
+  });
+
+  it("fetches the changes again when the gate waits after a reject", async () => {
+    const api = render();
+    await screen.findByLabelText("diff of discovery/requirements.md");
+    api.changes["run-1/review"] = [{ path: "discovery/requirements.md", change: "modified", added: 1, removed: 0, diff: "@@ -3 +3,2 @@\n R2 Members can cancel.\n+R3 Members can swap.\n" }];
+
+    act(() => {
+      api.emit("run-1", 5, { type: "step-started", stepId: "elicit", attempt: 2 });
+      api.emit("run-1", 6, { type: "step-finished", stepId: "elicit", record: record({ cursorRunIds: ["a1", "a2"] }) });
+      api.emit("run-1", 7, { type: "gate-waiting", gateId: "review", shows: ["discovery/requirements.md"] });
+      api.emit("run-1", 8, { type: "run-settled", outcome: waitingRun().outcome as RunOutcome });
+    });
+
+    expect(await screen.findByText("R3 Members can swap.")).toBeTruthy();
   });
 
   it("opens a gate's file in the editor", async () => {
@@ -71,6 +141,7 @@ describe("RunPage at a gate", () => {
   it("says when a gate's file doesn't exist", async () => {
     const api = new FakeOrchestratorApi();
     api.runsById["run-1"] = waitingRun();
+    api.changes["run-1/review"] = [{ path: "discovery/requirements.md", change: "created", added: 0, removed: 0, diff: null, reason: "no git" }];
     renderPage(<RunPage />, { path: "/runs/:runId", at: "/runs/run-1", api });
     expect(await screen.findByText("File not found.")).toBeTruthy();
   });

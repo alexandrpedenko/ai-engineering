@@ -12,7 +12,7 @@ afterAll(async () => await server.cleanup());
 describe("GET /api/project", () => {
   it("returns the registry", async () => {
     expect(await (await server.app.request("/api/project")).json()).toMatchObject({
-      skills: [{ name: "architecture-review" }, { name: "requirements-elicitation" }],
+      skills: [{ name: "architecture-review" }, { name: "implement-requirement" }, { name: "requirements-elicitation" }],
       warnings: [],
     });
   });

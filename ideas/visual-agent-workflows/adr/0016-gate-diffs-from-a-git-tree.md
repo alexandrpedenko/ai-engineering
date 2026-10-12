@@ -1,6 +1,6 @@
 # ADR-0016 — A gate's diffs are taken against a git tree recorded before the step
 
-**Status:** Proposed (2026-10-11). Refines ADR-0007 (what is kept before a step).
+**Status:** Accepted (2026-10-12). Refines ADR-0007 (what is kept before a step).
 
 ## Context
 

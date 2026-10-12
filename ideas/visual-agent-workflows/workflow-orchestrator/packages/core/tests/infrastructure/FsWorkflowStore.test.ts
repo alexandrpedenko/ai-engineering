@@ -61,7 +61,7 @@ describe("FsWorkflowStore", () => {
 
     const entries = await new FsWorkflowStore(configFor(root)).list();
 
-    expect(entries.map((e) => e.id)).toEqual(["ba-discovery", "broken"]);
+    expect(entries.map((e) => e.id)).toEqual(["ba-discovery", "broken", "implement-requirement"]);
     expect(entries[0]?.workflow?.name).toBe("BA discovery");
     expect(entries[1]).toMatchObject({ workflow: null, error: expect.stringMatching(/not valid JSON/) });
   });

@@ -14,7 +14,7 @@ depends_on: [project-registry, workflows, engine, agent-steps, runs-and-events]
 used_by: [http-api, cli]
 adrs: [1, 4, 8, 10, 13]
 specs: [3-cursor-runtime, 4-server, 5.6-claude-runtime, 5.7-local-settings, 5.8-artefacts-anywhere]
-updated: 2026-10-11
+updated: 2026-10-12
 ---
 
 # Composition, config and data on disk
@@ -88,7 +88,9 @@ routes and the web's types may use); `core/src/infrastructure/index.ts` is
 | `workflow-orchestrator/.env` | this machine (gitignored) | read: API keys |
 | `.data/checkpoints.sqlite` | orchestrator | LangGraph state of every run |
 | `.data/runs/<runId>/run.json` | orchestrator | the workflow and inputs the run started with |
-| `.data/runs/<runId>/refs/<step>-<attempt>.json` | orchestrator | agent run id + before-snapshot |
+| `.data/runs/<runId>/refs/<step>-<attempt>.json` | orchestrator | agent run id + before-snapshot + base tree id |
+| `.data/tmp/index-*` | orchestrator | temporary git index files while a tree is recorded or diffed; removed afterwards |
+| `<project's repository>/.git/objects` | git | the trees and file contents recorded before each step (no refs; `git gc` removes them in time) |
 | `.data/runs/<runId>/events.jsonl` | orchestrator | every event, for replay |
 | `.data/sample-project/` | orchestrator | the copy `npm run dev:sample` works on (`scripts/prepare-sample.mjs`) |
 

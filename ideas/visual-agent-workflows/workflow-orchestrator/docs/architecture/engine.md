@@ -8,10 +8,10 @@ code:
   - packages/core/src/infrastructure/LangGraphRunEngine.ts
   - packages/core/src/domain/gateFiles.ts
 depends_on: [workflows, agent-steps]
-used_by: [runs-and-events, cli, composition]
+used_by: [runs-and-events, cli, composition, gate-changes]
 adrs: [3, 6, 14]
 specs: [2-schema-compile, 3-cursor-runtime, 5.5-retry, 5.8-artefacts-anywhere]
-updated: 2026-10-11
+updated: 2026-10-12
 ---
 
 # Run engine
@@ -53,7 +53,9 @@ LangGraph-specific is saved in workflow files. The run id is LangGraph's
   interrupt, because the node re-runs from its first line on resume). Edge
   after it: approve → next step; reject → `onReject` with the feedback
   appended for that step and `revisions + 1`; reject when `revisions` already
-  equals `maxRevisions` → end with `stoppedAt = gate`.
+  equals `maxRevisions` → end with `stoppedAt = gate`. What a waiting gate
+  shows the reviewer, with diffs, is [gate-changes](gate-changes.md)
+  (`gateFileChanges`, `diffBaseFor`, next to `gateFiles`).
 - **Outcome** is read from LangGraph's state, in this order: a pending
   interrupt → `waiting`; a pending node with no interrupt (the process stopped
   inside it) → `interrupted`; a failed step → `failed`; `stoppedAt` →

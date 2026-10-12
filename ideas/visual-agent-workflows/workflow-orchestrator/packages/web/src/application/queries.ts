@@ -35,6 +35,19 @@ export function useRun(runId: string) {
   return useQuery({ queryKey: queryKeys.run(runId), queryFn: async () => await api.run(runId), retry: false });
 }
 
+// What the steps before a gate changed, while `gateId` is set. Not cached
+// for long: a new attempt changes the files again.
+export function useGateChanges(runId: string, gateId: string | undefined) {
+  const api = useOrchestratorApi();
+  return useQuery({
+    queryKey: queryKeys.gateChanges(runId, gateId ?? ""),
+    queryFn: async () => await api.gateChanges(runId, gateId ?? ""),
+    enabled: gateId !== undefined,
+    retry: false,
+    staleTime: 0,
+  });
+}
+
 // One project file, for editing. Not refetched while the editor is open: a
 // newer version on disk is found when saving.
 export function useFile(path: string) {

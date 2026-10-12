@@ -23,6 +23,14 @@ describe("/api/workflows", () => {
         skills: ["requirements-elicitation", "architecture-review"],
         problems: [],
       },
+      {
+        id: "implement-requirement",
+        name: "Implement a requirement",
+        phase: "delivery",
+        agents: ["developer"],
+        skills: ["implement-requirement"],
+        problems: [],
+      },
     ]);
   });
 

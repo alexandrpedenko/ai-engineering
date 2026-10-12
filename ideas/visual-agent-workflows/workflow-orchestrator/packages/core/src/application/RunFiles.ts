@@ -9,6 +9,7 @@ export type RunRef = {
   attempt: number;
   cursorRunId: string;
   before: Snapshot; // the files before the attempt started
+  baseTree: string | null; // the git tree before the attempt started (ProjectFiles.recordTree)
   startedAt: string; // ISO time
 };
 
