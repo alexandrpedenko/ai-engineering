@@ -9,6 +9,49 @@ table. This file starts where that ends. It replaces the "After the MVP"
 paragraph in spec.md's Slices section (see spec.md, Amendments,
 "roadmap moves to roadmap.md").
 
+## Critical: fix first
+
+0. **Cursor local runs fail with `[internal] unable to open database
+   file`.** Seen on Windows: a long BA step wrote its files, then the Cursor
+   run ended `ERROR` and the step failed, so the gate never opened. It
+   recurs, so a Cursor workflow can't move past a long step.
+   - **Which database.** Not `checkpoints.sqlite` (that would throw in the
+     server, not come back as the agent's result) and not the host project's
+     own knowledge-base SQLite.
+     It is the Cursor SDK's own local-agent store, opened with `node:sqlite`
+     inside the orchestrator process: `index.db` at
+     `~/.cursor/projects/<cwd with every non-alphanumeric run turned into
+     "-">/sdk-agent-store/<sha256(cwd)>/`, plus one
+     `agents/agent-<sha256(agentId)>/store.db` per agent, opened lazily.
+     It is not under `%APPDATA%` / `%LOCALAPPDATA%\Cursor`, and not under the
+     project.
+   - **Likely cause: Windows' 260-character path limit.** The per-agent
+     `store.db` path carries 186 fixed characters (two 64-character hashes,
+     plus `-journal` / `-wal` sidecars on top) plus the home folder plus the
+     whole project path again as the slug. A project under
+     `C:\Users\<name>\Documents\projects\...\my-host-project` lands at
+     about 260. Node creates the folders fine (it handles long paths), but
+     SQLite's Windows file open does not, unless `LongPathsEnabled` is on, and
+     that returns exactly `SQLITE_CANTOPEN`. `index.db` is two levels
+     shallower, which is why runs start fine. macOS allows 1024-character
+     paths, so the bug doesn't show there.
+   - **Confirm on the Windows machine:** compute the per-agent path length
+     for the real `cwd`, check `reg query
+     HKLM\SYSTEM\CurrentControlSet\Control\FileSystem /v LongPathsEnabled`,
+     and look for an `agents\agent-…` folder with no `store.db` in it.
+   - **Fix:** pass `local.store` to `Agent.create`, a `SqliteLocalAgentStore`
+     opened once with a short `stateRoot` (e.g. under the orchestrator's
+     `.data/`), and use the same store in `find()` / `getRun`. Turning on
+     `LongPathsEnabled` is a workaround only.
+   - **Also:** write the full `RunResult` error (code, message, stack) to
+     `server.log`, not only the step summary. Then decide whether a step whose
+     required writes exist but whose run ended `ERROR` waits at its gate or
+     fails (`runAgentStep.ts`, today it fails).
+   - **Unlikely, given the store's real location:** OneDrive or antivirus
+     under `Documents` (the store is under `.cursor`), a vanished relative
+     path, two servers on one store (that would be `SQLITE_BUSY`), and a
+     `tsx watch` restart (that kills the run outright).
+
 ## Next, roughly in order
 
 1. **Workflows shared through git.** One BA or designer commits a workflow;
